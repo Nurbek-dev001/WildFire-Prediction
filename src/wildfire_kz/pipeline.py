@@ -720,6 +720,38 @@ class PipelineRunner:
             cfg.evaluation.shap_rows,
             cfg.seed,
         )
+        # Refit each primary spatial fold with its own nested-selected parameters.
+        # These development examples come from geographically held-out regions.
+        grid = gpd.read_parquet(self.path("grid") / "grid.parquet")
+        cells = grid.drop(columns="geometry").assign(cell_wkt=grid.geometry.to_wkt())
+        store = FeatureStore(
+            self.path("features") / "table",
+            cfg,
+            list(range(cfg.splits.start_year, cfg.splits.development_end + 1)),
+        )
+        history = json.loads((self.path("train") / "tuning.json").read_text())
+        comparisons = []
+        features = models[selected].features
+        for fold, ti, vi in spatial_folds(
+            cells, cfg.splits.block_m, cfg.splits.spatial_folds, cfg.splits.buffer_m
+        ):
+            record = history[f"{fold}/{selected}"]
+            params = (
+                record["selected"]
+                if isinstance(record, dict)
+                else max(record, key=lambda x: x["weighted_ap"])["params"]
+            )
+            train_view = store.view(store.years, set(cells.iloc[ti].cell_id))
+            valid_view = store.view(store.years, set(cells.iloc[vi].cell_id))
+            fold_model = fit_model(
+                selected, train_view.sample(training=True), features, cfg, params, sampled=True
+            )
+            valid = valid_view.sample(training=False)
+            explain_model(
+                fold_model, valid, 0.5, out / fold, cfg.evaluation.shap_rows, cfg.seed, render=False
+            )
+            comparisons.append(pd.read_csv(out / fold / "grouped.csv").assign(heldout_fold=fold))
+        pd.concat(comparisons, ignore_index=True).to_csv(out / "heldout_regions.csv", index=False)
         dump_json(
             out / "interpretation.json",
             {
