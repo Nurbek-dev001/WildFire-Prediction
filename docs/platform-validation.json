@@ -1,0 +1,38 @@
+{
+  "actual_grid_cells": 110129,
+  "unique_cell_ids": true,
+  "history_years": [
+    2015,
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021,
+    2022
+  ],
+  "history_nominal_high_totals": [
+    144357,
+    78787,
+    239777,
+    104555,
+    168965,
+    119582,
+    112458,
+    78106
+  ],
+  "matches_registered_sources": true,
+  "sealed_detection_partitions_opened": false,
+  "real_forecast_available": false,
+  "synthetic_model_registration_rejected": true,
+  "source_bytes": 3867272,
+  "browser_date_changes_verified": true,
+  "browser_cell_details_verified": true,
+  "browser_region_search_verified": true,
+  "browser_real_model_unavailable_verified": true,
+  "browser_2015_total": 144357,
+  "browser_2022_total": 78106,
+  "browser_csv_export_rows": 17099,
+  "mobile_390px_no_horizontal_overflow": true,
+  "browser_console_errors": []
+}

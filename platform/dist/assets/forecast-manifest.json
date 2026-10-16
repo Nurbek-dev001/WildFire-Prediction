@@ -1,0 +1,14 @@
+{
+  "ready": false,
+  "available_days": [],
+  "synthetic": false,
+  "missing_sources": [
+    "weather",
+    "vegetation",
+    "landcover",
+    "static",
+    "human"
+  ],
+  "holdout_sealed": true,
+  "message": "Реальная модель ещё не обучена. Доступен демонстрационный сценарий."
+}
