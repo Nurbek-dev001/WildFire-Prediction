@@ -34,5 +34,11 @@
   "browser_2022_total": 78106,
   "browser_csv_export_rows": 17099,
   "mobile_390px_no_horizontal_overflow": true,
-  "browser_console_errors": []
+  "browser_console_errors": [],
+  "browser_map_pointer_selection_verified": true,
+  "browser_threshold_filter_verified": true,
+  "browser_responsive_layouts": [
+    "1366x900",
+    "390x844"
+  ]
 }
