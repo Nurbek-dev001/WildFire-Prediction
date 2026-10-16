@@ -1,0 +1,36 @@
+seed: 42
+output_dir: ../runs/primary
+data:
+  synthetic: false
+  weather_mode: era5_land_cumulative
+  historical_roads: false
+  publication_lag_days: 2
+  vegetation_fill_days: 32
+  weather_lag_days: 1
+  sources: {}
+# Register sources according to docs/data_contracts.md. No implicit downloads.
+grid:
+  crs: '+proj=laea +lat_0=48 +lon_0=67 +datum=WGS84 +units=m +no_defs'
+  resolution_m: 5000
+events:
+  radius_m: 2000
+  window_hours: 48
+  exclusion_hours: 48
+sampling:
+  mode: probability
+  negative_ratio: 10
+  minimum_negatives: 20
+splits:
+  start_year: 2015
+  development_end: 2021
+  validation_years: [2019, 2020, 2021]
+  calibration_year: 2022
+  test_years: [2023, 2024]
+  spatial_folds: 5
+  block_m: 100000
+  buffer_m: 25000
+models:
+  names: [logistic, random_forest, xgboost, catboost]
+  trials: 50
+evaluation:
+  bootstrap_resamples: 1000
