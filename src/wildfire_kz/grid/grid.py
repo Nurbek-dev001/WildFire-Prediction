@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 from pathlib import Path
+from typing import Any
 
 import geopandas as gpd
 import numpy as np
@@ -78,6 +79,30 @@ def load_boundary(cfg: Config, buffer_km: float = 0.0) -> gpd.GeoDataFrame:
     return gpd.GeoDataFrame(geometry=[geom], crs=cfg.crs.proj4)
 
 
+def _inside_fraction(
+    domain: Any, ixs: np.ndarray, iys: np.ndarray, cells: np.ndarray, s: float, tile: int = 20
+) -> np.ndarray:
+    """Fraction of each cell inside the domain.
+
+    Interior cells are 1 without any overlay. Edge cells are intersected with the domain
+    clipped to their ``tile x tile``-cell block, so a detailed national boundary costs
+    one clip per block instead of a full-boundary overlay per cell.
+    """
+    frac = np.ones(len(cells))
+    edge = ~shapely.contains_properly(domain, cells)
+    if not edge.any():
+        return frac
+    tx, ty = np.floor_divide(ixs, tile), np.floor_divide(iys, tile)
+    keys = pd.DataFrame({"tx": tx, "ty": ty})[edge]
+    for (bx, by), idx in keys.groupby(["tx", "ty"]).groups.items():
+        piece = shapely.clip_by_rect(
+            domain, bx * tile * s, by * tile * s, (bx + 1) * tile * s, (by + 1) * tile * s
+        )
+        ii = np.asarray(idx)
+        frac[ii] = shapely.area(shapely.intersection(cells[ii], piece)) / (s * s)
+    return frac
+
+
 def build_grid(cfg: Config, spec: GridSpec, variant: str) -> tuple[gpd.GeoDataFrame, GridMeta]:
     """Construct the grid for one spec (primary 5 km national or 1 km regional sensitivity)."""
     boundary = load_boundary(cfg)
@@ -97,8 +122,7 @@ def build_grid(cfg: Config, spec: GridSpec, variant: str) -> tuple[gpd.GeoDataFr
     shapely.prepare(domain)
     candidate = shapely.intersects(domain, cells)
     ixs, iys, cells = ixs[candidate], iys[candidate], cells[candidate]
-    inside_area = shapely.area(shapely.intersection(cells, domain))
-    frac = inside_area / (s * s)
+    frac = _inside_fraction(domain, ixs, iys, cells, s)
     keep = frac >= cfg.grid.min_inside_fraction
     ixs, iys, cells, frac = ixs[keep], iys[keep], cells[keep], frac[keep]
     xmin, ymax = ix0 * s, iy1 * s

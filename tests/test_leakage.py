@@ -154,3 +154,16 @@ def test_era5_hourly_precip_convention() -> None:
     got = daily_precip_from_hourly(tp).to_series()
     assert got[pd.Timestamp("2024-07-01")] == pytest.approx(2.0)
     assert got[pd.Timestamp("2024-07-02")] == pytest.approx(1.5)
+
+
+def test_window_sum_matches_rolling_with_full_window() -> None:
+    from wildfire_kz.features.era5 import _window_sum
+
+    rng = np.random.default_rng(0)
+    a = rng.random((60, 7)).astype(np.float32)
+    a[rng.random(a.shape) < 0.05] = np.nan
+    pos = np.array([0, 3, 10, 29, 59, -1, 45])
+    for w in (1, 7, 30):
+        ref = pd.DataFrame(a).rolling(w, min_periods=w).sum().to_numpy()
+        exp = np.where((pos >= 0)[:, None], ref[np.clip(pos, 0, None)], np.nan)
+        np.testing.assert_allclose(_window_sum(a, pos, w), exp, atol=1e-5)

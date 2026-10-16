@@ -17,7 +17,7 @@ wildfire-kz run -c configs/real_open.yaml
 | Vegetation | **NOAA CDR VIIRS NDVI** v001, daily 0.05°, turned into 16-day maximum-value composites on the MOD13 calendar | `s3://noaa-cdr-ndvi-pds` | 2024-01 → 2026-09 | MOD13A2 v061 (NDVI and EVI) |
 | Land cover | **ESA WorldCover v200 2021**, 10 m, mode-resampled to ~460 m | `s3://esa-worldcover` | 2021 map | MCD12Q1 preceding-year maps |
 | Terrain | **Copernicus DEM GLO-90** | `s3://copernicus-dem-90m` | static | SRTM |
-| Population | **Meta HRSL** general population, aggregated to 30″ with counts preserved | `s3://dataforgood-fb-data/hrsl-cogs` | ~2020 | WorldPop |
+| Population | **Meta HRSL** general population, summed exactly to 30″ (KZ total 18.76 M) | `s3://dataforgood-fb-data/hrsl-cogs` | ~2020 | WorldPop |
 | Settlements | built-up pixels (class 50) of WorldCover 2021, 2×2-pixel clusters | derived | 2021 snapshot | gazetteer snapshots |
 | Roads | **not used**: no historical road snapshot is available credential-free; present-day roads are never substituted (methodology rule) and the variable is flagged | – | – | historical OSM |
 | Boundary, regions | **Overture Maps** divisions (KZ land boundary + oblasts) | `s3://overturemaps-us-west-2` | 2026-09 release | geoBoundaries |
@@ -34,7 +34,12 @@ wildfire-kz run -c configs/real_open.yaml
 * **ERA5.** Each hourly global chunk is fetched and cropped to 40.5–55.5°N, 46.4–87.4°E.
   Temperature, dewpoint and wind are 3-hourly (8 steps per day); precipitation is hourly and
   summed per UTC day with the ERA5 *hourly* accumulation convention
-  (`precip_convention: hourly`); soil water uses the 12 UTC value.
+  (`precip_convention: hourly`); soil water uses the 12 UTC value. The current month is only
+  partly published (ERA5T lags ~1 week): it is written as `era5_arco_YYYY_MM_partial.nc` with
+  unpublished hours left missing, and replaced once the month is complete.
+* **Population.** HRSL is missing (NaN) where no buildings were detected, so averaging
+  overviews would inflate sparse areas. The ten 10° tiles over Kazakhstan are downloaded whole
+  and summed at full resolution onto the 30″ grid.
 * **NDVI.** Only the two HDF5 chunks that cover Kazakhstan are read per daily file (HTTP
   range requests). Daily NDVI in [−0.3, 1] is maximum-composited over each 16-day MOD13
   interval. The CDR is published about three weeks after acquisition, so the composite

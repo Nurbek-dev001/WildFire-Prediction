@@ -174,6 +174,26 @@ def fosberg_ffwi(t_c: np.ndarray, rh: np.ndarray, wind_ms: np.ndarray) -> np.nda
     return np.asarray(eta * np.sqrt(1 + u**2) / 0.3002)
 
 
+def _window_sum(a: np.ndarray, pos: np.ndarray, w: int) -> np.ndarray:
+    """Sum of ``a[d-w+1 .. d]`` along axis 0 for every ``d`` in ``pos``.
+
+    NaN when the window starts before the series, ``d`` is unknown (-1) or any day in the
+    window is missing (equivalent to ``rolling(w, min_periods=w).sum()``).
+    """
+    filled = np.nan_to_num(a.astype(np.float64), nan=0.0)
+    csum = np.vstack([np.zeros((1, a.shape[1])), np.cumsum(filled, axis=0)])
+    cnan = np.vstack(
+        [np.zeros((1, a.shape[1]), dtype=np.int32), np.cumsum(np.isnan(a), axis=0, dtype=np.int32)]
+    )
+    lo = pos - w + 1
+    ok = (pos >= 0) & (lo >= 0)
+    hi_i, lo_i = np.where(ok, pos + 1, 0), np.where(ok, lo, 0)
+    out = (csum[hi_i] - csum[lo_i]).astype(np.float32)
+    out[(cnan[hi_i] - cnan[lo_i]) > 0] = np.nan
+    out[~ok] = np.nan
+    return out
+
+
 def weather_feature_cube(
     cfg: Config, files: list[Path], year: int, lon: np.ndarray, lat: np.ndarray
 ) -> xr.Dataset:
@@ -191,12 +211,19 @@ def weather_feature_cube(
         src.precip_convention,
         src.instantaneous_steps_per_day,
     )
-    cells = to_cells(daily, lon, lat, cfg.sources.era5_land.interpolation).load()
     dtype = cfg.features.float_dtype
     targets = pd.date_range(t_first, t_last, freq="D")
+    obs_days = pd.DatetimeIndex(daily["date"].values)
+    # observation day t-1 for every target t (position in the daily series)
+    pos = obs_days.get_indexer(targets - pd.Timedelta(days=1))
+    method = cfg.sources.era5_land.interpolation
+    # one variable at a time in float32: a national 5 km grid has ~1e5 cells, so a full
+    # float64 dataset of every variable would not fit in workstation memory
+    cells: dict[str, np.ndarray] = {}
+    for v in daily.data_vars:
+        da = to_cells(daily[[v]], lon, lat, method)[v].transpose("date", "cell")
+        cells[str(v)] = np.asarray(da.values, dtype=np.float32)
     out: dict[str, tuple[tuple[str, str], np.ndarray]] = {}
-    # prior-day values: target t takes observation day t-1
-    prior = cells.sel(date=targets - pd.Timedelta(days=1))
     for v in (
         "t2m_max_c",
         "t2m_min_c",
@@ -209,31 +236,19 @@ def weather_feature_cube(
         "precip_mm",
         "swvl1",
     ):
-        out[v] = (("date", "cell"), prior[v].transpose("date", "cell").values.astype(dtype))
-    # antecedent windows ending at t-1 (min_periods = full window)
+        out[v] = (("date", "cell"), cells[v][pos])
+    # antecedent windows ending at t-1 (all w days must be present)
     for w in wcfg.antecedent_windows_days:
-        roll = cells.rolling(date=w, min_periods=w)
-        summ = {
-            "precip_sum": roll.sum()["precip_mm"],
-            "t2m_max_mean": roll.mean()["t2m_max_c"],
-            "rh_mean": roll.mean()["rh_mean_pct"],
-        }
-        sel = {k: v.sel(date=targets - pd.Timedelta(days=1)) for k, v in summ.items()}
-        out[f"precip_sum_{w}d_mm"] = (
-            ("date", "cell"),
-            sel["precip_sum"].transpose("date", "cell").values,
-        )
+        out[f"precip_sum_{w}d_mm"] = (("date", "cell"), _window_sum(cells["precip_mm"], pos, w))
         out[f"t2m_max_mean_{w}d_c"] = (
             ("date", "cell"),
-            sel["t2m_max_mean"].transpose("date", "cell").values,
+            _window_sum(cells["t2m_max_c"], pos, w) / w,
         )
-        out[f"rh_mean_{w}d_pct"] = (
-            ("date", "cell"),
-            sel["rh_mean"].transpose("date", "cell").values,
-        )
-    dry = (cells["precip_mm"] < wcfg.rain_day_threshold_mm).where(cells["precip_mm"].notnull())
-    dry_n = dry.rolling(date=wmax, min_periods=wmax).sum().sel(date=targets - pd.Timedelta(days=1))
-    out[f"dry_days_{wmax}d"] = (("date", "cell"), dry_n.transpose("date", "cell").values)
+        out[f"rh_mean_{w}d_pct"] = (("date", "cell"), _window_sum(cells["rh_mean_pct"], pos, w) / w)
+    p = cells["precip_mm"]
+    dry = np.where(np.isnan(p), np.nan, (p < wcfg.rain_day_threshold_mm).astype(np.float32))
+    out[f"dry_days_{wmax}d"] = (("date", "cell"), _window_sum(dry, pos, wmax))
+    del cells
     if wcfg.include_fire_weather_index:
         out["ffwi_fosberg"] = (
             ("date", "cell"),

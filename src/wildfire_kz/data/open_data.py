@@ -148,6 +148,14 @@ def _arco_chunk(var: str, hour_index: int) -> np.ndarray:
     return np.frombuffer(arr, dtype="<f4").reshape(721, 1440)
 
 
+def era5_available_until() -> pd.Timestamp:
+    """Last hour published in ARCO-ERA5 (ERA5T included), from the store attributes."""
+    import json
+
+    attrs = json.loads(http_get(f"{ARCO}/.zattrs"))
+    return pd.Timestamp(attrs["valid_time_stop_era5t"]) + pd.Timedelta(hours=23)
+
+
 def fetch_era5_month(
     year: int,
     month: int,
@@ -169,10 +177,17 @@ def fetch_era5_month(
     start = pd.Timestamp(year, month, 1)
     end = start + pd.offsets.MonthBegin(1)
     hours = pd.date_range(start, end - pd.Timedelta(hours=1), freq="h")
+    # the current month is only partly published: unpublished hours stay NaN, and the file is
+    # named *_partial so a later run re-fetches it once the month is complete
+    last = era5_available_until()
+    if last < hours[-1]:
+        out = out_dir / f"era5_arco_{year}_{month:02d}_partial.nc"
+        if last < hours[0]:
+            raise RuntimeError(f"ERA5 for {year}-{month:02d} is not published yet (last: {last})")
     jobs = []
     for var, (_, hod) in ERA5_VARS.items():
         for t in hours:
-            if t.hour in hod:
+            if t.hour in hod and t <= last:
                 jobs.append((var, t))
 
     def get(job: tuple[str, pd.Timestamp]) -> tuple[str, pd.Timestamp, np.ndarray]:
@@ -201,6 +216,8 @@ def fetch_era5_month(
     tmp = out.with_suffix(".tmp.nc")
     ds.to_netcdf(tmp, encoding={k: {"zlib": True, "complevel": 4} for k in data})
     tmp.replace(out)
+    if not out.stem.endswith("_partial"):
+        (out_dir / f"{out.stem}_partial.nc").unlink(missing_ok=True)
     return out
 
 
@@ -537,42 +554,80 @@ def fetch_copdem(
     return [p for p in parallel(one, jobs, workers) if p is not None]
 
 
+def _hrsl_tiles(box: tuple[float, float, float, float]) -> list[str]:
+    """COG tiles listed in the HRSL VRT whose footprint intersects the box."""
+    vrt = http_get(HRSL_VRT).decode()
+    m_gt = re.search(r"<GeoTransform>([^<]+)</GeoTransform>", vrt)
+    if m_gt is None:
+        raise RuntimeError(f"no GeoTransform in {HRSL_VRT}")
+    gt = [float(v) for v in m_gt.group(1).split(",")]
+    w, s, e, n = box
+    out = []
+    for m in re.finditer(
+        r'<SourceFilename relativeToVRT="1">([^<]+)</SourceFilename>.*?'
+        r'<DstRect xOff="(\d+)" yOff="(\d+)" xSize="(\d+)" ySize="(\d+)"',
+        vrt,
+        re.S,
+    ):
+        x0, y0, xs, ys = (int(v) for v in m.groups()[1:])
+        tw, tn = gt[0] + x0 * gt[1], gt[3] + y0 * gt[5]
+        te, ts = tw + xs * gt[1], tn + ys * gt[5]
+        if tw < e and te > w and ts < n and tn > s:
+            out.append(HRSL_VRT.rsplit("/", 1)[0] + "/" + m.group(1))
+    return out
+
+
 def fetch_hrsl(
     out_dir: Path, box: tuple[float, float, float, float] = KZ_BBOX, res_deg: float = 1 / 120
 ) -> Path:
-    """Meta HRSL population counts aggregated to ~1 km (sum preserved)."""
+    """Meta HRSL population counts summed exactly onto a ~1 km grid.
+
+    HRSL is NaN where no buildings were detected, so the tiles are downloaded whole and
+    summed at full resolution (NaN = 0); averaging overviews would inflate sparse areas.
+    """
+    import rasterio
+    from rasterio.transform import from_origin
+    from rasterio.windows import Window
+
     from wildfire_kz.data.rasterio_utils import write_geotiff
 
     out = out_dir / "hrsl_2020.tif"
     if out.exists():
         return out
-    import rasterio
-    from rasterio.enums import Resampling
-    from rasterio.transform import from_origin
-    from rasterio.windows import from_bounds
-
     w, s, e, n = box
     W, H = round((e - w) / res_deg), round((n - s) / res_deg)
-    with rasterio.open(HRSL_VRT) as src:
-        win = from_bounds(*box, transform=src.transform)
-        native_px = abs(src.transform.a)
-        a = (
-            src.read(
-                1,
-                window=win,
-                out_shape=(H, W),
-                boundless=True,
-                fill_value=0,
-                resampling=Resampling.average,
-                masked=True,
-            )
-            .filled(0)
-            .astype(np.float32)
-        )
-    a = a * (res_deg / native_px) ** 2  # mean count per native pixel -> count per coarse pixel
+    total = np.zeros(H * W, dtype=np.float64)
+    tile_dir = out_dir / "tiles"
+    tile_dir.mkdir(parents=True, exist_ok=True)
+    for url in _hrsl_tiles(box):
+        path = tile_dir / url.rsplit("/", 1)[1]
+        if not path.exists():
+            tmp = path.with_suffix(".part")
+            tmp.write_bytes(http_get(url, timeout=600))
+            tmp.replace(path)
+        with rasterio.open(path) as src:
+            tr = src.transform
+            cols = tr.c + (np.arange(src.width) + 0.5) * tr.a
+            tcol = np.floor((cols - w) / res_deg).astype(np.int64)
+            cok = (tcol >= 0) & (tcol < W)
+            for r0 in range(0, src.height, 1024):
+                nr = min(1024, src.height - r0)
+                rows = tr.f + (np.arange(r0, r0 + nr) + 0.5) * tr.e
+                trow = np.floor((n - rows) / res_deg).astype(np.int64)
+                rok = (trow >= 0) & (trow < H)
+                if not rok.any():
+                    continue
+                a = src.read(1, window=Window(0, r0, src.width, nr))[rok][:, cok]
+                ok = np.isfinite(a) & (a > 0)
+                if not ok.any():
+                    continue
+                rr, cc = np.nonzero(ok)
+                idx = trow[rok][rr] * W + tcol[cok][cc]
+                total += np.bincount(idx, weights=a[rr, cc], minlength=H * W)
+        log.info("hrsl tile %s summed (running total %.0f persons)", path.name, total.sum())
     write_geotiff(
         out,
-        a,
+        total.reshape(H, W).astype(np.float32),
         from_origin(w, n, res_deg, res_deg),
         "EPSG:4326",
         nodata=-1.0,
