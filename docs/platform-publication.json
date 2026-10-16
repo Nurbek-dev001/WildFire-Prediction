@@ -1,0 +1,13 @@
+{
+  "project_id": "appgprj_6ad21a692aa88191a5dfa69a5464309d",
+  "version_id": "appgprj_6ad21a692aa88191a5dfa69a5464309d~appgver_d134e44df83481919e94e0d984bbb303",
+  "deployment_id": "appgdep_6ad26b54e7ac8191ad94644af4b436f1",
+  "status": "succeeded",
+  "url": "https://steppe-kazakhstan-fire-map.peppy-horse-5926.chatgpt.site",
+  "audience": "owner-private",
+  "source_commit": "c5454649d5c7f28db5a4f629a38744a53ca8e6eb",
+  "local_preview": "http://127.0.0.1:8770/",
+  "holdout_archives_included": false,
+  "real_forecast_available": false,
+  "browser_hosted_verification": "Sign-in requires permission to share name/email; local browser checks completed"
+}
