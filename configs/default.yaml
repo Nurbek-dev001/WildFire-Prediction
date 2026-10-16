@@ -1,0 +1,243 @@
+# Primary configuration for the REAL-DATA study (Kazakhstan, 2015–2024, 5 km grid).
+# Every methodological parameter is explicit here; values follow the research methodology.
+# Paths under `sources` are relative to project.raw_dir unless absolute.
+
+project:
+  name: wildfire_kz
+  seed: 20240917
+  raw_dir: data/raw
+  work_dir: data/work
+  run_label: primary
+  log_level: INFO
+
+crs:
+  name: Kazakhstan Albers Equal-Area Conic (WGS84)
+  proj4: "+proj=aea +lat_0=48 +lon_0=67 +lat_1=43 +lat_2=53 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs"
+  geographic: EPSG:4326
+
+study:
+  start: 2015-01-01
+  end: 2024-12-31
+  lookback_days: 60
+  timezone: UTC
+
+grid:
+  active: primary              # primary (5 km national) | sensitivity (1 km regional)
+  primary:
+    cell_size_m: 5000
+    region_bbox_lonlat: null
+  sensitivity:
+    cell_size_m: 1000
+    region_bbox_lonlat: [76.0, 49.5, 78.0, 50.5]
+  min_inside_fraction: 0.5
+
+sources:
+  boundary:
+    source_id: geoBoundaries-KAZ-ADM0
+    version: gbOpen
+    provider: geoBoundaries
+    url: https://www.geoboundaries.org/
+    path: boundary/kazakhstan_adm0.geojson
+    border_buffer_km: 10
+  firms:
+    source_id: FIRMS-VIIRS_SNPP_SP
+    version: "Collection 2 standard processing"
+    provider: NASA FIRMS
+    url: https://firms.modaps.eosdis.nasa.gov/download/
+    path: firms
+    glob: "*.csv"
+    expected_satellite: N
+    expected_instrument: VIIRS
+    keep_confidence: [n, h]
+    drop_confidence: [l]
+    vegetation_type_values: [0]
+    api_key_env: FIRMS_MAP_KEY
+    api_product: VIIRS_SNPP_SP
+    api_max_days_per_request: 5
+  era5_land:
+    source_id: C3S-ERA5-Land-hourly
+    version: reanalysis-era5-land
+    provider: Copernicus Climate Change Service (CDS)
+    url: https://cds.climate.copernicus.eu/datasets/reanalysis-era5-land
+    path: era5_land
+    glob: "*.nc"
+    accumulated_variables: [tp]
+    interpolation: linear
+  mod13a2:
+    source_id: MOD13A2.061
+    version: "061"
+    provider: NASA LP DAAC
+    url: https://www.earthdata.nasa.gov/data/catalog/lpcloud-mod13a2-061
+    path: mod13a2
+    filename_regex: 'MOD13A2_061_(?P<year>\d{4})(?P<doy>\d{3})\.tif$'
+    working_resolution_m: 1000
+    window_size_km: 400
+    ndvi_band: 1
+    evi_band: 2
+    qa_band: 3
+    scale_factor: 0.0001
+    fill_value: -3000
+    valid_qa_values: [0, 1]
+    composite_length_days: 16
+    publication_lag_days: 10
+    max_gap_fill_days: 32
+  mcd12q1:
+    source_id: MCD12Q1.061
+    version: "061"
+    provider: NASA LP DAAC
+    url: https://lpdaac.usgs.gov/products/mcd12q1v061/
+    path: mcd12q1
+    filename_regex: 'MCD12Q1_061_(?P<year>\d{4})\.tif$'
+    working_resolution_m: 500
+    window_size_km: 400
+    year_offset: -1
+    classes:
+      forest: [1, 2, 3, 4, 5]
+      shrubland: [6, 7]
+      grassland: [8, 9, 10]
+      cropland: [12, 14]
+      other: [0, 11, 13, 15, 16, 17, 255]
+    non_vegetated_classes: [13, 15, 16, 17]
+  srtm:
+    source_id: SRTMGL1.003
+    version: "003"
+    provider: NASA/USGS
+    url: https://lpdaac.usgs.gov/products/srtmgl1v003/
+    path: srtm
+    filename_regex: '.*\.tif$'
+    working_resolution_m: 30
+    window_size_km: 50
+    reference_date: 2000-02-22
+    nodata: -32768
+    flat_slope_threshold_deg: 0.5
+  worldpop:
+    source_id: WorldPop-ppp-unconstrained-KAZ
+    version: "global2"
+    provider: WorldPop
+    url: https://hub.worldpop.org/
+    path: worldpop
+    filename_regex: 'kaz_ppp_(?P<year>\d{4})\.tif$'
+    working_resolution_m: 100
+    window_size_km: 200
+    product: ppp_counts
+    year_offset: -1
+  settlements:
+    source_id: settlements-snapshots
+    required: false
+    snapshots: []            # e.g. [{snapshot_date: 2014-01-01, path: human/settlements_2014.gpkg}]
+  roads:
+    source_id: OSM-historical-roads
+    provider: OpenStreetMap contributors (historical full-history extracts)
+    required: false
+    snapshots: []            # MUST be historical snapshots; present-day roads are never substituted
+
+events:
+  dedupe_decimals: 4
+  spatial_link_km: 2.0
+  temporal_link_h: 48.0
+  linking_window_days: 30
+  sensitivity:
+    spatial_km: [1, 2, 3, 4, 5]
+    temporal_h: [24, 48, 72]
+  industrial_mask:
+    screening_resolution_m: 1000
+    min_detection_days: 20
+    min_years: 3
+    min_non_vegetated_fraction: 0.5
+    use_static_type_flag: true
+  tie_break: [acq_datetime, confidence_rank, -frp, cell_id]
+
+risk_set:
+  exclusion_hours: 48
+
+sampling:
+  negatives_per_positive: 10
+  min_negatives_per_stratum: 50
+  strata: [year, month, lc_group]
+  # Complete evaluation of ~40M cell-days/year is infeasible on a 32 GB workstation, so the
+  # evaluation design is a stratified probability sample with inverse-inclusion weights.
+  eval_negative_fraction: 0.1
+  training_weighting: inverse_inclusion
+
+features:
+  weather:
+    antecedent_windows_days: [7, 14]
+    rain_day_threshold_mm: 1.0
+    include_fire_weather_index: false
+  human:
+    use_roads: true
+    use_settlements: true
+    use_population: true
+    allow_nonhistorical_roads_in_sensitivity: false
+  fire_history:
+    enabled: false
+    window_days: 365
+  include_calendar: true
+  float_dtype: float32
+
+splits:
+  development_years: [2015, 2016, 2017, 2018, 2019, 2020, 2021]
+  rolling_origin:
+    - {train_years: [2015, 2016, 2017, 2018], val_year: 2019}
+    - {train_years: [2015, 2016, 2017, 2018, 2019], val_year: 2020}
+    - {train_years: [2015, 2016, 2017, 2018, 2019, 2020], val_year: 2021}
+  calibration_years: [2022]
+  test_years: [2023, 2024]
+  spatial_cv:
+    n_folds: 5
+    block_size_km: 100
+    sensitivity_block_sizes_km: [50, 150]
+    buffer_km: 25
+    inner_validation: last_dev_year
+
+models:
+  classifiers: [logistic, random_forest, xgboost, catboost]
+  baselines: [seasonal_landcover, weather_logistic]
+  n_trials_ensemble: 50
+  n_trials_logistic: 20
+  n_trials_spatial_cv: 50
+  early_stopping_rounds: 50
+  objective: weighted_average_precision
+  logistic_max_iter: 2000
+  seasonal_smoothing_alpha: 50
+  feature_screening_max_missing: 0.99
+  n_jobs: -1
+  run_spatial_cv: true
+  run_class_weight_sensitivity: true
+
+calibration:
+  method: sigmoid
+  threshold_metric: weighted_f1
+  score_clip: 1.0e-6
+
+ablation:
+  models: [logistic, random_forest, xgboost, catboost]
+  retune: false
+  include_correlated_groups: true
+
+evaluation:
+  reliability_bins: 10
+  capture_fractions: [0.05, 0.10, 0.20]
+  capture_modes: [pooled, daily]
+  bootstrap:
+    n_resamples: 1000
+    spatial_block_km: 100
+    temporal_block_days: 7
+    ci_level: 0.95
+  strata: [year, month, region, lc_group]
+  min_positives_for_stratum: 5
+  wilson_z: 1.96
+
+explain:
+  partitions: [calibration, test]
+  max_rows: 20000
+  n_dependence_plots: 8
+  n_local_examples: 5
+
+mapping:
+  years: [2022, 2023, 2024]
+  max_days: null
+  class_quantiles: [0.50, 0.80, 0.95, 0.99]
+  class_labels: [very low, low, moderate, high, very high]
+  nodata: -9999.0
+  class_nodata: 255
