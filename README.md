@@ -64,6 +64,11 @@ open data/work/synthetic/primary/report/REPORT.md
 
 `make smoke` runs the faster CI configuration (`configs/test_smoke.yaml`).
 
+Runtime guide (measured on a 4-CPU, 16 GB container): the full synthetic demo took about
+1 h 40 min, mostly Optuna tuning and the 15-fold spatial-CV experiment; the smoke
+configuration takes ~2–3 min. Reduce `models.n_trials_*` or
+`splits.spatial_cv.sensitivity_block_sizes_km` for quicker iterations.
+
 ## Running on real data
 
 1. Obtain the sources and place them under `data/raw/` as described in
