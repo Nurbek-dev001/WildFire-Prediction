@@ -1,0 +1,163 @@
+# REAL-DATA run on open, credential-free public sources (see docs/open_data.md).
+# Acquire inputs with:  wildfire-kz fetch-open all -c configs/real_open.yaml
+# Every deviation from configs/default.yaml is commented with its reason.
+extends: default.yaml
+
+project:
+  raw_dir: data/real_raw
+  run_label: real_open
+
+study:
+  # NOAA EFIRE (Suomi-NPP VIIRS I-band) fire labels are public from 2024-02 only;
+  # one month of labels before the start lets the 48 h exclusion and event linking warm up.
+  start: 2024-03-01
+  end: 2026-09-30
+  lookback_days: 45
+
+grid:
+  primary:
+    cell_size_m: 5000
+
+splits:
+  # Too few whole years of labels for year-based splits -> chronological date periods.
+  periods:
+    development: {start: 2024-03-01, end: 2025-06-30}
+    rolling_origin:
+      - train: {start: 2024-03-01, end: 2024-07-31}
+        val: {start: 2024-08-01, end: 2024-12-31}
+      - train: {start: 2024-03-01, end: 2024-12-31}
+        val: {start: 2025-01-01, end: 2025-06-30}
+    calibration: {start: 2025-07-01, end: 2025-12-31}
+    test: {start: 2026-01-01, end: 2026-09-30}
+  spatial_cv:
+    n_folds: 5
+    block_size_km: 100
+    sensitivity_block_sizes_km: []      # compute budget (4 CPUs); 50/150 km can be re-enabled
+    buffer_km: 25
+
+sources:
+  boundary:
+    source_id: Overture-Maps-divisions-KZ-land
+    version: "2026-09-23.1"
+    provider: Overture Maps Foundation (s3://overturemaps-us-west-2)
+    path: boundary/kazakhstan_adm0.geojson
+    border_buffer_km: 10
+  regions:
+    source_id: Overture-Maps-divisions-KZ-regions
+    version: "2026-09-23.1"
+    required: false
+    snapshots:
+      - {snapshot_date: 2026-09-23, path: boundary/kazakhstan_adm1.geojson}
+  firms:
+    # Same sensor and resolution as FIRMS VIIRS_SNPP (I-band 375 m), processed by NOAA's
+    # Enterprise Active Fire algorithm. Fire-mask classes 7/8/9 -> l/n/h; persistent
+    # anomalies flagged by the algorithm -> type 2 (static source).
+    source_id: NOAA-EFIRE-VIIRSI-EDR-SNPP
+    version: v1r3
+    provider: NOAA NESDIS (s3://noaa-nesdis-snpp-pds/VIIRS_EFIRE_VIIRSI_EDR)
+    path: firms
+    glob: "*.csv"
+  era5_land:
+    # ERA5 single levels (0.25 deg) from ARCO-ERA5; ERA5-Land is not available credential-free.
+    source_id: ERA5-hourly-ARCO
+    version: full_37-1h-0p25deg-chunk-1.zarr-v3
+    provider: ECMWF / Google (gs://gcp-public-data-arco-era5)
+    path: era5
+    glob: "era5_arco_*.nc"
+    precip_convention: hourly
+    instantaneous_steps_per_day: 8      # 3-hourly T, Td, wind (keeps the download feasible)
+  mod13a2:
+    # NOAA CDR VIIRS daily NDVI (0.05 deg) -> 16-day maximum-value composites on the MOD13
+    # calendar. EVI is not provided by the CDR (screened out as an empty feature).
+    source_id: NOAA-CDR-VIIRS-NDVI-v001
+    version: v001 (16-day MVC built by wildfire_kz)
+    provider: NOAA NCEI (s3://noaa-cdr-ndvi-pds)
+    path: ndvi
+    filename_regex: 'VIIRS_NDVI_CDR_(?P<year>\d{4})(?P<doy>\d{3})\.tif$'
+    working_resolution_m: 1000
+    publication_lag_days: 25          # CDR daily files appear ~3 weeks after acquisition
+    valid_qa_values: [0]
+  mcd12q1:
+    # ESA WorldCover 2021 (single map; it precedes every target year)
+    source_id: ESA-WorldCover-v200-2021
+    version: v200
+    provider: ESA (s3://esa-worldcover)
+    path: landcover
+    filename_regex: 'WorldCover_v200_(?P<year>\d{4})\.tif$'
+    working_resolution_m: 500
+    classes:
+      forest: [10, 95]
+      shrubland: [20]
+      grassland: [30, 100]
+      cropland: [40]
+      other: [50, 60, 70, 80, 90]
+    non_vegetated_classes: [50, 60, 70, 80]
+  srtm:
+    source_id: Copernicus-DEM-GLO-90
+    version: "2021_1"
+    provider: ESA / Airbus (s3://copernicus-dem-90m)
+    path: copdem
+    filename_regex: 'Copernicus_DSM_COG_30_.*\.tif$'
+    working_resolution_m: 90
+    window_size_km: 100
+    reference_date: 2015-01-01
+  worldpop:
+    source_id: Meta-HRSL-general-population
+    version: hrsl_general-latest (aggregated to 30 arc-sec)
+    provider: Meta Data for Good / CIESIN (s3://dataforgood-fb-data)
+    path: population
+    filename_regex: 'hrsl_(?P<year>\d{4})\.tif$'
+    product: ppp_counts
+  settlements:
+    source_id: WorldCover-2021-built-up-clusters
+    required: false
+    snapshots:
+      - {snapshot_date: 2021-12-31, path: human/builtup_worldcover_2021.geojson}
+  roads:
+    # No historical road snapshots are reachable credential-free; present-day Overture/OSM
+    # roads are NOT substituted (methodology rule). Omitted and flagged.
+    source_id: none
+    required: false
+    snapshots: []
+
+events:
+  industrial_mask:
+    min_detection_days: 30
+    min_years: 1                      # development period spans ~1.3 years
+    min_non_vegetated_fraction: 0.5
+    use_static_type_flag: true
+
+sampling:
+  eval_negative_fraction: 0.05        # probability-sampled evaluation design (weights 1/q)
+
+models:
+  n_trials_ensemble: 15               # compute budget on 4 CPUs (methodology: 50)
+  n_trials_logistic: 10
+  n_trials_spatial_cv: 3
+  early_stopping_rounds: 30
+  n_jobs: 4
+  search_spaces:
+    random_forest:
+      max_depth: {low: 4, high: 16}
+      n_estimators: {low: 100, high: 300}
+    xgboost:
+      n_estimators: {low: 100, high: 1200}
+    catboost:
+      iterations: {low: 100, high: 1200}
+
+ablation:
+  models: [logistic, xgboost]         # compute budget (methodology: all four)
+
+evaluation:
+  bootstrap:
+    n_resamples: 1000
+
+explain:
+  max_rows: 8000
+
+mapping:
+  years: [2025, 2026]
+  max_days: 30
+
+platform:
+  title: Kazakhstan next-day wildfire occurrence hazard (open-data model)

@@ -47,7 +47,7 @@ def mapping_dates(cfg: Config) -> list[pd.Timestamp]:
 def run_map(cfg: Config, paths: RunPaths) -> dict[str, Any]:
     out = paths.stage("map")
     out.mkdir(parents=True, exist_ok=True)
-    if set(cfg.mapping.years) & set(cfg.splits.test_years):
+    if any(cfg.splits.resolved().test.contains(d.date()) for d in mapping_dates(cfg)):
         unlock_final_evaluation(cfg, paths, "map")
     engine = ForecastEngine(cfg, paths)
     write_qml(out / "class_style.qml", engine.boundaries, engine.labels, cfg.platform.class_colors)

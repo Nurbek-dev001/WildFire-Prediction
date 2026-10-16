@@ -107,8 +107,7 @@ def run_explain(cfg: Config, paths: RunPaths) -> dict[str, Any]:
     seed = derive_seed(cfg.project.seed, "explain")
     frames = []
     for part in cfg.explain.partitions:
-        years = cfg.splits.calibration_years if part == "calibration" else cfg.splits.test_years
-        df = store.load(years, "explain" if part == "test" else "calibration")
+        df = store.load_partition(part, "explain" if part == "test" else "calibration")
         frames.append(
             _sample_rows(df[df["in_eval"]], cfg.explain.max_rows, seed).assign(partition=part)
         )
@@ -222,7 +221,7 @@ def run_explain(cfg: Config, paths: RunPaths) -> dict[str, Any]:
     region_imp = {}
     if fold_dir.exists():
         roles = pd.read_parquet(paths.stage("splits") / f"spatial_roles_{tag}.parquet")
-        dev = store.load(cfg.splits.development_years, "train")
+        dev = store.load_partition("development", "train")
         dev = dev[dev["in_eval"]]
         for d in sorted(fold_dir.glob("fold_*")):
             k = int(d.name.split("_")[1])

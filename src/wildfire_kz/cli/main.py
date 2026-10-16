@@ -152,6 +152,24 @@ def serve(
     uvicorn.run(create_app(cfg), host=host or cfg.platform.host, port=port or cfg.platform.port)
 
 
+@app.command("fetch-open")
+def fetch_open_cmd(
+    what: Annotated[
+        str, typer.Argument(help="all | boundary | fires | era5 | ndvi | static")
+    ] = "all",
+    config: ConfigOpt = DEFAULT_CONFIG,
+    set_: SetOpt = None,
+) -> None:
+    """Download the REAL open-data inputs from public cloud buckets (no credentials)."""
+    from wildfire_kz.data.open_data import fetch_open
+    from wildfire_kz.utils.runtime import setup_logging
+
+    cfg = _cfg(config, set_)
+    setup_logging(cfg.project.log_level)
+    out = fetch_open(cfg, what)
+    typer.echo(f"fetched: {', '.join(out)} -> {cfg.project.raw_dir}")
+
+
 @download_app.command("firms")
 def dl_firms(
     start: str,

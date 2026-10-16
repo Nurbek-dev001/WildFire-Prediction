@@ -48,8 +48,12 @@ def build_industrial_mask(df: pd.DataFrame, cfg: Config) -> pd.DataFrame:
     ``min_non_vegetated_fraction`` OR, if enabled, FIRMS flags it as a static land source).
     """
     mcfg = cfg.events.industrial_mask
-    dev_years = set(cfg.splits.development_years)
-    dev = df[df["acq_datetime"].dt.year.isin(dev_years)]
+    devp = cfg.splits.resolved().development
+    dev_years = set(devp.years)
+    dev = df[
+        (df["acq_datetime"] >= pd.Timestamp(devp.start))
+        & (df["acq_datetime"] < pd.Timestamp(devp.end) + pd.Timedelta(days=1))
+    ]
     res = mcfg.screening_resolution_m
     px = np.floor(dev["x"] / res).astype(np.int64)
     py = np.floor(dev["y"] / res).astype(np.int64)

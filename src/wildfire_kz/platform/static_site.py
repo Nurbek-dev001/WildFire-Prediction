@@ -31,11 +31,14 @@ STATIC = Path(__file__).parent / "static"
 
 def season_days(cfg: Config, step_days: int, months: tuple[int, int]) -> list[pd.Timestamp]:
     """Every ``step_days`` within the fire-season months of calibration and test years."""
-    out = []
-    for y in [*cfg.splits.calibration_years, *cfg.splits.test_years]:
-        days = pd.date_range(f"{y}-{months[0]:02d}-01", f"{y}-{months[1]:02d}-28")
-        out += list(days[::step_days])
-    return [d for d in out if pd.Timestamp(cfg.study.start) <= d <= pd.Timestamp(cfg.study.end)]
+    r = cfg.splits.resolved()
+    days = pd.date_range(r.calibration.start, r.test.end)
+    days = days[(days.month >= months[0]) & (days.month <= months[1])]
+    return [
+        d
+        for d in days[::step_days]
+        if pd.Timestamp(cfg.study.start) <= d <= pd.Timestamp(cfg.study.end)
+    ]
 
 
 def build_payload(cfg: Config, days: list[pd.Timestamp], n_drivers: int) -> dict[str, Any]:

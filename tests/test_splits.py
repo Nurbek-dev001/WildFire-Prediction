@@ -125,3 +125,81 @@ def test_unlock_requires_frozen_calibration(tmp_path: Path) -> None:
     write_json(paths.stage("calibrate") / "calibration_artifacts.json", {"tau": 0.2})
     with pytest.raises(TestSetAccessError):
         store.load([2023], "test")
+
+
+# ----------------------------------------------------------------------------- date periods
+
+
+def _period_cfg(tmp_path: Path) -> Config:
+    return Config.model_validate(
+        {
+            "project": {"work_dir": str(tmp_path), "run_label": "p"},
+            "study": {"start": "2024-03-01", "end": "2026-09-30"},
+            "mapping": {"years": [2026]},
+            "splits": {
+                "periods": {
+                    "development": {"start": "2024-03-01", "end": "2025-06-30"},
+                    "rolling_origin": [
+                        {
+                            "train": {"start": "2024-03-01", "end": "2024-07-31"},
+                            "val": {"start": "2024-08-01", "end": "2024-12-31"},
+                        }
+                    ],
+                    "calibration": {"start": "2025-07-01", "end": "2025-12-31"},
+                    "test": {"start": "2026-01-01", "end": "2026-09-30"},
+                }
+            },
+        }
+    )
+
+
+def test_period_partitions_split_shared_years(tmp_path: Path) -> None:
+    cfg = _period_cfg(tmp_path)
+    paths = RunPaths.from_config(cfg)
+    for y, dates in {2025: ["2025-03-01", "2025-08-01"], 2026: ["2026-02-01"]}.items():
+        write_partition(
+            pd.DataFrame({"cell_id": range(len(dates)), "date": pd.to_datetime(dates), "label": 0}),
+            paths.features,
+            "year",
+            y,
+        )
+    store = FeatureStore(cfg, paths)
+    dev = store.load_partition("development", "train")
+    assert list(dev["date"].dt.strftime("%Y-%m-%d")) == ["2025-03-01"]  # Aug 2025 is calibration
+    cal = store.load_partition("calibration", "calibration")
+    assert list(cal["date"].dt.strftime("%Y-%m-%d")) == ["2025-08-01"]
+    with pytest.raises(TestSetAccessError):
+        store.load_partition("calibration", "train")
+    with pytest.raises(TestSetAccessError):
+        store.load_partition("test", "test")  # locked before the final evaluation
+    with pytest.raises(TestSetAccessError):
+        store.load([2026], "calibration")  # whole-year reads overlapping test are refused
+
+
+def test_period_validation_rejects_overlap() -> None:
+    from pydantic import ValidationError
+
+    with pytest.raises(ValidationError):
+        Config.model_validate(
+            {
+                "study": {"start": "2024-03-01", "end": "2026-09-30"},
+                "splits": {
+                    "periods": {
+                        "development": {"start": "2024-03-01", "end": "2025-08-31"},
+                        "rolling_origin": [],
+                        "calibration": {"start": "2025-07-01", "end": "2025-12-31"},
+                        "test": {"start": "2026-01-01", "end": "2026-09-30"},
+                    }
+                },
+            }
+        )
+
+
+def test_partition_of_dates(tmp_path: Path) -> None:
+    from wildfire_kz.splits.guard import partition_of
+
+    cfg = _period_cfg(tmp_path)
+    assert partition_of(cfg, pd.Timestamp("2024-05-01")) == "development"
+    assert partition_of(cfg, pd.Timestamp("2025-09-01")) == "calibration"
+    assert partition_of(cfg, pd.Timestamp("2026-07-01")) == "test"
+    assert partition_of(cfg, pd.Timestamp("2026-10-10")) == "operational"

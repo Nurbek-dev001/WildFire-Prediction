@@ -142,6 +142,14 @@ class Era5Source(SourceMeta):
         "swvl1": "volumetric_soil_water_layer_1",
     }
     accumulated_variables: list[str] = ["tp"]
+    precip_convention: Literal["daily_reset", "hourly"] = Field(
+        "daily_reset",
+        description="daily_reset: ERA5-Land (00 UTC step holds the previous day's total); "
+        "hourly: ERA5 single levels / ARCO (each step is the accumulation of the past hour).",
+    )
+    instantaneous_steps_per_day: int = Field(
+        24, description="Expected instantaneous time steps per UTC day (24 hourly, 8 3-hourly)."
+    )
     interpolation: Literal["linear", "nearest"] = "linear"
     cds_dataset: str = "reanalysis-era5-land"
 
@@ -362,6 +370,54 @@ class RollingFold(_Strict):
     val_year: int
 
 
+class Period(_Strict):
+    """Inclusive UTC date range."""
+
+    start: dt.date
+    end: dt.date
+
+    @model_validator(mode="after")
+    def _order(self) -> Period:
+        if self.end < self.start:
+            raise ValueError("period end precedes start")
+        return self
+
+    @property
+    def years(self) -> list[int]:
+        return list(range(self.start.year, self.end.year + 1))
+
+    def contains(self, day: dt.date) -> bool:
+        return self.start <= day <= self.end
+
+
+class PeriodFold(_Strict):
+    train: Period
+    val: Period
+
+
+class PeriodSplits(_Strict):
+    """Date-range partitions (used when labels cover too few whole years)."""
+
+    development: Period
+    rolling_origin: list[PeriodFold]
+    calibration: Period
+    test: Period
+
+    @model_validator(mode="after")
+    def _chronological(self) -> PeriodSplits:
+        if not (
+            self.development.end < self.calibration.start and self.calibration.end < self.test.start
+        ):
+            raise ValueError("periods must be chronological: development < calibration < test")
+        for f in self.rolling_origin:
+            for p in (f.train, f.val):
+                if p.start < self.development.start or p.end > self.development.end:
+                    raise ValueError("rolling-origin periods must lie inside development")
+            if f.train.end >= f.val.start:
+                raise ValueError("rolling-origin validation must follow training")
+        return self
+
+
 class SpatialCVConfig(_Strict):
     n_folds: int = 5
     block_size_km: float = 100.0
@@ -380,9 +436,32 @@ class SplitsConfig(_Strict):
     calibration_years: list[int] = [2022]
     test_years: list[int] = [2023, 2024]
     spatial_cv: SpatialCVConfig = SpatialCVConfig()
+    periods: PeriodSplits | None = Field(
+        None, description="Optional date-range partitions; overrides the *_years fields."
+    )
+
+    def resolved(self) -> PeriodSplits:
+        """Partitions as date ranges (derived from the year lists unless periods are set)."""
+        if self.periods is not None:
+            return self.periods
+
+        def yp(years: list[int]) -> Period:
+            return Period(start=dt.date(min(years), 1, 1), end=dt.date(max(years), 12, 31))
+
+        return PeriodSplits(
+            development=yp(self.development_years),
+            rolling_origin=[
+                PeriodFold(train=yp(f.train_years), val=yp([f.val_year]))
+                for f in self.rolling_origin
+            ],
+            calibration=yp(self.calibration_years),
+            test=yp(self.test_years),
+        )
 
     @model_validator(mode="after")
     def _disjoint(self) -> SplitsConfig:
+        if self.periods is not None:
+            return self  # validated by PeriodSplits
         dev, cal, test = (
             set(self.development_years),
             set(self.calibration_years),
@@ -600,14 +679,16 @@ class Config(_Strict):
 
     @model_validator(mode="after")
     def _years_within_study(self) -> Config:
+        r = self.splits.resolved()
+        for name, per in (
+            ("development", r.development),
+            ("calibration", r.calibration),
+            ("test", r.test),
+        ):
+            if per.start < self.study.start or per.end > self.study.end:
+                raise ValueError(f"{name} period {per.start}..{per.end} outside study period")
         years = set(self.study.years)
-        s = self.splits
-        needed = set(s.development_years) | set(s.calibration_years) | set(s.test_years)
-        if not needed <= years:
-            raise ValueError(f"split years {sorted(needed - years)} outside study period")
         for y in self.mapping.years:
-            if y in s.development_years:
-                continue
             if y not in years:
                 raise ValueError(f"mapping year {y} outside study period")
         return self

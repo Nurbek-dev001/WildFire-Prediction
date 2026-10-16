@@ -146,7 +146,7 @@ class RunArtifacts:
     def observed(self, date: str) -> list[int] | None:
         """Observed new-event cells for past days (test years only once evaluated)."""
         ts = pd.Timestamp(date)
-        if ts.year in self.cfg.splits.test_years and not self.stage_done("evaluate"):
+        if self.cfg.splits.resolved().test.contains(ts.date()) and not self.stage_done("evaluate"):
             return None
         if not self.paths.positives.exists():
             return None

@@ -9,6 +9,7 @@ frozen. The ledger stores their hash; any later change to them re-locks the test
 
 from __future__ import annotations
 
+import datetime as dt
 from pathlib import Path
 from typing import Literal
 
@@ -64,7 +65,7 @@ def unlock_final_evaluation(cfg: Config, paths: RunPaths, stage: str) -> dict[st
             "unlocked_at": utc_now(),
             "unlocked_by": stage,
             "calibration_sha256": digest,
-            "test_years": cfg.splits.test_years,
+            "test_period": cfg.splits.resolved().test.model_dump(mode="json"),
             "accessed_by": [{"stage": stage, "at": utc_now()}],
         }
     write_json(ledger_path, ledger)
@@ -87,26 +88,66 @@ class FeatureStore:
         self.paths = paths
         self.root = paths.features
 
-    def load(
-        self, years: list[int], purpose: Purpose, columns: list[str] | None = None
-    ) -> pd.DataFrame:
-        test = set(years) & set(self.cfg.splits.test_years)
-        if test:
+    def _check(self, touches_test: bool, touches_cal: bool, purpose: Purpose, what: str) -> None:
+        if touches_test:
             if purpose not in ("test", "explain", "map"):
                 raise TestSetAccessError(
-                    f"test years {sorted(test)} requested for purpose '{purpose}'. Test data "
-                    "may never be used for training, tuning, calibration or thresholds."
+                    f"{what} overlaps the test period but was requested for purpose "
+                    f"'{purpose}'. Test data may never be used for training, tuning, "
+                    "calibration or thresholds."
                 )
             if not test_years_unlocked(self.cfg, self.paths):
                 raise TestSetAccessError(
-                    f"test years {sorted(test)} are locked until the final evaluation stage"
+                    f"{what} overlaps the test period, which is locked until the final "
+                    "evaluation stage"
                 )
-        cal = set(years) & set(self.cfg.splits.calibration_years)
-        if cal and purpose == "train":
+        if touches_cal and purpose == "train":
             raise TestSetAccessError(
-                f"calibration years {sorted(cal)} may not be used for model fitting or tuning"
+                f"{what} overlaps the calibration period and may not be used for model "
+                "fitting or tuning"
             )
+
+    def load(
+        self, years: list[int], purpose: Purpose, columns: list[str] | None = None
+    ) -> pd.DataFrame:
+        """Whole calendar years (strict: any overlap with the test period counts as test)."""
+        r = self.cfg.splits.resolved()
+        ys = set(years)
+        self._check(
+            bool(ys & set(r.test.years)),
+            bool(ys & set(r.calibration.years)),
+            purpose,
+            f"years {sorted(ys)}",
+        )
         df = read_partitions(self.root, "year", years, columns=columns)
         if df.empty:
             raise FileNotFoundError(f"no feature rows for years {years} in {self.root}")
         return df
+
+    def load_partition(
+        self,
+        name: Literal["development", "calibration", "test"],
+        purpose: Purpose,
+        columns: list[str] | None = None,
+    ) -> pd.DataFrame:
+        """Rows of one partition only (date-filtered; other partitions' rows are dropped)."""
+        r = self.cfg.splits.resolved()
+        per = getattr(r, name)
+        self._check(name == "test", name == "calibration", purpose, f"partition '{name}'")
+        cols = None if columns is None else list(dict.fromkeys([*columns, "date"]))
+        df = read_partitions(self.root, "year", per.years, columns=cols)
+        if df.empty:
+            raise FileNotFoundError(f"no feature rows for partition {name} in {self.root}")
+        d = pd.to_datetime(df["date"])
+        df = df[(d >= pd.Timestamp(per.start)) & (d <= pd.Timestamp(per.end))]
+        return df.reset_index(drop=True)
+
+
+def partition_of(cfg: Config, day: pd.Timestamp | dt.date) -> str:
+    """'development' | 'calibration' | 'test' | 'operational' (outside all partitions)."""
+    r = cfg.splits.resolved()
+    d = pd.Timestamp(day).date()
+    for name in ("test", "calibration", "development"):
+        if getattr(r, name).contains(d):
+            return name
+    return "operational"

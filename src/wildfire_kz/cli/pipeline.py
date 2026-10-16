@@ -156,7 +156,7 @@ STAGE_LIST: tuple[Stage, ...] = (
             "sources.boundary",
             "sources.mcd12q1",
             "study",
-            "splits.development_years",
+            "splits",
         ),
         ("grid",),
         ("detections_qc.parquet", "events.parquet", "positives.parquet"),
@@ -193,7 +193,7 @@ STAGE_LIST: tuple[Stage, ...] = (
     ),
     Stage(
         "calibrate",
-        ("calibration", "mapping.class_quantiles", "splits.calibration_years"),
+        ("calibration", "mapping.class_quantiles", "splits"),
         ("train",),
         ("calibration_artifacts.json",),
         _calibrate,
@@ -207,7 +207,7 @@ STAGE_LIST: tuple[Stage, ...] = (
     ),
     Stage(
         "evaluate",
-        ("evaluation", "splits.test_years"),
+        ("evaluation", "splits"),
         ("calibrate", "ablate"),
         ("metrics_overall.csv",),
         _evaluate,

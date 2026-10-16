@@ -79,8 +79,8 @@ def run_ablation(cfg: Config, paths: RunPaths) -> dict[str, Any]:
     out_dir = paths.stage("ablate")
     out_dir.mkdir(parents=True, exist_ok=True)
     store = FeatureStore(cfg, paths)
-    dev = store.load(cfg.splits.development_years, "train")
-    cal = store.load(cfg.splits.calibration_years, "calibration")
+    dev = store.load_partition("development", "train")
+    cal = store.load_partition("calibration", "calibration")
     cal = cal[cal["in_eval"]].reset_index(drop=True)
     specs = load_specs(paths)
     selection = read_json(paths.stage("train") / "selection.json")["models"]

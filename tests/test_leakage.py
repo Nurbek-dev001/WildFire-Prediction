@@ -140,3 +140,17 @@ def test_later_detections_never_enter_predictors() -> None:
     )
     after = fire_history_counts(more_cell, more_time, rows_cell, target, 365)
     assert base[0] == after[0] == 2  # Jul 1 and Jul 3 only (Jul 4 is the target day)
+
+
+def test_era5_hourly_precip_convention() -> None:
+    """ERA5 (ARCO) hourly accumulations: total(D) = sum of steps ending in (D 00, D+1 00]."""
+    from wildfire_kz.features.era5 import daily_precip_from_hourly
+
+    times = pd.date_range("2024-07-01 01:00", "2024-07-03 00:00", freq="h")
+    mm = np.zeros(len(times))
+    mm[times == pd.Timestamp("2024-07-02 00:00")] = 2.0  # rain in the last hour of Jul 1
+    mm[times == pd.Timestamp("2024-07-02 13:00")] = 1.5
+    tp = xr.DataArray(mm / 1000.0, coords={"valid_time": times}, dims="valid_time")
+    got = daily_precip_from_hourly(tp).to_series()
+    assert got[pd.Timestamp("2024-07-01")] == pytest.approx(2.0)
+    assert got[pd.Timestamp("2024-07-02")] == pytest.approx(1.5)

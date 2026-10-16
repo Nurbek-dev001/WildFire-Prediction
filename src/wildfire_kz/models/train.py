@@ -69,11 +69,15 @@ def model_specs(
 
 def rolling_folds(cfg: Config, dev: pd.DataFrame, mask: pd.Series | None = None) -> list[Fold]:
     folds = []
-    for f in cfg.splits.rolling_origin:
-        sel = dev if mask is None else dev[mask]
-        tr = sel[sel["year"].isin(f.train_years) & sel["in_train"]]
-        va = sel[(sel["year"] == f.val_year) & sel["in_eval"]]
-        folds.append(Fold(f"val{f.val_year}", tr.reset_index(drop=True), va.reset_index(drop=True)))
+    sel = dev if mask is None else dev[mask]
+    d = pd.to_datetime(sel["date"])
+    for f in cfg.splits.resolved().rolling_origin:
+        in_tr = (d >= pd.Timestamp(f.train.start)) & (d <= pd.Timestamp(f.train.end))
+        in_va = (d >= pd.Timestamp(f.val.start)) & (d <= pd.Timestamp(f.val.end))
+        tr = sel[in_tr & sel["in_train"]]
+        va = sel[in_va & sel["in_eval"]]
+        name = f"val{f.val.start:%Y%m%d}" if cfg.splits.periods else f"val{f.val.start.year}"
+        folds.append(Fold(name, tr.reset_index(drop=True), va.reset_index(drop=True)))
     return folds
 
 
@@ -181,8 +185,9 @@ def spatial_cv(
     """Spatial-transfer experiment: tuning + preprocessing re-run inside each spatial fold."""
     sc = cfg.splits.spatial_cv
     scheme = cfg.sampling.training_weighting
-    dev_years = sorted(cfg.splits.development_years)
-    inner_val, inner_train = dev_years[-1], dev_years[:-1]
+    # inner tuning split = the last rolling-origin fold (validation period at the end of dev)
+    last = cfg.splits.resolved().rolling_origin[-1]
+    v0, v1 = pd.Timestamp(last.val.start), pd.Timestamp(last.val.end)
     rows = []
     for block in [sc.block_size_km, *sc.sensitivity_block_sizes_km]:
         tag = f"{int(block)}km"
@@ -192,13 +197,12 @@ def spatial_cv(
             role = dev["cell_id"].map(r)
             train_reg = dev[role == "train"]
             test_reg = dev[(role == "test") & dev["in_eval"]].reset_index(drop=True)
+            td = pd.to_datetime(train_reg["date"])
             inner = [
                 Fold(
                     "inner",
-                    train_reg[
-                        train_reg["year"].isin(inner_train) & train_reg["in_train"]
-                    ].reset_index(drop=True),
-                    train_reg[(train_reg["year"] == inner_val) & train_reg["in_eval"]].reset_index(
+                    train_reg[(td < v0) & train_reg["in_train"]].reset_index(drop=True),
+                    train_reg[(td >= v0) & (td <= v1) & train_reg["in_eval"]].reset_index(
                         drop=True
                     ),
                 )
@@ -351,7 +355,7 @@ def run_train(cfg: Config, paths: RunPaths) -> dict[str, Any]:
     out_dir = paths.stage("train")
     out_dir.mkdir(parents=True, exist_ok=True)
     store = FeatureStore(cfg, paths)
-    dev = store.load(cfg.splits.development_years, "train")
+    dev = store.load_partition("development", "train")
     fspecs = load_specs(paths)
     specs = model_specs(cfg, fspecs)
     results = train_temporal(cfg, paths, dev, specs, out_dir)

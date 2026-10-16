@@ -160,7 +160,7 @@ def run_evaluate(cfg: Config, paths: RunPaths) -> dict[str, Any]:
     out.mkdir(parents=True, exist_ok=True)
     unlock_final_evaluation(cfg, paths, "evaluate")
     store = FeatureStore(cfg, paths)
-    test = store.load(cfg.splits.test_years, "test")
+    test = store.load_partition("test", "test")
     test = test[test["in_eval"]].reset_index(drop=True)
     grid = load_grid(paths.grid_file)
     regions = pd.read_parquet(paths.stage("splits") / "cell_regions.parquet")
@@ -201,7 +201,7 @@ def run_evaluate(cfg: Config, paths: RunPaths) -> dict[str, Any]:
     ref = models["seasonal_landcover"].predict_proba(test)
     pred["p_reference"] = ref
     y, w = pred["label"].to_numpy(), pred["w_eval"].to_numpy()
-    dev = store.load(cfg.splits.development_years, "train", columns=["label", "w_eval", "in_eval"])
+    dev = store.load_partition("development", "train", columns=["label", "w_eval", "in_eval"])
     dev = dev[dev["in_eval"]]
     clim = float((dev["label"] * dev["w_eval"]).sum() / dev["w_eval"].sum())
     rows = []

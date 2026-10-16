@@ -59,8 +59,8 @@ def _open_one(path: Path) -> xr.Dataset:
     return ds.sortby("valid_time").sortby("latitude")
 
 
-def _instantaneous_daily(ds: xr.Dataset) -> xr.Dataset:
-    """Daily aggregates of instantaneous fields; days without all 24 hourly steps are NaN."""
+def _instantaneous_daily(ds: xr.Dataset, steps_per_day: int = 24) -> xr.Dataset:
+    """Daily aggregates of instantaneous fields; incomplete days (< steps_per_day) are NaN."""
     t2m = ds["t2m"] - 273.15
     d2m = ds["d2m"] - 273.15
     rh = xr.DataArray(relative_humidity(t2m, d2m))
@@ -79,11 +79,24 @@ def _instantaneous_daily(ds: xr.Dataset) -> xr.Dataset:
         }
     ).rename({"valid_time": "date"})
     counts = ds["t2m"].resample(valid_time="1D").count().rename({"valid_time": "date"})
-    return daily.where(counts == 24)
+    return daily.where(counts == steps_per_day)
+
+
+def daily_precip_from_hourly(tp: xr.DataArray, time_dim: str = "valid_time") -> xr.DataArray:
+    """Daily totals (mm) from hourly accumulations: total(D) = sum over (D 00, D+1 00] UTC."""
+    shifted = tp.assign_coords(
+        {time_dim: pd.DatetimeIndex(tp[time_dim].values) - pd.Timedelta(hours=1)}
+    )
+    out = shifted.resample({time_dim: "1D"}).sum(min_count=24) * 1000.0
+    return out.rename({time_dim: "date"}).clip(min=0.0)
 
 
 def daily_fields_from_files(
-    files: list[Path], first_day: pd.Timestamp, last_day: pd.Timestamp
+    files: list[Path],
+    first_day: pd.Timestamp,
+    last_day: pd.Timestamp,
+    precip_convention: str = "daily_reset",
+    steps_per_day: int = 24,
 ) -> xr.Dataset:
     """Daily fields for observation days [first_day, last_day], processed file by file.
 
@@ -105,8 +118,11 @@ def daily_fields_from_files(
         st = pd.DatetimeIndex(sub["valid_time"].values)
         inst = sub.sel(valid_time=st[st < hi])
         if inst.sizes["valid_time"]:
-            dailies.append(_instantaneous_daily(inst))
-        tp00.append(sub["tp"].sel(valid_time=st[(st.hour == 0) & (st > lo) & (st <= hi)]))
+            dailies.append(_instantaneous_daily(inst, steps_per_day))
+        if precip_convention == "hourly":
+            tp00.append(sub["tp"].sel(valid_time=st[(st > lo) & (st <= hi)]))
+        else:
+            tp00.append(sub["tp"].sel(valid_time=st[(st.hour == 0) & (st > lo) & (st <= hi)]))
     if not dailies:
         raise FileNotFoundError(
             f"no ERA5-Land data cover {first_day:%Y-%m-%d}..{last_day:%Y-%m-%d}"
@@ -114,7 +130,13 @@ def daily_fields_from_files(
     daily = xr.concat(dailies, dim="date")
     if pd.Index(daily["date"].values).duplicated().any():
         raise ValueError("ERA5-Land files overlap or split UTC days; provide whole-day files")
-    precip = daily_precip_from_accumulated(xr.concat(tp00, dim="valid_time"))
+    tp_all = xr.concat(tp00, dim="valid_time")
+    tp_all = tp_all.isel(valid_time=~pd.Index(tp_all["valid_time"].values).duplicated())
+    precip = (
+        daily_precip_from_hourly(tp_all)
+        if precip_convention == "hourly"
+        else daily_precip_from_accumulated(tp_all)
+    )
     daily["precip_mm"] = precip.reindex(date=daily["date"])
     days = pd.date_range(first_day, last_day, freq="D")
     return daily.reindex(date=days)
@@ -161,7 +183,14 @@ def weather_feature_cube(
     t_first = pd.Timestamp(year, 1, 1)
     t_last = pd.Timestamp(year, 12, 31)
     obs_first = t_first - pd.Timedelta(days=wmax)
-    daily = daily_fields_from_files(files, obs_first, t_last - pd.Timedelta(days=1))
+    src = cfg.sources.era5_land
+    daily = daily_fields_from_files(
+        files,
+        obs_first,
+        t_last - pd.Timedelta(days=1),
+        src.precip_convention,
+        src.instantaneous_steps_per_day,
+    )
     cells = to_cells(daily, lon, lat, cfg.sources.era5_land.interpolation).load()
     dtype = cfg.features.float_dtype
     targets = pd.date_range(t_first, t_last, freq="D")

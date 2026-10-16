@@ -305,7 +305,8 @@ def run_report(cfg: Config, paths: RunPaths) -> dict[str, Any]:
         f"Map classes ({', '.join(cal['map_class_labels'])}) use boundaries "
         f"{[round(b, 6) for b in cal['map_class_boundaries']]} fixed before testing.",
         "",
-        f"## Test-year evaluation ({', '.join(map(str, cfg.splits.test_years))})",
+        f"## Test-period evaluation ({cfg.splits.resolved().test.start} – "
+        f"{cfg.splits.resolved().test.end})",
         "",
         "AP is the step-wise sum (R_k − R_{k−1})·P_k; the trapezoidal PR-AUC is shown only "
         "for contrast. Accuracy is reported but never used for selection. BSS is relative to "

@@ -137,7 +137,7 @@ def run_calibrate(cfg: Config, paths: RunPaths) -> dict[str, Any]:
     out_dir = paths.stage("calibrate")
     out_dir.mkdir(parents=True, exist_ok=True)
     store = FeatureStore(cfg, paths)
-    cal = store.load(cfg.splits.calibration_years, "calibration")
+    cal = store.load_partition("calibration", "calibration")
     cal = cal[cal["in_eval"]].reset_index(drop=True)
     models = {n: load_model(p) for n, p in model_dirs(paths.stage("train")).items()}
     params, preds = calibrate_models(cfg, models, cal)
@@ -153,7 +153,7 @@ def run_calibrate(cfg: Config, paths: RunPaths) -> dict[str, Any]:
     preds.to_parquet(out_dir / "calibration_predictions.parquet", index=False)
     artifacts = {
         "frozen_at": utc_now(),
-        "calibration_years": cfg.splits.calibration_years,
+        "calibration_period": cfg.splits.resolved().calibration.model_dump(mode="json"),
         "method": "sigmoid (Platt) on uncalibrated log-odds, inverse-inclusion weighted",
         "threshold_rule": "maximise weighted F1 on the calibration year",
         "models": params,

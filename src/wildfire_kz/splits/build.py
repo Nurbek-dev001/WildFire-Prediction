@@ -37,10 +37,7 @@ def temporal_manifest(cfg: Config, paths: RunPaths) -> dict[str, Any]:
             "risk_set_weight_eval": float(df["w_eval"].sum()),
         }
     return {
-        "development_years": s.development_years,
-        "rolling_origin": [f.model_dump() for f in s.rolling_origin],
-        "calibration_years": s.calibration_years,
-        "test_years": s.test_years,
+        "partitions": s.resolved().model_dump(mode="json"),
         "test_policy": "locked until the final evaluation stage (FeatureStore guard)",
         "per_year": counts,
     }

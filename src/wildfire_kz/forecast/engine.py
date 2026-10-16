@@ -27,7 +27,7 @@ from wildfire_kz.models.pipelines import FittedModel
 from wildfire_kz.models.train import load_model
 from wildfire_kz.paths import RunPaths
 from wildfire_kz.sampling.risk_set import excluded_cell_days
-from wildfire_kz.splits.guard import TestSetAccessError, test_years_unlocked
+from wildfire_kz.splits.guard import TestSetAccessError, partition_of, test_years_unlocked
 from wildfire_kz.utils.runtime import get_logger, read_json, sha256_file, utc_now, write_json
 
 log = get_logger("forecast")
@@ -88,7 +88,7 @@ class ForecastEngine:
     def check_allowed(self, day: pd.Timestamp) -> None:
         """Test-year maps are only produced after the final evaluation has been run."""
         if (
-            day.year in self.cfg.splits.test_years
+            self.cfg.splits.resolved().test.contains(day.date())
             and self.cfg.forecast.require_evaluation_for_test_years
             and not test_years_unlocked(self.cfg, self.paths)
         ):
@@ -97,14 +97,7 @@ class ForecastEngine:
             )
 
     def partition(self, day: pd.Timestamp) -> str:
-        s = self.cfg.splits
-        if day.year in s.test_years:
-            return "test"
-        if day.year in s.calibration_years:
-            return "calibration"
-        if day.year in s.development_years:
-            return "development"
-        return "operational"
+        return partition_of(self.cfg, day)
 
     # ------------------------------------------------------------------ prediction
     def features(self, day: pd.Timestamp, cell_ids: np.ndarray | None = None) -> pd.DataFrame:
@@ -184,7 +177,7 @@ class ForecastEngine:
             "DESCRIPTION": DISCLAIMER,
             "MODEL": self.model_name,
             "CALIBRATION": "Platt sigmoid fitted on calibration years "
-            f"{self.cfg.splits.calibration_years}",
+            f"{self.cfg.splits.resolved().calibration.start}..{self.cfg.splits.resolved().calibration.end}",
             "CALIBRATION_SHA256": sha256_file(self.cal_path),
             "CRS_NAME": self.meta.crs_name,
             "CELL_SIZE_M": str(self.meta.cell_size_m),
