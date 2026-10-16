@@ -1,0 +1,75 @@
+# Tiny, fast configuration used by the end-to-end smoke test. Shortened study period with the
+# same chronological structure (dev -> calibration -> test). SYNTHETIC data only.
+extends: synthetic.yaml
+
+project:
+  raw_dir: data/smoke_raw
+  run_label: smoke
+  log_level: WARNING
+
+study:
+  start: 2015-01-01
+  end: 2019-12-31
+  lookback_days: 40
+
+grid:
+  primary:
+    cell_size_m: 10000
+
+splits:
+  development_years: [2015, 2016, 2017]
+  rolling_origin:
+    - {train_years: [2015], val_year: 2016}
+    - {train_years: [2015, 2016], val_year: 2017}
+  calibration_years: [2018]
+  test_years: [2019]
+  spatial_cv:
+    n_folds: 3
+    block_size_km: 50
+    sensitivity_block_sizes_km: []
+    buffer_km: 25
+
+sampling:
+  eval_negative_fraction: 0.5
+  min_negatives_per_stratum: 20
+
+models:
+  n_trials_ensemble: 2
+  n_trials_logistic: 2
+  n_trials_spatial_cv: 1
+  early_stopping_rounds: 10
+  n_jobs: 2
+  search_spaces:
+    random_forest:
+      n_estimators: {low: 20, high: 40}
+    xgboost:
+      n_estimators: {low: 20, high: 60}
+    catboost:
+      iterations: {low: 20, high: 60}
+
+ablation:
+  models: [xgboost]
+
+evaluation:
+  bootstrap:
+    n_resamples: 20
+    spatial_block_km: 50
+
+explain:
+  max_rows: 1500
+  n_dependence_plots: 2
+  n_local_examples: 2
+
+mapping:
+  years: [2018, 2019]
+  max_days: 3
+
+synthetic:
+  bbox_lonlat: [72.0, 49.0, 74.2, 50.4]
+  era5_resolution_deg: 0.5
+  modis_resolution_deg: 0.04
+  landcover_resolution_deg: 0.02
+  worldpop_resolution_deg: 0.04
+  n_settlements: 12
+  base_ignition_logit: -7.0
+  n_industrial_sites: 1
