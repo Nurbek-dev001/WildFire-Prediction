@@ -47,18 +47,21 @@ def stratified_sample(
     design: str,
     cfg: Config,
 ) -> tuple[pd.Series, pd.Series, pd.DataFrame]:
-    """Return (inclusion indicator, inclusion probability q, strata table) for one design."""
+    """Return (inclusion indicator, inclusion probability q, strata table) for one design.
+
+    Works on positional numpy indices (one pass per stratum) so that national risk sets of
+    tens of millions of cell-days are sampled quickly.
+    """
     sc = cfg.sampling
-    included = pd.Series(False, index=df.index)
-    q = pd.Series(np.nan, index=df.index)
+    label = df["label"].to_numpy()
+    included = label == 1
+    q = np.where(included, 1.0, np.nan)
     rows = []
-    pos_mask = df["label"] == 1
-    included[pos_mask] = True
-    q[pos_mask] = 1.0
-    for key, g in df.groupby(list(strata_cols), sort=True, observed=True):
+    for key, pos_idx in df.groupby(list(strata_cols), sort=True, observed=True).indices.items():
         key_t = key if isinstance(key, tuple) else (key,)
-        neg_idx = g.index[g["label"] == 0]
-        n_pos, n_neg = int((g["label"] == 1).sum()), len(neg_idx)
+        lab = label[pos_idx]
+        neg_idx = pos_idx[lab == 0]
+        n_pos, n_neg = int((lab == 1).sum()), len(neg_idx)
         if design == "train":
             n = allocate_training(
                 n_neg, n_pos, sc.negatives_per_positive, sc.min_negatives_per_stratum
@@ -66,11 +69,7 @@ def stratified_sample(
         else:
             n = allocate_evaluation(n_neg, sc.eval_negative_fraction)
         rng = np.random.default_rng(derive_seed(cfg.project.seed, "sampling", design, *key_t))
-        chosen = (
-            rng.choice(neg_idx.to_numpy(), size=n, replace=False)
-            if n < n_neg
-            else neg_idx.to_numpy()
-        )
+        chosen = rng.choice(neg_idx, size=n, replace=False) if n < n_neg else neg_idx
         qh = n / n_neg if n_neg else 1.0
         included[chosen] = True
         q[chosen] = qh
@@ -85,7 +84,11 @@ def stratified_sample(
                 "weight": 1.0 / qh if qh > 0 else np.nan,
             }
         )
-    return included, q, pd.DataFrame(rows)
+    return (
+        pd.Series(included, index=df.index),
+        pd.Series(q, index=df.index),
+        pd.DataFrame(rows),
+    )
 
 
 def run_sampling(
@@ -116,7 +119,10 @@ def run_sampling(
         out["q_eval"] = q_e[keep].to_numpy()
         out["w_train"] = np.where(out["in_train"], 1.0 / out["q_train"], 0.0)
         out["w_eval"] = np.where(out["in_eval"], 1.0 / out["q_eval"], 0.0)
-        out["stratum"] = out[strata_cols].astype(str).agg("|".join, axis=1)
+        stratum = out[strata_cols[0]].astype(str)
+        for col in strata_cols[1:]:
+            stratum = stratum + "|" + out[col].astype(str)
+        out["stratum"] = stratum
         write_partition(
             out.drop(columns="year").reset_index(drop=True), out_dir / "sample", "year", year
         )
