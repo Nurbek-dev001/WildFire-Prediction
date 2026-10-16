@@ -137,6 +137,7 @@ events:
   temporal_link_h: 48.0
   linking_window_days: 30
   sensitivity:
+    run: true
     spatial_km: [1, 2, 3, 4, 5]
     temporal_h: [24, 48, 72]
   industrial_mask:

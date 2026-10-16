@@ -163,6 +163,8 @@ def run_events(cfg: Config, grid_file: Path, grid_meta_file: Path, out_dir: Path
     mask.to_parquet(out_dir / "industrial_mask.parquet", index=False)
     write_json(out_dir / "qc_counts.json", qc.counts)
     log.info("events: %s", qc.counts)
+    if cfg.events.sensitivity.run:
+        run_event_sensitivity(cfg, out_dir, grid_file, grid_meta_file)
     return qc.counts
 
 

@@ -245,6 +245,7 @@ class IndustrialMaskConfig(_Strict):
 
 
 class EventSensitivityConfig(_Strict):
+    run: bool = True
     spatial_km: list[float] = [1.0, 2.0, 3.0, 4.0, 5.0]
     temporal_h: list[float] = [24.0, 48.0, 72.0]
 
