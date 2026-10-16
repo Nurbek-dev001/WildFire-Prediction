@@ -240,9 +240,24 @@ svg text { fill: var(--ink-3); font-size: 10px; font-family: var(--font-data); }
 <script>
 "use strict";
 const D = __DATA__;
+// per-cell arrays are packed as base64 binary: decode a day only when it is shown
+const buf = (s) => { const bin = atob(s), u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); return u.buffer; };
+const G = { id: new Float64Array(buf(D.grid.id)), lat: new Int32Array(buf(D.grid.lat)), lon: new Int32Array(buf(D.grid.lon)) };
+function cellsOf(d) {
+  if (d.cells) return d.cells;
+  const q = new Uint16Array(buf(d.p)), k = new Uint8Array(buf(d.cls)), e = new Uint8Array(buf(d.elig));
+  const out = new Array(G.id.length);
+  for (let i = 0; i < out.length; i++) {
+    out[i] = [G.id[i], G.lat[i] / 1e4, G.lon[i] / 1e4, Math.pow(10, D.p_floor_log10 * (1 - q[i] / 65535)),
+      k[i], (e[i >> 3] & (1 << (i & 7))) !== 0, d.drivers[i] || null];
+  }
+  d.obsSet = new Set(d.observed);
+  return (d.cells = out);
+}
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-const pct = (p) => (p == null ? "–" : p >= 0.01 ? (100 * p).toFixed(1) + "%" : (100 * p).toFixed(2) + "%");
+// daily cell probabilities are small: keep two significant digits below 0.1 %
+const pct = (p) => (p == null ? "–" : p >= 0.01 ? (100 * p).toFixed(1) + "%" : p >= 0.001 ? (100 * p).toFixed(2) + "%" : p <= 0 ? "0%" : Number((100 * p).toPrecision(2)) + "%");
 const f = (v, d = 3) => (v == null || Number.isNaN(v) ? "–" : Number(v).toFixed(d));
 const col = (k) => D.class_colors[Math.min(k, D.class_colors.length - 1)];
 let idx = 0, overlay = null;
@@ -295,17 +310,18 @@ function show(i) {
       <span>${esc(lab)} <span class="range">${pct(k ? b[k - 1] : 0)}–${pct(k < b.length ? b[k] : 1)}</span></span>
       <span class="bar"><span style="width:${100 * d.counts[k] / max}%"></span></span>
       <span class="num" style="text-align:right">${d.counts[k]}</span></div>`).join("");
-  const elig = d.cells.filter((c) => c[5]).sort((a, z) => z[3] - a[3]).slice(0, 10);
+  const cells = cellsOf(d);
+  const elig = cells.filter((c) => c[5]).sort((a, z) => z[3] - a[3]).slice(0, 10);
   topLayer.clearLayers();
   elig.forEach((c) => L.circleMarker([c[1], c[2]], { radius: 5, color: "#7c2d12", weight: 2, fillOpacity: 0, interactive: false }).addTo(topLayer));
   $("top").innerHTML = elig.map((c, r) => `<li><button data-c="${c[0]}"><span class="rank">${r + 1}</span>
       <span>cell <span class="num">${c[0]}</span></span><span class="num">${pct(c[3])}</span></button></li>`).join("");
   $("top").querySelectorAll("button").forEach((btn) => btn.addEventListener("click", () => {
-    const c = d.cells.find((x) => x[0] === +btn.dataset.c);
+    const c = cells.find((x) => x[0] === +btn.dataset.c);
     map.setView([c[1], c[2]], Math.max(map.getZoom(), 8)); popup(c);
   }));
   obsLayer.clearLayers();
-  const obsCells = d.cells.filter((c) => d.observed.includes(c[0]));
+  const obsCells = cells.filter((c) => d.obsSet.has(c[0]));
   obsCells.forEach((c) => L.marker([c[1], c[2]], { icon: obsIcon, interactive: false }).addTo(obsLayer));
   $("mapnote").innerHTML = `✕ ${obsCells.length} new fire start(s) observed · <span style="color:#7c2d12">○</span> 10 highest-hazard cells · click any cell`;
 }
@@ -316,15 +332,17 @@ function popup(c) {
   if (!c[5]) {
     html += `<p class="note">Not in the new-event risk set on this day: the cell had a detection in the previous 48 hours.</p>`;
   } else {
-    const m = Math.max(...c[6].map((x) => Math.abs(x[1])), 1e-9);
+    const drv = c[6] || [];
+    const m = Math.max(...drv.map((x) => Math.abs(x[1])), 1e-9);
     html += `<div class="pp">${pct(c[3])}</div>
-      <div class="small"><span class="sw" style="display:inline-block;vertical-align:-2px;background:${col(c[4])}"></span> ${esc(D.class_labels[c[4]])} hazard · new fire observed: <b>${d.observed.includes(c[0]) ? "yes" : "no"}</b></div>
-      <div class="small muted" style="margin-top:8px">Top drivers (${esc(d.scale)} contribution)</div>
-      <div class="drivers">${c[6].map(([n, v]) => {
+      <div class="small"><span class="sw" style="display:inline-block;vertical-align:-2px;background:${col(c[4])}"></span> ${esc(D.class_labels[c[4]])} hazard · new fire observed: <b>${d.obsSet.has(c[0]) ? "yes" : "no"}</b></div>
+      ${c[6] ? `<div class="small muted" style="margin-top:8px">Top drivers (${esc(d.scale)} contribution)</div>` :
+        `<p class="note">Drivers are precomputed in this snapshot only for the ${d.n_explained} highest-hazard cells and for cells with an observed new fire; the live platform explains any cell.</p>`}
+      <div class="drivers">${drv.map(([n, v]) => {
         const w = 50 * Math.abs(v) / m, left = v >= 0 ? 50 : 50 - w;
         return `<div class="drv"><span class="nm" title="${esc(n)}">${esc(n)}</span><span class="tr"><span class="b" style="left:${left}%;width:${w}%;background:var(${v >= 0 ? "--pos" : "--neg"})"></span></span><span class="v">${v >= 0 ? "+" : ""}${f(v, 2)}</span></div>`;
       }).join("")}</div>
-      <p class="note" style="margin-top:8px">Red raises, blue lowers the score. Associations, not causes.</p>`;
+      ${c[6] ? `<p class="note" style="margin-top:8px">Red raises, blue lowers the score. Associations, not causes.</p>` : ""}`;
   }
   L.popup({ maxWidth: 340 }).setLatLng([c[1], c[2]]).setContent(html).openOn(map);
 }
@@ -333,7 +351,7 @@ map.on("click", (e) => {
   const d = D.days[idx];
   const k = Math.cos(e.latlng.lat * Math.PI / 180);
   let best = null, bd = Infinity;
-  for (const c of d.cells) {
+  for (const c of cellsOf(d)) {
     const dx = (c[2] - e.latlng.lng) * k, dy = c[1] - e.latlng.lat, dd = dx * dx + dy * dy;
     if (dd < bd) { bd = dd; best = c; }
   }

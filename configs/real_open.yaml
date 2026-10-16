@@ -10,8 +10,10 @@ project:
 study:
   # NOAA EFIRE (Suomi-NPP VIIRS I-band) fire labels are public from 2024-02 only;
   # one month of labels before the start lets the 48 h exclusion and event linking warm up.
+  # The study runs past the test period to the last published ERA5T day so that operational
+  # forecasts have the previous day's detections; 2026-10-01..09 belong to no partition.
   start: 2024-03-01
-  end: 2026-09-30
+  end: 2026-10-09
   lookback_days: 45
 
 grid:

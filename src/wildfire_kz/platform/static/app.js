@@ -6,7 +6,8 @@ const api = (path, opts) =>
     return r.json();
   });
 const $ = (id) => document.getElementById(id);
-const fmtP = (p) => (p == null ? "–" : p >= 0.01 ? (100 * p).toFixed(1) + "%" : (100 * p).toFixed(2) + "%");
+// daily cell probabilities are small: keep two significant digits below 0.1 %
+const fmtP = (p) => (p == null ? "–" : p >= 0.01 ? (100 * p).toFixed(1) + "%" : p >= 0.001 ? (100 * p).toFixed(2) + "%" : p <= 0 ? "0%" : Number((100 * p).toPrecision(2)) + "%");
 const fmt = (v, d = 3) => (v == null || Number.isNaN(v) ? "–" : Number(v).toFixed(d));
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 

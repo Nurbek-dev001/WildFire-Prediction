@@ -123,16 +123,23 @@ def forecast(
 def export_site_cmd(
     out: Annotated[Path, typer.Option(help="Output HTML file.")] = Path("platform_snapshot.html"),
     step_days: Annotated[int, typer.Option(help="Every N days of the fire season.")] = 10,
+    day: Annotated[
+        list[str] | None,
+        typer.Option(help="Extra day(s) to include, e.g. an operational forecast (YYYY-MM-DD)."),
+    ] = None,
     config: ConfigOpt = DEFAULT_CONFIG,
     set_: SetOpt = None,
 ) -> None:
     """Self-contained HTML snapshot of the platform (calibration + test fire seasons)."""
+    import pandas as pd
+
     from wildfire_kz.platform.static_site import export_site
     from wildfire_kz.utils.runtime import setup_logging
 
     cfg = _cfg(config, set_)
     setup_logging(cfg.project.log_level)
-    path = export_site(cfg, out, step_days=step_days)
+    extra = [pd.Timestamp(d) for d in (day or [])]
+    path = export_site(cfg, out, step_days=step_days, extra_days=extra)
     typer.echo(f"snapshot written to {path}")
 
 

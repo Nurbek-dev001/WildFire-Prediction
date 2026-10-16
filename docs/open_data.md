@@ -58,7 +58,7 @@ Fire labels exist only from February 2024, so the year-based protocol (2015–20
 | rolling-origin fold 2 | train 2024-03 – 2024-12 → validate 2025-01 – 2025-06 | tuning |
 | calibration | 2025-07-01 – 2025-12-31 | Platt calibration, threshold, map classes only |
 | test | 2026-01-01 – 2026-09-30 | untouched until final evaluation (code-enforced) |
-| operational | after 2026-09-30 | forecasts only |
+| operational | 2026-10-01 – 2026-10-09 (last published ERA5T day) and later | forecasts only; never used for fitting, tuning, calibration or evaluation |
 
 Compute-driven reductions on a 4-CPU machine (all configurable): 15 Optuna trials per
 ensemble (methodology: 50), 3 trials per spatial fold, no 50/150 km block sensitivity,
