@@ -23,6 +23,8 @@ def firms_csv(path: Path, grid: gpd.GeoDataFrame, *, standard_processed: bool) -
         raise ValueError("Only VIIRS labels are permitted")
     if not raw.confidence.isin(["n", "h", "l"]).all():
         raise ValueError("VIIRS confidence must be categorical n/h/l")
+    if "version" not in raw or raw.version.astype(str).str.contains("NRT", case=False).any():
+        raise ValueError("A verifiable standard-processing version is required; NRT is forbidden")
     raw["timestamp"] = pd.to_datetime(
         raw.acq_date.astype(str)
         + "T"
@@ -43,6 +45,7 @@ def firms_csv(path: Path, grid: gpd.GeoDataFrame, *, standard_processed: bool) -
     result = pd.DataFrame(
         joined[["cell_id", "timestamp", "x", "y_coord", "confidence", "satellite"]]
     )
+    result["product_version"] = joined.version.astype(str).to_numpy()
     result["year"] = result.timestamp.dt.year
     return result
 

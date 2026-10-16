@@ -23,6 +23,7 @@ class Source(StrictModel):
 class DataConfig(StrictModel):
     synthetic: bool = False
     sources: dict[str, Source] = Field(default_factory=dict)
+    sealed_detection_archives: dict[int, Source] = Field(default_factory=dict)
     weather_mode: Literal["daily", "era5_land_cumulative", "hourly_increment"] = (
         "era5_land_cumulative"
     )
@@ -102,6 +103,8 @@ class Config(StrictModel):
     @model_validator(mode="after")
     def validate_design(self) -> "Config":
         s = self.splits
+        if set(self.data.sealed_detection_archives) - set(s.test_years):
+            raise ValueError("Sealed detection archives must be held-out test years")
         if not (s.development_end < s.calibration_year < min(s.test_years)):
             raise ValueError("Development, calibration and test years must be disjoint and ordered")
         if any(y <= s.start_year or y > s.development_end for y in s.validation_years):
@@ -122,5 +125,7 @@ def load_config(path: Path) -> Config:
     cfg = Config.model_validate(yaml.safe_load(path.read_text(encoding="utf-8")))
     cfg.output_dir = (path.resolve().parent / cfg.output_dir).resolve()
     for source in cfg.data.sources.values():
+        source.path = (path.resolve().parent / source.path).resolve()
+    for source in cfg.data.sealed_detection_archives.values():
         source.path = (path.resolve().parent / source.path).resolve()
     return cfg

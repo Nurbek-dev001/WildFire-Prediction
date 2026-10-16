@@ -15,6 +15,13 @@
           "title": "Sources",
           "type": "object"
         },
+        "sealed_detection_archives": {
+          "additionalProperties": {
+            "$ref": "#/$defs/Source"
+          },
+          "title": "Sealed Detection Archives",
+          "type": "object"
+        },
         "weather_mode": {
           "default": "era5_land_cumulative",
           "enum": [
@@ -447,6 +454,7 @@
       "default": {
         "synthetic": false,
         "sources": {},
+        "sealed_detection_archives": {},
         "weather_mode": "era5_land_cumulative",
         "historical_roads": false,
         "publication_lag_days": 2,

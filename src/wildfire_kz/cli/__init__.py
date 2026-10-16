@@ -7,7 +7,8 @@ from urllib.request import urlopen
 import typer
 
 from wildfire_kz.config import load_config
-from wildfire_kz.data import checksum
+from wildfire_kz.data import checksum, dump_json
+from wildfire_kz.data.real import real_preflight, register_public_kazakhstan
 from wildfire_kz.data.synthetic import generate
 from wildfire_kz.pipeline import STAGES, PipelineRunner
 
@@ -37,6 +38,32 @@ for _stage in STAGES:
 def run_all(config: ConfigOption = Path("configs/primary.yaml")) -> None:
     """Run all stages, including release of the final test holdout."""
     PipelineRunner(load_config(config)).run_all()
+
+
+@app.command("real-preflight")
+def preflight(config: ConfigOption = Path("configs/real_public.yaml")) -> None:
+    """Verify registered real assets without opening any test-year observations."""
+    import json
+
+    cfg = load_config(config)
+    status = real_preflight(cfg)
+    dump_json(cfg.output_dir / "acquisition" / "preflight.json", status)
+    typer.echo(json.dumps(status, indent=2))
+    if not status["ready"]:
+        raise typer.Exit(2)
+
+
+@app.command("register-public")
+def register_public(
+    config: Path = Path("configs/real_public.yaml"),
+    raw_root: Path = Path("data/real/raw"),
+    registry: Path = Path("runs/primary/acquisition/manifest.json"),
+) -> None:
+    """Normalize downloaded public development assets and register opaque holdouts."""
+    result = register_public_kazakhstan(config, raw_root.resolve(), registry)
+    typer.echo(
+        f"Partial real registration saved; missing: {result['required_sources_still_missing']}"
+    )
 
 
 @app.command()

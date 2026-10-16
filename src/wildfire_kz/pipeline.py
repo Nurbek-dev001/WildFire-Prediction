@@ -97,6 +97,12 @@ class PipelineRunner:
                 raise RuntimeError(f"Run {predecessor} before {stage}, or use run-all")
             upstream = json.loads(prerequisite_stamp.read_text())["fingerprint"]
         source_hashes = {k: checksum(v.path) for k, v in self.cfg.data.sources.items()}
+        source_hashes.update(
+            {
+                f"sealed_detections_{year}": checksum(v.path)
+                for year, v in self.cfg.data.sealed_detection_archives.items()
+            }
+        )
         key = hashlib.sha256(
             json.dumps(
                 {
@@ -224,6 +230,15 @@ class PipelineRunner:
             raise ValueError("VIIRS confidence must be categorical n/h/l")
         detections = detections[detections.confidence.isin(["n", "h"])].copy()
         grid = gpd.read_parquet(self.path("grid") / "grid.parquet")
+        if final and cfg.data.sealed_detection_archives:
+            from wildfire_kz.data.real import normalize_detection_archive
+
+            parts = [detections]
+            for year, source in sorted(cfg.data.sealed_detection_archives.items()):
+                if checksum(source.path) != source.sha256:
+                    raise ValueError("Sealed test archive changed after registration")
+                parts.append(normalize_detection_archive(source.path, grid, year, cfg, final=True))
+            detections = pd.concat(parts, ignore_index=True)
         if "cell_id" not in detections:
             points = gpd.GeoDataFrame(
                 detections,

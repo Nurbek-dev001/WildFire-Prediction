@@ -48,6 +48,21 @@ def ingest(cfg: Config, out: Path) -> None:
         if source.sha256 and actual != source.sha256:
             raise ValueError(f"Checksum mismatch: {source.path}")
         records.append({"kind": kind, **source.model_dump(mode="json"), "sha256": actual})
+    sealed = []
+    for year, source in cfg.data.sealed_detection_archives.items():
+        if year not in cfg.splits.test_years:
+            raise ValueError("Sealed detection archives must correspond to held-out years")
+        actual = checksum(source.path)
+        if source.sha256 is None or actual != source.sha256:
+            raise ValueError(f"Sealed archive checksum missing or mismatched: {source.path}")
+        sealed.append(
+            {
+                "year": year,
+                **source.model_dump(mode="json"),
+                "sha256": actual,
+                "access_state": "opaque; normalize only during final evaluation",
+            }
+        )
     dump_json(
         out / "manifest.json",
         {
@@ -55,6 +70,7 @@ def ingest(cfg: Config, out: Path) -> None:
             "seed": cfg.seed,
             "synthetic": cfg.data.synthetic,
             "sources": records,
+            "sealed_detection_archives": sealed,
             "python": platform.python_version(),
             "exclusions": []
             if cfg.data.historical_roads

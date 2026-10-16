@@ -3,6 +3,7 @@
 import geopandas as gpd
 import numpy as np
 from pyproj import CRS
+from shapely import covers, intersects, prepare
 from shapely.geometry import box
 
 
@@ -17,6 +18,9 @@ def build_grid(boundary: gpd.GeoDataFrame, crs: str, resolution_m: int) -> gpd.G
     ):
         raise ValueError("A documented equal-area projected CRS is required")
     national = boundary.to_crs(projection).geometry.union_all()
+    if not national.is_valid:
+        raise ValueError("Study boundary must be a valid polygonal geometry")
+    prepare(national)
     cells = []
     # Polygon-wise iteration avoids scanning the enormous empty bounding box of island fixtures.
     parts = list(national.geoms) if national.geom_type == "MultiPolygon" else [national]
@@ -33,7 +37,11 @@ def build_grid(boundary: gpd.GeoDataFrame, crs: str, resolution_m: int) -> gpd.G
                     (col + 1) * resolution_m,
                     (row + 1) * resolution_m,
                 )
-                clipped = square.intersection(national)
+                if not intersects(national, square):
+                    continue
+                # Preparing the complex national boundary avoids repeatedly clipping
+                # fully interior squares against all its vertices.
+                clipped = square if covers(national, square) else square.intersection(national)
                 if clipped.area <= 0:
                     continue
                 seen.add((row, col))
