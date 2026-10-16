@@ -30,6 +30,8 @@ Open `runs/synthetic/report/index.html` in a browser. It is self-contained and w
 
 The demonstration covers the same calendar years, model families, nested temporal validation and buffered spatial folds as the primary protocol. Its configuration explicitly reduces tuning trials, tree counts and bootstrap repetitions to exercise the full workflow quickly. `configs/primary.yaml` retains the requested research budgets. Do not use demonstration uncertainty estimates for scientific inference.
 
+Real Kazakhstan acquisition has begun separately. See [the actual acquisition status](docs/real_data_status.md) and `configs/real_public.yaml`: public boundary and VIIRS assets are registered, 2023–2024 detection archives remain opaque, and required predictor tables are still missing. This configuration deliberately fails preflight/ingest until those inputs exist. The synthetic report above remains a demonstration.
+
 ## Run the research protocol
 
 Prepare observations using [the source contracts](docs/data_contracts.md), register source paths, versions, acquisition dates and optional expected checksums in `configs/primary.yaml`, then execute:
