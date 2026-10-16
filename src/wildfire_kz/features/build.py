@@ -170,6 +170,9 @@ class FeatureBuilder:
     def weather(self, year: int) -> xr.Dataset:
         if year in self._weather:
             return self._weather[year]
+        # a national-grid cube is ~3 GB in memory: keep only the most recently used year,
+        # and release it before building or loading the next one
+        self._weather.clear()
         path = self.layer_dir / "weather" / f"weather_{year}.nc"
         if not path.exists():
             files = next(s.files for s in enumerate_sources(self.cfg) if s.name == "era5_land")
