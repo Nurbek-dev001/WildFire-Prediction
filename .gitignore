@@ -12,8 +12,8 @@ dist/
 catboost_info/
 
 # data and run outputs are never committed
-data/
-outputs/
+/data/
+/outputs/
 *.tif
 *.nc
 *.parquet
