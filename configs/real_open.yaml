@@ -59,6 +59,9 @@ sources:
     provider: NOAA NESDIS (s3://noaa-nesdis-snpp-pds/VIIRS_EFIRE_VIIRSI_EDR)
     path: firms
     glob: "*.csv"
+    # days with no granule at all in the NOAA archive (outages): unknown labels, removed from
+    # the risk set together with the following ceil(48 h / 24 h) days
+    coverage_gaps_file: firms_coverage/efire_gaps.csv
   era5_land:
     # ERA5 single levels (0.25 deg) from ARCO-ERA5; ERA5-Land is not available credential-free.
     source_id: ERA5-hourly-ARCO

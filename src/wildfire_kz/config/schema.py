@@ -115,6 +115,11 @@ class FirmsSource(SourceMeta):
     vegetation_type_values: list[int] = Field(
         [0], description="FIRMS `type` values treated as presumed vegetation fire (if present)."
     )
+    coverage_gaps_file: Path | None = Field(
+        None,
+        description="CSV (column `date`) of UTC days with no satellite data at all (archive "
+        "outages). Labels on those days are unknown, not zero.",
+    )
     api_key_env: str = "FIRMS_MAP_KEY"
     api_product: str = "VIIRS_SNPP_SP"
     api_max_days_per_request: int = 5
@@ -275,6 +280,12 @@ class EventsConfig(_Strict):
 
 class RiskSetConfig(_Strict):
     exclusion_hours: float = 48.0
+    gap_after_days: int | None = Field(
+        None,
+        ge=0,
+        description="Days after a satellite-coverage gap also removed from the risk set (a fire "
+        "that started during the gap would look new); default ceil(exclusion_hours / 24).",
+    )
 
 
 # --------------------------------------------------------------------------- sampling

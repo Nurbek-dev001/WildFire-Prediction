@@ -162,7 +162,13 @@ STAGE_LIST: tuple[Stage, ...] = (
         ("detections_qc.parquet", "events.parquet", "positives.parquet"),
         _events,
     ),
-    Stage("risk_set", ("risk_set", "study"), ("events",), ("risk_set_summary.json",), _risk_set),
+    Stage(
+        "risk_set",
+        ("risk_set", "study", "sources"),  # sources: satellite coverage gaps
+        ("events",),
+        ("risk_set_summary.json",),
+        _risk_set,
+    ),
     Stage(
         "sampling",
         ("sampling", "sources.mcd12q1", "study"),

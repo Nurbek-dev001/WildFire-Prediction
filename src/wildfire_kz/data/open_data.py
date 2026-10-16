@@ -677,6 +677,33 @@ def efire_to_monthly_csv(day_dir: Path, out_dir: Path) -> list[Path]:
     return paths
 
 
+def efire_coverage_gaps(day_dir: Path, out_file: Path, min_fraction: float = 0.95) -> Path:
+    """Days with incomplete EFIRE archive coverage (outages): labels there are unknown.
+
+    A full day holds ~1,012 granules; a day with fewer than ``min_fraction`` of the median
+    count (including days with none) is a gap, since the Kazakhstan overpasses may be missing.
+    """
+    days = sorted(
+        dt.datetime.strptime(f.stem[6:], "%Y%m%d").date() for f in day_dir.glob("efire_*.csv")
+    )
+
+    def n_granules(day: dt.date) -> int:
+        keys = s3_list(EFIRE, f"{_EFIRE_PREFIX}/{day:%Y/%m/%d}/")
+        return sum(k.endswith(".nc") for k, _ in keys)
+
+    counts = pd.Series(parallel(n_granules, days, 16), index=days, dtype=int)
+    full = float(counts[counts > 0].median()) if (counts > 0).any() else 0.0
+    gaps = counts[counts < min_fraction * full]
+    out_file.parent.mkdir(parents=True, exist_ok=True)
+    pd.DataFrame(
+        {"date": [f"{d:%Y-%m-%d}" for d in gaps.index], "granules": gaps.to_numpy()}
+    ).to_csv(out_file, index=False)
+    log.info(
+        "EFIRE coverage gaps: %d days (full day = %.0f granules) -> %s", len(gaps), full, out_file
+    )
+    return out_file
+
+
 # --------------------------------------------------------------------------- orchestration
 def fetch_open(cfg: Any, what: str = "all") -> dict[str, Any]:
     """Download every open source needed by a config (``what``: all|boundary|fires|era5|
@@ -713,4 +740,6 @@ def fetch_open(cfg: Any, what: str = "all") -> dict[str, Any]:
             "failed": [m for m in msgs if "FAILED" in m],
             "monthly": efire_to_monthly_csv(daily, raw / src.firms.path),
         }
+        if src.firms.coverage_gaps_file is not None:
+            done["fires"]["gaps"] = efire_coverage_gaps(daily, raw / src.firms.coverage_gaps_file)
     return done

@@ -100,3 +100,31 @@ def test_evaluation_design_probability_sample_keeps_all_positives() -> None:
     inc, q, _ = stratified_sample(rs, ["year", "month", "lc_group"], "eval", cfg)
     assert inc[rs["label"] == 1].all()
     assert np.isclose((1.0 / q[inc]).sum(), len(rs))
+
+
+def test_coverage_gap_days_and_following_days_leave_the_risk_set(tmp_path: object) -> None:
+    from pathlib import Path
+
+    from wildfire_kz.sampling.risk_set import build_year_risk_set, label_gap_days
+
+    raw = Path(str(tmp_path))
+    cfg = Config()
+    year = cfg.study.start.year
+    (raw / "gaps.csv").write_text(f"date,granules\n{year}-06-10,0\n")
+    cfg.project.raw_dir = raw
+    cfg.sources.firms.coverage_gaps_file = Path("gaps.csv")
+    # the gap day plus ceil(48 h / 24 h) = 2 following days have unknown labels
+    gaps = label_gap_days(cfg)
+    assert list(gaps) == list(pd.date_range(f"{year}-06-10", f"{year}-06-12"))
+    cfg.risk_set.gap_after_days = 0
+    assert list(label_gap_days(cfg)) == [pd.Timestamp(f"{year}-06-10")]
+
+    pos = pd.DataFrame({"cell_id": [1], "date": [pd.Timestamp(f"{year}-06-11")], "event_id": [5]})
+    no_ex = pd.DataFrame(
+        {"cell_id": pd.Series([], dtype=np.int64), "date": pd.Series([], dtype="datetime64[ns]")}
+    )
+    rs, stats = build_year_risk_set(year, np.array([1, 2]), no_ex, pos, cfg, gaps)
+    assert not rs["date"].isin(gaps).any()
+    assert stats["days_excluded_coverage_gap"] == 3
+    assert stats["positives_excluded_coverage_gap"] == 1
+    assert stats["eligible_cell_days"] == stats["cell_days_total"] - 6

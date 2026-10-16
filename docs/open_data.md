@@ -31,6 +31,12 @@ wildfire-kz run -c configs/real_open.yaml
   confidence l/n/h (low is dropped, as in the methodology). Pixels flagged as persistent
   anomalies (gas flares, industry) become `type = 2` and are removed together with the
   development-period industrial mask.
+* **Archive outages.** The NOAA bucket has days with no granules (e.g. 2024-07-11..17,
+  2026-07-11..19) and partial days next to them. A day holding fewer than 95 % of the usual
+  ~1,012 granules is listed in `firms_coverage/efire_gaps.csv` (88 days inside the study
+  period). Labels on those days are unknown rather than zero, so they leave the risk set
+  together with the two following days (a fire that started during the outage would look
+  new, and recent-detection eligibility cannot be established).
 * **ERA5.** Each hourly global chunk is fetched and cropped to 40.5–55.5°N, 46.4–87.4°E.
   Temperature, dewpoint and wind are 3-hourly (8 steps per day); precipitation is hourly and
   summed per UTC day with the ERA5 *hourly* accumulation convention
