@@ -184,3 +184,17 @@ def test_api_forecast_endpoint(client: TestClient, smoke: tuple[Config, RunPaths
     r = client.post("/api/forecast", params={"date": f"{cfg.splits.calibration_years[0]}-08-15"})
     assert r.status_code == 200 and r.json()["model"]
     assert any(d["source"] == "forecast" for d in client.get("/api/days").json())
+
+
+@pytest.mark.slow
+def test_export_site_snapshot(smoke: tuple[Config, RunPaths], tmp_path: object) -> None:
+    from pathlib import Path
+
+    from wildfire_kz.platform.static_site import export_site
+
+    cfg, _ = smoke
+    out = export_site(cfg, Path(str(tmp_path)) / "snap.html", step_days=60)
+    html = out.read_text()
+    assert "<title>Kazakhstan Fire Hazard Map</title>" in html
+    assert "__DATA__" not in html and "data:image/png;base64," in html
+    assert "SYNTHETIC" in html or '"synthetic":true' in html

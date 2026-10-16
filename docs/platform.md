@@ -87,6 +87,12 @@ Interactive OpenAPI docs: `/docs`.
 
 ![Platform on the synthetic smoke run (SYNTHETIC data, not real findings)](platform_screenshot_synthetic.png)
 
+## Static snapshot
+
+`wildfire-kz export-site --out snapshot.html` writes one self-contained HTML file (overlays,
+per-cell probabilities and drivers, model card) for calibration- and test-year fire seasons.
+It can be shared where running a server is not possible.
+
 ## Running
 
 ```bash

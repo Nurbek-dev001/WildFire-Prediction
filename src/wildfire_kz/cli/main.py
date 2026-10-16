@@ -119,6 +119,23 @@ def forecast(
     typer.echo(f"forecast {out['date']} ({out['model']}): {out['prob_file']}, {out['class_file']}")
 
 
+@app.command("export-site")
+def export_site_cmd(
+    out: Annotated[Path, typer.Option(help="Output HTML file.")] = Path("platform_snapshot.html"),
+    step_days: Annotated[int, typer.Option(help="Every N days of the fire season.")] = 10,
+    config: ConfigOpt = DEFAULT_CONFIG,
+    set_: SetOpt = None,
+) -> None:
+    """Self-contained HTML snapshot of the platform (calibration + test fire seasons)."""
+    from wildfire_kz.platform.static_site import export_site
+    from wildfire_kz.utils.runtime import setup_logging
+
+    cfg = _cfg(config, set_)
+    setup_logging(cfg.project.log_level)
+    path = export_site(cfg, out, step_days=step_days)
+    typer.echo(f"snapshot written to {path}")
+
+
 @app.command("serve")
 def serve(
     config: ConfigOpt = DEFAULT_CONFIG,
