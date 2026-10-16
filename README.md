@@ -89,6 +89,14 @@ configuration takes ~2–3 min. Reduce `models.n_trials_*` or
 
 ## Running on real data
 
+**Without any credentials:** `wildfire-kz fetch-open all -c configs/real_open.yaml` downloads
+open substitutes for every source (NOAA VIIRS EFIRE fires, ERA5, NOAA CDR NDVI, ESA
+WorldCover, Copernicus DEM, Meta HRSL), and `wildfire-kz run -c configs/real_open.yaml`
+trains and evaluates on them. See [`docs/open_data.md`](docs/open_data.md) for the sources and
+[`docs/results_open_data.md`](docs/results_open_data.md) for the measured results.
+
+**With the methodology's original sources:**
+
 1. Obtain the sources and place them under `data/raw/` as described in
    [`docs/data_acquisition.md`](docs/data_acquisition.md). FIRMS and ERA5-Land have optional
    downloaders: `wildfire-kz download firms 2014-11-01 2024-12-31` (needs `FIRMS_MAP_KEY`) and
@@ -161,6 +169,8 @@ exploration only; all logic lives in `src/wildfire_kz`.
 * [`docs/assumptions.md`](docs/assumptions.md): resolved ambiguities and deviations, with
   justification.
 * [`docs/data_acquisition.md`](docs/data_acquisition.md): obtaining and laying out real data.
+* [`docs/open_data.md`](docs/open_data.md) and
+  [`docs/results_open_data.md`](docs/results_open_data.md): credential-free real-data run.
 * [`docs/platform.md`](docs/platform.md): production-model selection, forecasts, API,
   deployment.
 

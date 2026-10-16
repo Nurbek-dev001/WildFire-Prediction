@@ -8,6 +8,8 @@ wildfire-kz fetch-open all -c configs/real_open.yaml      # idempotent; resumes
 wildfire-kz run -c configs/real_open.yaml
 ```
 
+Results of the run are in [results_open_data.md](results_open_data.md).
+
 ## Sources
 
 | Feature group | Source | Access | Coverage used | Replaces (methodology) |
