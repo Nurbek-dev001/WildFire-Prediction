@@ -22,6 +22,7 @@ STAGES = (
     "explain",
     "map",
     "report",
+    "forecast",
 )
 
 

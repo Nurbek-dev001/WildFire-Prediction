@@ -229,6 +229,40 @@ class FittedModel:
         return np.log(p / (1 - p))
 
 
+@dataclass
+class EnsembleModel(FittedModel):
+    """Mean of members' uncalibrated log-odds (members fitted on identical rows).
+
+    Because the ensemble score is an average of log-odds, the TreeSHAP values of the members
+    averaged per feature are an exact additive explanation of the ensemble score.
+    """
+
+    members: list[FittedModel] = field(default_factory=list)
+
+    def transform(self, X: pd.DataFrame) -> pd.DataFrame:
+        raise TypeError("an ensemble has no single transformed design matrix")
+
+    def decision_logit(self, X: pd.DataFrame) -> np.ndarray:
+        return np.asarray(np.mean([m.decision_logit(X) for m in self.members], axis=0))
+
+    def predict_proba(self, X: pd.DataFrame) -> np.ndarray:
+        return np.asarray(1.0 / (1.0 + np.exp(-np.clip(self.decision_logit(X), -40, 40))))
+
+
+def make_ensemble(name: str, members: list[FittedModel]) -> EnsembleModel:
+    feats = list(dict.fromkeys(f for m in members for f in m.spec.features))
+    cats = list(dict.fromkeys(c for m in members for c in m.spec.categorical))
+    spec = ModelSpec(name, "ensemble", feats, cats, {"members": [m.spec.name for m in members]})
+    return EnsembleModel(
+        spec=spec,
+        preprocessor=None,
+        estimator=None,
+        members=members,
+        train_seconds=sum(m.train_seconds for m in members),
+        peak_rss_mb=max((m.peak_rss_mb for m in members), default=0.0),
+    )
+
+
 def fit_model(
     spec: ModelSpec,
     cfg: Config,

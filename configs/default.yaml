@@ -205,6 +205,10 @@ models:
   n_jobs: -1
   run_spatial_cv: true
   run_class_weight_sensitivity: true
+  ensemble:                       # extra candidate; selection still on development CV only
+    enabled: true
+    name: ensemble_trees
+    members: [xgboost, catboost]
 
 calibration:
   method: sigmoid
@@ -242,3 +246,18 @@ mapping:
   class_labels: [very low, low, moderate, high, very high]
   nodata: -9999.0
   class_nodata: 255
+
+platform:
+  host: 0.0.0.0
+  port: 8000
+  title: Kazakhstan next-day wildfire occurrence hazard
+  map_overlay_max_px: 2048
+  class_colors: ["#fff5eb", "#fdd0a2", "#fd8d3c", "#d94801", "#7f2704"]   # single-hue ramp
+  top_cells: 20
+  n_drivers: 6
+  basemap_url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"   # "" = offline, no basemap
+  basemap_attribution: "&copy; OpenStreetMap contributors"
+  boundary_simplify_m: 2000
+
+forecast:
+  require_evaluation_for_test_years: true

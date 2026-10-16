@@ -92,6 +92,29 @@ class FeatureBuilder:
         df.to_parquet(path, index=False)
         return df
 
+    def _with_years(
+        self, table: pd.DataFrame, years: np.ndarray, cache_name: str, fn: Any
+    ) -> pd.DataFrame:
+        """Extend a per-year layer with years outside the study period (operational use)."""
+        missing = sorted(set(np.unique(years).tolist()) - set(table["year"].unique().tolist()))
+        if not missing:
+            return table
+        path = self.layer_dir / f"{cache_name}.parquet"
+        extra = pd.read_parquet(path) if path.exists() else table.iloc[0:0]
+        need = [y for y in missing if y not in set(extra["year"].tolist())]
+        if need:
+            extra = pd.concat([extra, fn(need)], ignore_index=True)
+            extra.to_parquet(path, index=False)
+        return pd.concat([table, extra], ignore_index=True)
+
+    def _lc_for_years(self, years: list[int]) -> pd.DataFrame:
+        return landcover_fractions(self.cfg, self.grid, self.meta, [int(y) for y in years])
+
+    def _pop_for_years(self, years: list[int]) -> pd.DataFrame:
+        df, flags = population_by_year(self.cfg, self.grid, self.meta, [int(y) for y in years])
+        self.availability.flags += [f for f in flags if f not in self.availability.flags]
+        return df
+
     def terrain(self) -> pd.DataFrame:
         return self._cached("terrain", lambda: terrain_features(self.cfg, self.grid, self.meta))
 
@@ -196,7 +219,7 @@ class FeatureBuilder:
         for c in veg.columns:
             out[c] = veg[c].to_numpy()
         # ---- land cover (preceding-year map)
-        lc = self.landcover()
+        lc = self._with_years(self.landcover(), year, "landcover_extra", self._lc_for_years)
         lcj = rows[["cell_id"]].assign(year=year).merge(lc, on=["cell_id", "year"], how="left")
         for g in LC_GROUPS:
             out[f"lc_frac_{g}"] = lcj[f"lc_frac_{g}"].to_numpy(dtype=np.float32)
@@ -214,7 +237,13 @@ class FeatureBuilder:
             pop = (
                 rows[["cell_id"]]
                 .assign(year=year)
-                .merge(self.population(), on=["cell_id", "year"], how="left")
+                .merge(
+                    self._with_years(
+                        self.population(), year, "population_extra", self._pop_for_years
+                    ),
+                    on=["cell_id", "year"],
+                    how="left",
+                )
             )
             out["pop_density"] = pop["pop_density"].to_numpy(dtype=np.float32)
             asof_h = np.fmax(asof_h, pop["pop_asof"].to_numpy(dtype="datetime64[ns]"))

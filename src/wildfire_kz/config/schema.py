@@ -454,6 +454,14 @@ ModelName = Literal["logistic", "random_forest", "xgboost", "catboost"]
 BaselineName = Literal["seasonal_landcover", "weather_logistic"]
 
 
+class EnsembleConfig(_Strict):
+    """Extra candidate: mean of members' uncalibrated log-odds (selected on dev CV only)."""
+
+    enabled: bool = True
+    name: str = "ensemble_trees"
+    members: list[Literal["xgboost", "catboost"]] = ["xgboost", "catboost"]
+
+
 class ModelsConfig(_Strict):
     classifiers: list[ModelName] = ["logistic", "random_forest", "xgboost", "catboost"]
     baselines: list[BaselineName] = ["seasonal_landcover", "weather_logistic"]
@@ -476,6 +484,7 @@ class ModelsConfig(_Strict):
     search_spaces: SearchSpaces = SearchSpaces()
     run_spatial_cv: bool = True
     run_class_weight_sensitivity: bool = True
+    ensemble: EnsembleConfig = EnsembleConfig()
 
 
 # --------------------------------------------------------------------------- calibration
@@ -531,6 +540,27 @@ class MappingConfig(_Strict):
         return self
 
 
+# --------------------------------------------------------------------------- platform
+class PlatformConfig(_Strict):
+    host: str = "0.0.0.0"
+    port: int = 8000
+    title: str = "Kazakhstan next-day wildfire occurrence hazard"
+    map_overlay_max_px: int = 2048
+    class_colors: list[str] = ["#fff5eb", "#fdd0a2", "#fd8d3c", "#d94801", "#7f2704"]
+    top_cells: int = 20
+    n_drivers: int = 6
+    basemap_url: str = Field(
+        "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+        description="XYZ tile URL for the background map; empty string = no basemap (offline).",
+    )
+    basemap_attribution: str = "&copy; OpenStreetMap contributors"
+    boundary_simplify_m: float = 2000.0
+
+
+class ForecastConfig(_Strict):
+    require_evaluation_for_test_years: bool = True
+
+
 # --------------------------------------------------------------------------- synthetic
 class SyntheticConfig(_Strict):
     bbox_lonlat: tuple[float, float, float, float] = (70.0, 48.0, 76.5, 50.8)
@@ -564,6 +594,8 @@ class Config(_Strict):
     evaluation: EvaluationConfig = EvaluationConfig()
     explain: ExplainConfig = ExplainConfig()
     mapping: MappingConfig = MappingConfig()
+    platform: PlatformConfig = PlatformConfig()
+    forecast: ForecastConfig = ForecastConfig()
     synthetic: SyntheticConfig = SyntheticConfig()
 
     @model_validator(mode="after")

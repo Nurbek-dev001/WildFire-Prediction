@@ -19,7 +19,13 @@ import pandas as pd
 from wildfire_kz.config.schema import Config
 from wildfire_kz.evaluation.metrics import average_precision, brier, prevalence, roc_auc
 from wildfire_kz.features.registry import FeatureSpec, resolve_group_refs
-from wildfire_kz.models.pipelines import TREE_MODELS, FittedModel, ModelSpec, fit_model
+from wildfire_kz.models.pipelines import (
+    TREE_MODELS,
+    FittedModel,
+    ModelSpec,
+    fit_model,
+    make_ensemble,
+)
 from wildfire_kz.models.tuning import (
     Fold,
     eval_weights,
@@ -198,6 +204,7 @@ def spatial_cv(
                 )
             ]
             full_train = train_reg[train_reg["in_train"]].reset_index(drop=True)
+            fold_models: dict[str, FittedModel] = {}
             for name, spec in specs.items():
                 seed = derive_seed(cfg.project.seed, "spatial", tag, k, name)
                 best, _ = tune(
@@ -229,16 +236,91 @@ def spatial_cv(
                         "params": str(best),
                     }
                 )
+                fold_models[name] = fm
                 if spec.estimator in TREE_MODELS and block == sc.block_size_km:
                     save_model(
                         fm,
                         out_dir / "spatial_cv" / tag / name / f"fold_{k}",
                         {"params": best, "fold": int(k), "block_km": block},
                     )
+            ec = cfg.models.ensemble
+            if ec.enabled and all(m in fold_models for m in ec.members):
+                ens = make_ensemble(ec.name, [fold_models[m] for m in ec.members])
+                y, w = test_reg["label"].to_numpy(), eval_weights(test_reg)
+                p = ens.predict_proba(test_reg)
+                rows.append(
+                    {
+                        "block_km": block,
+                        "fold": int(k),
+                        "model": ec.name,
+                        "n_test_rows": len(test_reg),
+                        "test_positives": int(y.sum()),
+                        "prevalence": prevalence(y, w),
+                        "average_precision": average_precision(y, p, w),
+                        "roc_auc": roc_auc(y, p, w),
+                        "brier_uncalibrated": brier(y, p, w),
+                        "n_buffer_cells": int((r == "buffer").sum()),
+                        "params": str({"members": ec.members}),
+                    }
+                )
             log.info("spatial CV %s fold %d done", tag, k)
     table = pd.DataFrame(rows)
     table.to_csv(out_dir / "spatial_cv_results.csv", index=False)
     return table
+
+
+def train_ensemble(
+    cfg: Config,
+    dev: pd.DataFrame,
+    specs: dict[str, ModelSpec],
+    results: dict[str, Any],
+    out_dir: Path,
+) -> dict[str, Any]:
+    """Score the log-odds-averaging ensemble on the same rolling-origin folds and save it.
+
+    Members use their tuned hyper-parameters and the same fold procedure as during tuning
+    (development-fold early stopping), so the ensemble competes on equal terms.
+    """
+    ec = cfg.models.ensemble
+    members = [m for m in ec.members if m in results]
+    if not ec.enabled or len(members) < 2:
+        return {}
+    scheme = cfg.sampling.training_weighting
+    scores = {}
+    for fold in rolling_folds(cfg, dev):
+        tr, va = fold.train, fold.val
+        logits = []
+        for m in members:
+            sp = specs[m]
+            fm = fit_model(
+                ModelSpec(m, sp.estimator, sp.features, sp.categorical, results[m]["params"]),
+                cfg,
+                results[m]["seed"],
+                tr,
+                tr["label"].to_numpy(),
+                training_weights(tr, scheme),
+                va,
+                va["label"].to_numpy(),
+                eval_weights(va),
+            )
+            logits.append(fm.decision_logit(va))
+        z = np.mean(logits, axis=0)
+        scores[fold.name] = average_precision(va["label"].to_numpy(), z, eval_weights(va))
+    final = make_ensemble(ec.name, [load_model(out_dir / m) for m in members])
+    meta = {
+        "params": {"members": members},
+        "cv_weighted_ap_mean": float(np.nanmean(list(scores.values()))),
+        "cv_weighted_ap_by_fold": scores,
+        "seed": None,
+        "scheme": scheme,
+        "features": final.spec.features,
+        "train_seconds": final.train_seconds,
+        "peak_rss_mb": final.peak_rss_mb,
+        "kind": "ensemble (mean of member log-odds)",
+    }
+    save_model(final, out_dir / ec.name, meta)
+    log.info("%s: dev CV weighted AP %.4f", ec.name, meta["cv_weighted_ap_mean"])
+    return {ec.name: meta}
 
 
 def select_models(cfg: Config, results: dict[str, Any]) -> dict[str, Any]:
@@ -248,7 +330,10 @@ def select_models(cfg: Config, results: dict[str, Any]) -> dict[str, Any]:
         for m in cfg.models.classifiers
         if m in TREE_MODELS and m in results
     }
-    allm = {m: results[m]["cv_weighted_ap_mean"] for m in cfg.models.classifiers if m in results}
+    candidates: list[str] = list(cfg.models.classifiers)
+    if cfg.models.ensemble.enabled:
+        candidates.append(cfg.models.ensemble.name)
+    allm = {m: results[m]["cv_weighted_ap_mean"] for m in candidates if m in results}
 
     def pick(d: dict[Any, float]) -> str | None:
         return max(d, key=lambda k: (np.nan_to_num(d[k], nan=-1), k)) if d else None
@@ -256,6 +341,8 @@ def select_models(cfg: Config, results: dict[str, Any]) -> dict[str, Any]:
     return {
         "selected_tree_model": pick(trees),
         "best_classifier": pick(allm),
+        "production_model": pick(allm),
+        "candidates_dev_cv_ap": allm,
         "criterion": "mean weighted AP over rolling-origin development validation years",
     }
 
@@ -268,6 +355,7 @@ def run_train(cfg: Config, paths: RunPaths) -> dict[str, Any]:
     fspecs = load_specs(paths)
     specs = model_specs(cfg, fspecs)
     results = train_temporal(cfg, paths, dev, specs, out_dir)
+    results.update(train_ensemble(cfg, dev, specs, results, out_dir))
     selection = select_models(cfg, results)
     if cfg.models.run_class_weight_sensitivity:
         results.update(train_class_weight_variants(cfg, dev, results, specs, out_dir))
