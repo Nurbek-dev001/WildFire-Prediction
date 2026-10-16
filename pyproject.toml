@@ -38,13 +38,20 @@ dependencies = [
 [project.optional-dependencies]
 download = ["cdsapi>=0.7", "requests>=2.31"]
 gee = ["earthengine-api>=0.1.390"]
-dev = ["pytest>=8", "ruff>=0.4", "mypy>=1.8", "pandas-stubs", "types-PyYAML", "types-psutil", "pre-commit>=3.6"]
+platform = ["fastapi>=0.110", "uvicorn>=0.29", "pillow>=10"]
+dev = ["pytest>=8", "ruff>=0.4", "mypy>=1.8", "pandas-stubs", "types-PyYAML", "types-psutil",
+       "pre-commit>=3.6", "httpx>=0.27", "fastapi>=0.110", "uvicorn>=0.29", "pillow>=10"]
 
 [project.scripts]
 wildfire-kz = "wildfire_kz.cli.main:app"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+"wildfire_kz.platform" = [
+  "static/*", "static/vendor/leaflet/*", "static/vendor/leaflet/images/*",
+]
 
 [tool.ruff]
 line-length = 100
@@ -71,4 +78,5 @@ testpaths = ["tests"]
 addopts = "-ra"
 markers = ["slow: end-to-end tests on synthetic data"]
 filterwarnings = ["ignore::DeprecationWarning", "ignore::FutureWarning",
-                  "ignore::PendingDeprecationWarning"]
+                  "ignore::PendingDeprecationWarning",
+                  "ignore:Using `httpx` with `starlette.testclient`"]

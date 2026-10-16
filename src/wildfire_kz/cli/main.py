@@ -102,6 +102,39 @@ def event_sensitivity(config: ConfigOpt = DEFAULT_CONFIG, set_: SetOpt = None) -
     typer.echo(table.to_string(index=False))
 
 
+@app.command("forecast")
+def forecast(
+    date: Annotated[str, typer.Argument(help="Target UTC day YYYY-MM-DD (predictors <= day-1).")],
+    config: ConfigOpt = DEFAULT_CONFIG,
+    set_: SetOpt = None,
+) -> None:
+    """Operational next-day hazard map with the production (best dev-CV) model."""
+    from wildfire_kz.forecast.engine import run_forecast
+    from wildfire_kz.paths import RunPaths
+    from wildfire_kz.utils.runtime import setup_logging
+
+    cfg = _cfg(config, set_)
+    setup_logging(cfg.project.log_level)
+    out = run_forecast(cfg, RunPaths.from_config(cfg), dt.date.fromisoformat(date))
+    typer.echo(f"forecast {out['date']} ({out['model']}): {out['prob_file']}, {out['class_file']}")
+
+
+@app.command("serve")
+def serve(
+    config: ConfigOpt = DEFAULT_CONFIG,
+    set_: SetOpt = None,
+    host: Annotated[str | None, typer.Option(help="Bind address.")] = None,
+    port: Annotated[int | None, typer.Option(help="Port.")] = None,
+) -> None:
+    """Start the web platform (map, model card, evaluation, forecasts)."""
+    import uvicorn
+
+    from wildfire_kz.platform.api import create_app
+
+    cfg = _cfg(config, set_)
+    uvicorn.run(create_app(cfg), host=host or cfg.platform.host, port=port or cfg.platform.port)
+
+
 @download_app.command("firms")
 def dl_firms(
     start: str,
