@@ -268,6 +268,7 @@ def run_evaluate(cfg: Config, paths: RunPaths) -> dict[str, Any]:
         bcfg.n_resamples,
         derive_seed(cfg.project.seed, "bootstrap"),
         bcfg.ci_level,
+        n_jobs=cfg.models.n_jobs,
     )
     model_ci.to_csv(out / "bootstrap_model_ci.csv", index=False)
     pair_ci.to_csv(out / "bootstrap_pairs.csv", index=False)

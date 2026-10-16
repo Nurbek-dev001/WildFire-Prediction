@@ -48,3 +48,16 @@ def test_paired_bootstrap_identical_models_have_zero_difference() -> None:
         0.95,
     )
     assert np.allclose(pairs["diff_mean"], 0) and not pairs["ci_excludes_zero"].any()
+
+
+def test_parallel_bootstrap_matches_serial() -> None:
+    rng = np.random.default_rng(5)
+    n = 600
+    y = (rng.random(n) < 0.1).astype(float)
+    probs = {m: np.round(rng.random(n) * 0.3 + k * 0.1 * y, 2) for k, m in enumerate("abc")}
+    blocks = rng.integers(0, 30, n)
+    args = (y, rng.random(n), blocks, probs, np.full(n, y.mean()), [("a", "b")], 40, 2, 0.9)
+    serial, _ = paired_block_bootstrap(*args, n_jobs=1)
+    par, _ = paired_block_bootstrap(*args, n_jobs=3)
+    np.testing.assert_allclose(serial["ci_lo"], par["ci_lo"])
+    np.testing.assert_allclose(serial["ci_hi"], par["ci_hi"])
