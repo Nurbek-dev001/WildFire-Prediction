@@ -15,14 +15,20 @@ import numpy as np
 import pandas as pd
 
 
-def space_time_blocks(x: np.ndarray, y: np.ndarray, dates: pd.Series, spatial_km: float,
-                      temporal_days: int) -> np.ndarray:
+def space_time_blocks(
+    x: np.ndarray, y: np.ndarray, dates: pd.Series, spatial_km: float, temporal_days: int
+) -> np.ndarray:
     """Integer block code per row."""
     b = spatial_km * 1000.0
     d = pd.to_datetime(dates)
     t = ((d - d.min()).dt.days // temporal_days).to_numpy()
-    key = pd.DataFrame({"bx": np.floor(np.asarray(x) / b).astype(np.int64),
-                        "by": np.floor(np.asarray(y) / b).astype(np.int64), "t": t})
+    key = pd.DataFrame(
+        {
+            "bx": np.floor(np.asarray(x) / b).astype(np.int64),
+            "by": np.floor(np.asarray(y) / b).astype(np.int64),
+            "t": t,
+        }
+    )
     return key.groupby(["bx", "by", "t"], sort=True).ngroup().to_numpy()
 
 
@@ -64,10 +70,17 @@ def _brier(y: np.ndarray, p: np.ndarray, w: np.ndarray) -> float:
     return float(np.sum(w * (p - y) ** 2) / np.sum(w))
 
 
-def paired_block_bootstrap(y: np.ndarray, w: np.ndarray, blocks: np.ndarray,
-                           probs: dict[str, np.ndarray], reference: np.ndarray,
-                           pairs: list[tuple[str, str]], n_resamples: int, seed: int,
-                           ci_level: float) -> tuple[pd.DataFrame, pd.DataFrame]:
+def paired_block_bootstrap(
+    y: np.ndarray,
+    w: np.ndarray,
+    blocks: np.ndarray,
+    probs: dict[str, np.ndarray],
+    reference: np.ndarray,
+    pairs: list[tuple[str, str]],
+    n_resamples: int,
+    seed: int,
+    ci_level: float,
+) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Return (per-model CI table, paired difference table) for AP, ROC-AUC, Brier and BSS."""
     y = np.asarray(y, dtype=float)
     w = np.asarray(w, dtype=float)
@@ -91,20 +104,33 @@ def paired_block_bootstrap(y: np.ndarray, w: np.ndarray, blocks: np.ndarray,
     for m in probs:
         for k in metrics:
             v = reps[m][k]
-            model_rows.append({"model": m, "metric": k, "ci_lo": np.nanquantile(v, alpha),
-                               "ci_hi": np.nanquantile(v, 1 - alpha),
-                               "bootstrap_sd": np.nanstd(v, ddof=1)})
+            model_rows.append(
+                {
+                    "model": m,
+                    "metric": k,
+                    "ci_lo": np.nanquantile(v, alpha),
+                    "ci_hi": np.nanquantile(v, 1 - alpha),
+                    "bootstrap_sd": np.nanstd(v, ddof=1),
+                }
+            )
     pair_rows = []
     for a, b in pairs:
         for k in metrics:
             d = reps[a][k] - reps[b][k]
             lo, hi = np.nanquantile(d, alpha), np.nanquantile(d, 1 - alpha)
             better_is_higher = k != "brier"
-            pair_rows.append({
-                "model_a": a, "model_b": b, "metric": k, "diff_mean": float(np.nanmean(d)),
-                "ci_lo": float(lo), "ci_hi": float(hi),
-                "share_a_better": float(np.nanmean(d > 0) if better_is_higher
-                                        else np.nanmean(d < 0)),
-                "ci_excludes_zero": bool(lo > 0 or hi < 0),
-            })
+            pair_rows.append(
+                {
+                    "model_a": a,
+                    "model_b": b,
+                    "metric": k,
+                    "diff_mean": float(np.nanmean(d)),
+                    "ci_lo": float(lo),
+                    "ci_hi": float(hi),
+                    "share_a_better": float(
+                        np.nanmean(d > 0) if better_is_higher else np.nanmean(d < 0)
+                    ),
+                    "ci_excludes_zero": bool(lo > 0 or hi < 0),
+                }
+            )
     return pd.DataFrame(model_rows), pd.DataFrame(pair_rows)

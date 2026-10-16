@@ -45,10 +45,15 @@ def test_configurable_exclusion_window() -> None:
 def _risk_set(seed: int = 0) -> pd.DataFrame:
     rng = np.random.default_rng(seed)
     n = 6000
-    return pd.DataFrame({
-        "year": 2019, "month": rng.integers(1, 4, n), "lc_group": rng.choice(["a", "b"], n),
-        "label": (rng.random(n) < 0.02).astype(int), "attr": rng.gamma(2.0, 3.0, n),
-    })
+    return pd.DataFrame(
+        {
+            "year": 2019,
+            "month": rng.integers(1, 4, n),
+            "lc_group": rng.choice(["a", "b"], n),
+            "label": (rng.random(n) < 0.02).astype(int),
+            "attr": rng.gamma(2.0, 3.0, n),
+        }
+    )
 
 
 def test_training_weights_reproduce_stratum_totals_exactly() -> None:

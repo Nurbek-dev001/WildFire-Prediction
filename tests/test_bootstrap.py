@@ -36,6 +36,15 @@ def test_paired_bootstrap_identical_models_have_zero_difference() -> None:
     y = (rng.random(n) < 0.1).astype(float)
     p = np.clip(rng.random(n) * 0.3 + 0.2 * y, 0, 1)
     blocks = rng.integers(0, 40, n)
-    _, pairs = paired_block_bootstrap(y, np.ones(n), blocks, {"a": p, "b": p.copy()},
-                                      np.full(n, y.mean()), [("a", "b")], 50, 1, 0.95)
+    _, pairs = paired_block_bootstrap(
+        y,
+        np.ones(n),
+        blocks,
+        {"a": p, "b": p.copy()},
+        np.full(n, y.mean()),
+        [("a", "b")],
+        50,
+        1,
+        0.95,
+    )
     assert np.allclose(pairs["diff_mean"], 0) and not pairs["ci_excludes_zero"].any()

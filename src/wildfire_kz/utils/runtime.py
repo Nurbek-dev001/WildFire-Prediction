@@ -31,16 +31,20 @@ def setup_logging(level: str = "INFO", log_file: Path | None = None) -> logging.
     logger = logging.getLogger(LOGGER_NAME)
     logger.setLevel(level)
     fmt = logging.Formatter("%(asctime)s | %(levelname)-7s | %(name)s | %(message)s")
-    if not any(isinstance(h, logging.StreamHandler) and not isinstance(h, logging.FileHandler)
-               for h in logger.handlers):
+    if not any(
+        isinstance(h, logging.StreamHandler) and not isinstance(h, logging.FileHandler)
+        for h in logger.handlers
+    ):
         sh = logging.StreamHandler(sys.stderr)
         sh.setFormatter(fmt)
         logger.addHandler(sh)
     if log_file is not None:
         log_file.parent.mkdir(parents=True, exist_ok=True)
         resolved = str(log_file.resolve())
-        if not any(isinstance(h, logging.FileHandler) and h.baseFilename == resolved
-                   for h in logger.handlers):
+        if not any(
+            isinstance(h, logging.FileHandler) and h.baseFilename == resolved
+            for h in logger.handlers
+        ):
             fh = logging.FileHandler(log_file)
             fh.setFormatter(fmt)
             logger.addHandler(fh)
@@ -123,13 +127,15 @@ class StageRecord:
 class StageCache:
     """Idempotent stage execution: skip when the fingerprint and outputs are unchanged."""
 
-    def __init__(self, stage_dir: Path, stage: str, fingerprint_payload: dict[str, Any],
-                 seed: int) -> None:
+    def __init__(
+        self, stage_dir: Path, stage: str, fingerprint_payload: dict[str, Any], seed: int
+    ) -> None:
         self.stage_dir = stage_dir
         self.stage = stage
         self.seed = seed
-        self.fingerprint = sha256_json({"stage": stage, "seed": seed, "version": __version__,
-                                        **fingerprint_payload})
+        self.fingerprint = sha256_json(
+            {"stage": stage, "seed": seed, "version": __version__, **fingerprint_payload}
+        )
         self.record_path = stage_dir / "_stage.json"
 
     def is_fresh(self) -> bool:
@@ -145,13 +151,17 @@ class StageCache:
         """Yield a record to fill, or ``None`` if the cached result is fresh."""
         log = get_logger(self.stage)
         if not force and self.is_fresh():
-            log.info("stage '%s' is up to date (fingerprint %s…) — skipping",
-                     self.stage, self.fingerprint[:12])
+            log.info(
+                "stage '%s' is up to date (fingerprint %s…) — skipping",
+                self.stage,
+                self.fingerprint[:12],
+            )
             yield None
             return
         self.stage_dir.mkdir(parents=True, exist_ok=True)
-        rec = StageRecord(stage=self.stage, fingerprint=self.fingerprint, seed=self.seed,
-                          started=utc_now())
+        rec = StageRecord(
+            stage=self.stage, fingerprint=self.fingerprint, seed=self.seed, started=utc_now()
+        )
         log.info("running stage '%s' (seed=%d)", self.stage, self.seed)
         yield rec
         rec.finished = utc_now()

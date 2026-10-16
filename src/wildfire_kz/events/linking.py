@@ -9,9 +9,14 @@ from scipy.sparse.csgraph import connected_components
 from scipy.spatial import cKDTree
 
 
-def link_detections(x_m: np.ndarray, y_m: np.ndarray, t_hours: np.ndarray,
-                    spatial_km: float, temporal_h: float, window_days: float = 30.0
-                    ) -> np.ndarray:
+def link_detections(
+    x_m: np.ndarray,
+    y_m: np.ndarray,
+    t_hours: np.ndarray,
+    spatial_km: float,
+    temporal_h: float,
+    window_days: float = 30.0,
+) -> np.ndarray:
     """Return an event label per detection (connected components of the linkage graph).
 
     Two detections are linked when their planar distance is ``<= spatial_km`` AND their
@@ -54,8 +59,9 @@ def link_detections(x_m: np.ndarray, y_m: np.ndarray, t_hours: np.ndarray,
     return relabel_chronologically(labels, t_hours, x_m, y_m)
 
 
-def relabel_chronologically(labels: np.ndarray, t: np.ndarray, x: np.ndarray, y: np.ndarray
-                            ) -> np.ndarray:
+def relabel_chronologically(
+    labels: np.ndarray, t: np.ndarray, x: np.ndarray, y: np.ndarray
+) -> np.ndarray:
     """Deterministic event ids ordered by (first time, x, y) of each component."""
     df = pd.DataFrame({"lab": labels, "t": t, "x": x, "y": y})
     first = df.sort_values(["t", "x", "y"]).groupby("lab", sort=False).head(1)
@@ -64,15 +70,18 @@ def relabel_chronologically(labels: np.ndarray, t: np.ndarray, x: np.ndarray, y:
     return mapping.loc[labels].to_numpy()
 
 
-def earliest_detection(df: pd.DataFrame, event_col: str = "event_id",
-                       tie_break: tuple[str, ...] = ("acq_datetime", "confidence_rank", "-frp",
-                                                     "cell_id")) -> pd.DataFrame:
+def earliest_detection(
+    df: pd.DataFrame,
+    event_col: str = "event_id",
+    tie_break: tuple[str, ...] = ("acq_datetime", "confidence_rank", "-frp", "cell_id"),
+) -> pd.DataFrame:
     """One row per event: the earliest detection, ties broken deterministically.
 
     ``tie_break`` lists columns in priority order; a leading '-' sorts descending.
     """
     cols = [c.lstrip("-") for c in tie_break]
     asc = [not c.startswith("-") for c in tie_break]
-    ordered = df.sort_values([event_col, *cols], ascending=[True, *asc], kind="mergesort",
-                             na_position="last")
+    ordered = df.sort_values(
+        [event_col, *cols], ascending=[True, *asc], kind="mergesort", na_position="last"
+    )
     return ordered.groupby(event_col, sort=True).head(1).reset_index(drop=True)

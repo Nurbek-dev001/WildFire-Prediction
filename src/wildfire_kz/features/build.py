@@ -39,8 +39,20 @@ from wildfire_kz.utils.runtime import get_logger, read_json, write_json
 
 log = get_logger("features")
 
-META_COLUMNS = ["cell_id", "date", "label", "event_id", "month", "stratum", "in_train", "in_eval",
-                "w_train", "w_eval", "q_train", "q_eval"]
+META_COLUMNS = [
+    "cell_id",
+    "date",
+    "label",
+    "event_id",
+    "month",
+    "stratum",
+    "in_train",
+    "in_eval",
+    "w_train",
+    "w_eval",
+    "q_train",
+    "q_eval",
+]
 
 
 class FeatureBuilder:
@@ -56,13 +68,18 @@ class FeatureBuilder:
         self.cell_index = pd.Series(np.arange(len(self.grid)), index=self.grid["cell_id"])
         self.availability = HumanAvailability()
         hc = cfg.features.human
-        check_snapshot_coverage(cfg.sources.roads, cfg.study.start, "dist_road_km",
-                                hc.use_roads, self.availability)
-        check_snapshot_coverage(cfg.sources.settlements, cfg.study.start, "dist_settlement_km",
-                                hc.use_settlements, self.availability)
+        check_snapshot_coverage(
+            cfg.sources.roads, cfg.study.start, "dist_road_km", hc.use_roads, self.availability
+        )
+        check_snapshot_coverage(
+            cfg.sources.settlements,
+            cfg.study.start,
+            "dist_settlement_km",
+            hc.use_settlements,
+            self.availability,
+        )
         self.availability.usable["pop_density"] = hc.use_population
-        self.specs = [s for s in feature_specs(cfg)
-                      if self.availability.usable.get(s.name, True)]
+        self.specs = [s for s in feature_specs(cfg) if self.availability.usable.get(s.name, True)]
         self._regimes: dict[str, np.ndarray] | None = None
         self._weather: dict[int, xr.Dataset] = {}
 
@@ -82,8 +99,10 @@ class FeatureBuilder:
         sampled = self.paths.stage("sampling") / "landcover_fractions.parquet"
         if sampled.exists():
             return pd.read_parquet(sampled)
-        return self._cached("landcover", lambda: landcover_fractions(
-            self.cfg, self.grid, self.meta, self.cfg.study.years))
+        return self._cached(
+            "landcover",
+            lambda: landcover_fractions(self.cfg, self.grid, self.meta, self.cfg.study.years),
+        )
 
     def population(self) -> pd.DataFrame:
         flags_path = self.layer_dir / "population_flags.json"
@@ -92,6 +111,7 @@ class FeatureBuilder:
             df, flags = population_by_year(self.cfg, self.grid, self.meta, self.cfg.study.years)
             write_json(flags_path, flags)
             return df
+
         df = self._cached("population", build)
         if flags_path.exists():
             for f in read_json(flags_path):
@@ -104,19 +124,24 @@ class FeatureBuilder:
         if path.exists():
             return np.load(path)
         src = self.cfg.sources.roads if kind == "roads" else self.cfg.sources.settlements
-        arr = snapshot_distances(self.cfg, self.grid, src,
-                                 "lines" if kind == "roads" else "points")
+        arr = snapshot_distances(self.cfg, self.grid, src, "lines" if kind == "roads" else "points")
         np.save(path, arr)
         return arr
 
     def regimes(self) -> dict[str, np.ndarray]:
         if self._regimes is None:
             first = self.cfg.study.start - dt.timedelta(
-                days=self.cfg.study.lookback_days + self.cfg.sources.mod13a2.max_gap_fill_days)
-            comp = self._cached("modis_composites", lambda: aggregate_composites(
-                self.cfg, self.grid, self.meta, first, self.cfg.study.end))
-            self._regimes = vegetation_regimes(comp, len(self.grid),
-                                               self.cfg.sources.mod13a2.max_gap_fill_days)
+                days=self.cfg.study.lookback_days + self.cfg.sources.mod13a2.max_gap_fill_days
+            )
+            comp = self._cached(
+                "modis_composites",
+                lambda: aggregate_composites(
+                    self.cfg, self.grid, self.meta, first, self.cfg.study.end
+                ),
+            )
+            self._regimes = vegetation_regimes(
+                comp, len(self.grid), self.cfg.sources.mod13a2.max_gap_fill_days
+            )
         return self._regimes
 
     def weather(self, year: int) -> xr.Dataset:
@@ -125,11 +150,11 @@ class FeatureBuilder:
         path = self.layer_dir / "weather" / f"weather_{year}.nc"
         if not path.exists():
             files = next(s.files for s in enumerate_sources(self.cfg) if s.name == "era5_land")
-            cube = weather_feature_cube(self.cfg, files, year, self.grid["lon"].to_numpy(),
-                                        self.grid["lat"].to_numpy())
+            cube = weather_feature_cube(
+                self.cfg, files, year, self.grid["lon"].to_numpy(), self.grid["lat"].to_numpy()
+            )
             path.parent.mkdir(parents=True, exist_ok=True)
-            enc = {v: {"zlib": True, "complevel": 3} for v in cube.data_vars
-                   if v != "asof_weather"}
+            enc = {v: {"zlib": True, "complevel": 3} for v in cube.data_vars if v != "asof_weather"}
             cube.to_netcdf(path, encoding=enc)
         self._weather[year] = xr.load_dataset(path)
         return self._weather[year]
@@ -145,17 +170,22 @@ class FeatureBuilder:
             raise KeyError("rows reference cell ids that are not in the grid")
         cidx = cidx.astype(np.int64)
         names = {s.name for s in self.specs}
-        out = {}
+        out: dict[str, Any] = {}
         # ---- weather (prior day + antecedent + optional fire weather)
-        wnames = [s.name for s in self.specs
-                  if s.group in ("weather_prior_day", "weather_antecedent", "fire_weather")]
+        wnames = [
+            s.name
+            for s in self.specs
+            if s.group in ("weather_prior_day", "weather_antecedent", "fire_weather")
+        ]
         wvals = {n: np.full(len(rows), np.nan, dtype=np.float32) for n in wnames}
         asof_w = np.full(len(rows), np.datetime64("NaT"), dtype="datetime64[ns]")
         for y in np.unique(year):
             m = year == y
             cube = self.weather(int(y))
-            didx = (rows.loc[m, "date"].to_numpy(dtype="datetime64[D]")
-                    - np.datetime64(f"{int(y)}-01-01")).astype(int)
+            didx = (
+                rows.loc[m, "date"].to_numpy(dtype="datetime64[D]")
+                - np.datetime64(f"{int(y)}-01-01")
+            ).astype(int)
             for n in wnames:
                 wvals[n][m] = cube[n].values[didx, cidx[m]]
             asof_w[m] = cube["asof_weather"].values[didx]
@@ -171,8 +201,9 @@ class FeatureBuilder:
         for g in LC_GROUPS:
             out[f"lc_frac_{g}"] = lcj[f"lc_frac_{g}"].to_numpy(dtype=np.float32)
         out["lc_group"] = lcj["lc_group"].fillna("other").to_numpy()
-        out["asof_landcover"] = pd.to_datetime(lcj["lc_product_year"].astype(str) + "-12-31"
-                                               ).to_numpy(dtype="datetime64[ns]")
+        out["asof_landcover"] = pd.to_datetime(
+            lcj["lc_product_year"].astype(str) + "-12-31"
+        ).to_numpy(dtype="datetime64[ns]")
         # ---- terrain
         ter = self.terrain().set_index("cell_id").reindex(rows["cell_id"].to_numpy())
         for c in ("elevation_m", "slope_deg", "aspect_sin", "aspect_cos", "asof_terrain"):
@@ -180,12 +211,17 @@ class FeatureBuilder:
         # ---- anthropogenic
         asof_h = np.full(len(rows), np.datetime64("NaT"), dtype="datetime64[ns]")
         if "pop_density" in names:
-            pop = rows[["cell_id"]].assign(year=year).merge(self.population(),
-                                                            on=["cell_id", "year"], how="left")
+            pop = (
+                rows[["cell_id"]]
+                .assign(year=year)
+                .merge(self.population(), on=["cell_id", "year"], how="left")
+            )
             out["pop_density"] = pop["pop_density"].to_numpy(dtype=np.float32)
             asof_h = np.fmax(asof_h, pop["pop_asof"].to_numpy(dtype="datetime64[ns]"))
-        for feat, kind, src in (("dist_settlement_km", "settlements", self.cfg.sources.settlements),
-                                ("dist_road_km", "roads", self.cfg.sources.roads)):
+        for feat, kind, src in (
+            ("dist_settlement_km", "settlements", self.cfg.sources.settlements),
+            ("dist_road_km", "roads", self.cfg.sources.roads),
+        ):
             if feat not in names:
                 continue
             dist = self.distances(kind)
@@ -194,8 +230,10 @@ class FeatureBuilder:
             vals = np.full(len(rows), np.nan, dtype=np.float32)
             vals[ok] = dist[sidx[ok], cidx[ok]]
             out[feat] = vals
-            sdates = np.array(sorted(np.datetime64(s.snapshot_date, "ns")
-                                     for s in src.snapshots), dtype="datetime64[ns]")
+            sdates = np.array(
+                sorted(np.datetime64(s.snapshot_date, "ns") for s in src.snapshots),
+                dtype="datetime64[ns]",
+            )
             used = np.where(ok, sdates[np.where(ok, sidx, 0)], np.datetime64("NaT"))
             asof_h = np.fmax(asof_h, used.astype("datetime64[ns]"))
         out["asof_anthropogenic"] = asof_h
@@ -208,21 +246,28 @@ class FeatureBuilder:
             out["doy_sin"] = np.sin(2 * np.pi * doy / 365.25).astype(np.float32)
             out["doy_cos"] = np.cos(2 * np.pi * doy / 365.25).astype(np.float32)
         feats = pd.DataFrame(out)
-        return pd.concat([rows, feats.drop(columns=[c for c in feats.columns
-                                                     if c in rows.columns])], axis=1)
+        return pd.concat(
+            [rows, feats.drop(columns=[c for c in feats.columns if c in rows.columns])], axis=1
+        )
 
     def _fire_history(self, rows: pd.DataFrame) -> tuple[np.ndarray, np.ndarray]:
         det = pd.read_parquet(self.paths.detections, columns=["cell_id", "acq_datetime"])
         t = rows["date"].to_numpy(dtype="datetime64[D]")
-        counts = fire_history_counts(det["cell_id"].to_numpy(), det["acq_datetime"].to_numpy(),
-                                     rows["cell_id"].to_numpy(), t,
-                                     self.cfg.features.fire_history.window_days)
+        counts = fire_history_counts(
+            det["cell_id"].to_numpy(),
+            det["acq_datetime"].to_numpy(),
+            rows["cell_id"].to_numpy(),
+            t,
+            self.cfg.features.fire_history.window_days,
+        )
         return counts, (t - np.timedelta64(1, "D")).astype("datetime64[ns]")
 
     def registry(self) -> dict[str, Any]:
-        return {"features": registry_records(self.specs),
-                "omitted_or_flagged": self.availability.flags,
-                "usable": self.availability.usable}
+        return {
+            "features": registry_records(self.specs),
+            "omitted_or_flagged": self.availability.flags,
+            "usable": self.availability.usable,
+        }
 
 
 def model_feature_names(specs: list[FeatureSpec]) -> list[str]:

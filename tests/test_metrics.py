@@ -49,8 +49,9 @@ def test_weighted_ap_matches_sklearn_and_replication() -> None:
     y = (rng.random(300) < 0.1).astype(int)
     s = rng.random(300) + 0.3 * y
     w = rng.integers(1, 5, 300).astype(float)
-    assert average_precision(y, s, w) == pytest.approx(average_precision_score(y, s,
-                                                                               sample_weight=w))
+    assert average_precision(y, s, w) == pytest.approx(
+        average_precision_score(y, s, sample_weight=w)
+    )
     rep = np.repeat(np.arange(300), w.astype(int))  # integer weights == replicated rows
     assert average_precision(y, s, w) == pytest.approx(average_precision(y[rep], s[rep]))
 
@@ -102,7 +103,7 @@ def test_best_f1_threshold() -> None:
 
 def test_capture_rate_pooled_and_daily() -> None:
     y = np.array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0])
-    s = np.array([.9, .1, .2, .3, .4, .05, .5, .6, .7, .8])
+    s = np.array([0.9, 0.1, 0.2, 0.3, 0.4, 0.05, 0.5, 0.6, 0.7, 0.8])
     c = capture_rate(y, s, 0.10)
     assert c["capture_rate"] == pytest.approx(0.5) and c["flagged_weight"] == 1
     groups = np.array([0] * 5 + [1] * 5)

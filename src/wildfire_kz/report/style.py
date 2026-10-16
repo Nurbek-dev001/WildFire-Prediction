@@ -5,13 +5,22 @@ from __future__ import annotations
 from pathlib import Path
 
 import matplotlib
+from cycler import cycler
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 # validated reference categorical order (assigned in fixed order, never cycled)
-CATEGORICAL = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300", "#6250d6",
-               "#e34948"]
+CATEGORICAL = [
+    "#2a78d6",
+    "#eb6834",
+    "#1baf7a",
+    "#eda100",
+    "#e87ba4",
+    "#008300",
+    "#6250d6",
+    "#e34948",
+]
 OTHER = "#8a8984"
 SEQUENTIAL_CMAP = "Blues"
 DIVERGING = ("#2a78d6", "#e34948")  # cool / warm poles, gray midpoint
@@ -24,16 +33,29 @@ CAUSAL_NOTE = "SHAP values describe predictive associations of the model, not ca
 
 
 def apply_style() -> None:
-    plt.rcParams.update({
-        "figure.facecolor": SURFACE, "axes.facecolor": SURFACE, "savefig.facecolor": SURFACE,
-        "axes.edgecolor": GRID, "axes.labelcolor": TEXT_SECONDARY, "axes.titlecolor": TEXT,
-        "axes.grid": True, "grid.color": GRID, "grid.linewidth": 0.6,
-        "axes.spines.top": False, "axes.spines.right": False,
-        "xtick.color": TEXT_SECONDARY, "ytick.color": TEXT_SECONDARY,
-        "lines.linewidth": 2.0, "lines.markersize": 5, "font.size": 9,
-        "axes.titlesize": 10, "legend.frameon": False,
-        "axes.prop_cycle": matplotlib.cycler(color=CATEGORICAL),
-    })
+    plt.rcParams.update(
+        {
+            "figure.facecolor": SURFACE,
+            "axes.facecolor": SURFACE,
+            "savefig.facecolor": SURFACE,
+            "axes.edgecolor": GRID,
+            "axes.labelcolor": TEXT_SECONDARY,
+            "axes.titlecolor": TEXT,
+            "axes.grid": True,
+            "grid.color": GRID,
+            "grid.linewidth": 0.6,
+            "axes.spines.top": False,
+            "axes.spines.right": False,
+            "xtick.color": TEXT_SECONDARY,
+            "ytick.color": TEXT_SECONDARY,
+            "lines.linewidth": 2.0,
+            "lines.markersize": 5,
+            "font.size": 9,
+            "axes.titlesize": 10,
+            "legend.frameon": False,
+            "axes.prop_cycle": cycler(color=CATEGORICAL),
+        }
+    )
 
 
 def color_for(names: list[str]) -> dict[str, str]:

@@ -25,8 +25,9 @@ class LeakageError(RuntimeError):
     """A predictor uses information timestamped on or after the target day."""
 
 
-def check_no_leakage(df: pd.DataFrame, specs: list[FeatureSpec], date_col: str = "date"
-                     ) -> dict[str, Any]:
+def check_no_leakage(
+    df: pd.DataFrame, specs: list[FeatureSpec], date_col: str = "date"
+) -> dict[str, Any]:
     """Verify ``asof < target date`` for every row and every non-deterministic feature group.
 
     A missing as-of timestamp is accepted only when every feature of that group is missing in
@@ -54,15 +55,21 @@ def check_no_leakage(df: pd.DataFrame, specs: list[FeatureSpec], date_col: str =
         has_value = df[names].notna().to_numpy().any(axis=1) if names else np.zeros(len(df), bool)
         unknown = nat & has_value
         report["groups"][group] = {
-            "asof_column": col, "features": names, "violations": int(late.sum()),
+            "asof_column": col,
+            "features": names,
+            "violations": int(late.sum()),
             "values_without_asof": int(unknown.sum()),
-            "max_asof_minus_target_days": (float(((asof[~nat] - target[~nat])
-                                                  / np.timedelta64(1, "D")).max())
-                                           if (~nat).any() else None),
+            "max_asof_minus_target_days": (
+                float(((asof[~nat] - target[~nat]) / np.timedelta64(1, "D")).max())
+                if (~nat).any()
+                else None
+            ),
         }
         if late.any() or unknown.any():
-            problems.append(f"group '{group}': {int(late.sum())} rows with as-of >= target day, "
-                            f"{int(unknown.sum())} rows with values but no as-of")
+            problems.append(
+                f"group '{group}': {int(late.sum())} rows with as-of >= target day, "
+                f"{int(unknown.sum())} rows with values but no as-of"
+            )
     report["passed"] = not problems
     if problems:
         raise LeakageError("temporal leakage detected:\n  " + "\n  ".join(problems))

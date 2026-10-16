@@ -20,8 +20,9 @@ from wildfire_kz.utils.runtime import get_logger, write_json
 log = get_logger("risk_set")
 
 
-def excluded_cell_days(det_cell: np.ndarray, det_time: pd.Series | np.ndarray,
-                       exclusion_hours: float) -> pd.DataFrame:
+def excluded_cell_days(
+    det_cell: np.ndarray, det_time: pd.Series | np.ndarray, exclusion_hours: float
+) -> pd.DataFrame:
     """Cell-days (cell_id, date) with a detection in [date - H, date)."""
     t = pd.to_datetime(pd.Series(det_time)).reset_index(drop=True)
     cells = pd.Series(np.asarray(det_cell)).reset_index(drop=True)
@@ -36,32 +37,35 @@ def excluded_cell_days(det_cell: np.ndarray, det_time: pd.Series | np.ndarray,
         ok = (day > t) & (day - h <= t)
         if not ok.any() and pd.Timedelta(days=k - 1) > h:
             break
-        frames.append(pd.DataFrame({"cell_id": cells[ok].to_numpy(),
-                                    "date": day[ok].to_numpy()}))
+        frames.append(pd.DataFrame({"cell_id": cells[ok].to_numpy(), "date": day[ok].to_numpy()}))
         k += 1
     if not frames:
-        return pd.DataFrame({"cell_id": np.array([], dtype=np.int64),
-                             "date": np.array([], dtype="datetime64[ns]")})
+        return pd.DataFrame(
+            {"cell_id": np.array([], dtype=np.int64), "date": np.array([], dtype="datetime64[ns]")}
+        )
     return pd.concat(frames, ignore_index=True).drop_duplicates().reset_index(drop=True)
 
 
-def build_year_risk_set(year: int, cell_ids: np.ndarray, excluded: pd.DataFrame,
-                        positives: pd.DataFrame, cfg: Config
-                        ) -> tuple[pd.DataFrame, dict[str, int]]:
+def build_year_risk_set(
+    year: int, cell_ids: np.ndarray, excluded: pd.DataFrame, positives: pd.DataFrame, cfg: Config
+) -> tuple[pd.DataFrame, dict[str, int]]:
     start = max(pd.Timestamp(year, 1, 1), pd.Timestamp(cfg.study.start))
     end = min(pd.Timestamp(year, 12, 31), pd.Timestamp(cfg.study.end))
     days = pd.date_range(start, end, freq="D")
-    rs = pd.DataFrame({
-        "cell_id": np.tile(cell_ids, len(days)),
-        "date": np.repeat(days.to_numpy(), len(cell_ids)),
-    })
+    rs = pd.DataFrame(
+        {
+            "cell_id": np.tile(cell_ids, len(days)),
+            "date": np.repeat(days.to_numpy(), len(cell_ids)),
+        }
+    )
     n_all = len(rs)
     ex = excluded[(excluded["date"] >= start) & (excluded["date"] <= end)]
     rs = rs.merge(ex.assign(_ex=True), on=["cell_id", "date"], how="left")
     is_ex = rs["_ex"].fillna(False).astype(bool).to_numpy()
     pos = positives[(positives["date"] >= start) & (positives["date"] <= end)]
-    rs = rs.drop(columns="_ex").merge(pos[["cell_id", "date", "event_id"]],
-                                      on=["cell_id", "date"], how="left")
+    rs = rs.drop(columns="_ex").merge(
+        pos[["cell_id", "date", "event_id"]], on=["cell_id", "date"], how="left"
+    )
     rs["label"] = rs["event_id"].notna().astype(np.int8)
     stats = {
         "cell_days_total": n_all,
@@ -78,16 +82,15 @@ def build_year_risk_set(year: int, cell_ids: np.ndarray, excluded: pd.DataFrame,
 
 def run_risk_set(cfg: Config, grid_file: Path, events_dir: Path, out_dir: Path) -> dict[str, Any]:
     grid = pd.read_parquet(grid_file, columns=["cell_id"])
-    det = pd.read_parquet(events_dir / "detections_qc.parquet",
-                          columns=["cell_id", "acq_datetime"])
+    det = pd.read_parquet(events_dir / "detections_qc.parquet", columns=["cell_id", "acq_datetime"])
     positives = pd.read_parquet(events_dir / "positives.parquet")
-    excluded = excluded_cell_days(det["cell_id"].to_numpy(), det["acq_datetime"],
-                                  cfg.risk_set.exclusion_hours)
+    excluded = excluded_cell_days(
+        det["cell_id"].to_numpy(), det["acq_datetime"], cfg.risk_set.exclusion_hours
+    )
     root = out_dir / "risk_set"
     summary: dict[str, Any] = {}
     for year in cfg.study.years:
-        rs, stats = build_year_risk_set(year, grid["cell_id"].to_numpy(), excluded, positives,
-                                        cfg)
+        rs, stats = build_year_risk_set(year, grid["cell_id"].to_numpy(), excluded, positives, cfg)
         write_partition(rs, root, "year", year)
         summary[str(year)] = stats
         log.info("risk set %d: %s", year, stats)

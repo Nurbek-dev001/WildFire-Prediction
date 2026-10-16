@@ -53,13 +53,25 @@ def build_industrial_mask(df: pd.DataFrame, cfg: Config) -> pd.DataFrame:
     res = mcfg.screening_resolution_m
     px = np.floor(dev["x"] / res).astype(np.int64)
     py = np.floor(dev["y"] / res).astype(np.int64)
-    stats = pd.DataFrame({
-        "px": px, "py": py, "day": dev["acq_datetime"].dt.normalize(),
-        "year": dev["acq_datetime"].dt.year, "static": dev["type"] == 2,
-    }).groupby(["px", "py"]).agg(n_days=("day", "nunique"), n_years=("year", "nunique"),
-                                 static_share=("static", "mean")).reset_index()
-    cand = stats[(stats["n_days"] >= mcfg.min_detection_days)
-                 & (stats["n_years"] >= mcfg.min_years)].copy()
+    stats = (
+        pd.DataFrame(
+            {
+                "px": px,
+                "py": py,
+                "day": dev["acq_datetime"].dt.normalize(),
+                "year": dev["acq_datetime"].dt.year,
+                "static": dev["type"] == 2,
+            }
+        )
+        .groupby(["px", "py"])
+        .agg(
+            n_days=("day", "nunique"), n_years=("year", "nunique"), static_share=("static", "mean")
+        )
+        .reset_index()
+    )
+    cand = stats[
+        (stats["n_days"] >= mcfg.min_detection_days) & (stats["n_years"] >= mcfg.min_years)
+    ].copy()
     if cand.empty:
         cand["non_veg_fraction"] = []
         cand["masked"] = []
@@ -70,8 +82,9 @@ def build_industrial_mask(df: pd.DataFrame, cfg: Config) -> pd.DataFrame:
     sx = (cand["px"].to_numpy()[:, None, None] + offs[None, :, None]) * res
     sy = (cand["py"].to_numpy()[:, None, None] + offs[None, None, :]) * res
     sx, sy = np.broadcast_arrays(sx, sy)
-    lon, lat = Transformer.from_crs(cfg.crs.proj4, cfg.crs.geographic,
-                                    always_xy=True).transform(sx.ravel(), sy.ravel())
+    lon, lat = Transformer.from_crs(cfg.crs.proj4, cfg.crs.geographic, always_xy=True).transform(
+        sx.ravel(), sy.ravel()
+    )
     nonveg = np.zeros(len(cand))
     for e in lc_entries:
         vals = sample_points(e.path, lon, lat).reshape(len(cand), -1)
@@ -85,8 +98,9 @@ def build_industrial_mask(df: pd.DataFrame, cfg: Config) -> pd.DataFrame:
     return cand.reset_index(drop=True)
 
 
-def apply_vegetation_screens(df: pd.DataFrame, mask: pd.DataFrame, cfg: Config,
-                             qc: QCCounts) -> pd.DataFrame:
+def apply_vegetation_screens(
+    df: pd.DataFrame, mask: pd.DataFrame, cfg: Config, qc: QCCounts
+) -> pd.DataFrame:
     res = cfg.events.industrial_mask.screening_resolution_m
     keys = set(zip(mask.loc[mask["masked"], "px"], mask.loc[mask["masked"], "py"], strict=True))
     px = np.floor(df["x"] / res).astype(np.int64).to_numpy()
@@ -99,21 +113,44 @@ def apply_vegetation_screens(df: pd.DataFrame, mask: pd.DataFrame, cfg: Config,
     return df.loc[~in_mask & ~non_veg].reset_index(drop=True)
 
 
-def link_and_label(df: pd.DataFrame, grid: pd.DataFrame, meta: GridMeta, cfg: Config,
-                   spatial_km: float, temporal_h: float) -> tuple[pd.DataFrame, pd.DataFrame]:
+def link_and_label(
+    df: pd.DataFrame,
+    grid: pd.DataFrame,
+    meta: GridMeta,
+    cfg: Config,
+    spatial_km: float,
+    temporal_h: float,
+) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Attach event ids; return (detections, events) where events carry the earliest detection."""
     t0 = pd.Timestamp(cfg.study.start) - pd.Timedelta(days=cfg.study.lookback_days)
     t_hours = ((df["acq_datetime"] - t0) / pd.Timedelta(hours=1)).to_numpy()
-    df = df.assign(event_id=link_detections(df["x"].to_numpy(), df["y"].to_numpy(), t_hours,
-                                            spatial_km, temporal_h,
-                                            cfg.events.linking_window_days))
+    df = df.assign(
+        event_id=link_detections(
+            df["x"].to_numpy(),
+            df["y"].to_numpy(),
+            t_hours,
+            spatial_km,
+            temporal_h,
+            cfg.events.linking_window_days,
+        )
+    )
     first = earliest_detection(df, tie_break=tuple(cfg.events.tie_break))
-    agg = df.groupby("event_id").agg(n_detections=("acq_datetime", "size"),
-                                     last_detection=("acq_datetime", "max"))
-    events = first.set_index("event_id")[["acq_datetime", "x", "y", "cell_id", "confidence",
-                                          "frp"]].rename(columns={
-        "acq_datetime": "first_detection", "x": "first_x", "y": "first_y",
-        "cell_id": "first_cell_id"}).join(agg).reset_index()
+    agg = df.groupby("event_id").agg(
+        n_detections=("acq_datetime", "size"), last_detection=("acq_datetime", "max")
+    )
+    events = (
+        first.set_index("event_id")[["acq_datetime", "x", "y", "cell_id", "confidence", "frp"]]
+        .rename(
+            columns={
+                "acq_datetime": "first_detection",
+                "x": "first_x",
+                "y": "first_y",
+                "cell_id": "first_cell_id",
+            }
+        )
+        .join(agg)
+        .reset_index()
+    )
     events["first_date"] = events["first_detection"].dt.normalize()
     events["first_in_grid"] = events["first_cell_id"] >= 0
     return df, events
@@ -124,15 +161,16 @@ def positives_from_events(events: pd.DataFrame, cfg: Config) -> pd.DataFrame:
     start, end = pd.Timestamp(cfg.study.start), pd.Timestamp(cfg.study.end)
     ok = events["first_in_grid"] & events["first_date"].between(start, end)
     pos = events.loc[ok, ["first_cell_id", "first_date", "event_id"]].rename(
-        columns={"first_cell_id": "cell_id", "first_date": "date"})
+        columns={"first_cell_id": "cell_id", "first_date": "date"}
+    )
     # several events can start in the same cell on the same day -> one positive cell-day
     pos = pos.groupby(["cell_id", "date"], as_index=False).agg(
-        event_id=("event_id", "min"), n_events=("event_id", "size"))
+        event_id=("event_id", "min"), n_events=("event_id", "size")
+    )
     return pos.sort_values(["date", "cell_id"]).reset_index(drop=True)
 
 
-def run_events(cfg: Config, grid_file: Path, grid_meta_file: Path, out_dir: Path
-               ) -> dict[str, Any]:
+def run_events(cfg: Config, grid_file: Path, grid_meta_file: Path, out_dir: Path) -> dict[str, Any]:
     grid = load_grid(grid_file)
     meta = GridMeta.load(grid_meta_file)
     qc = QCCounts()
@@ -147,16 +185,28 @@ def run_events(cfg: Config, grid_file: Path, grid_meta_file: Path, out_dir: Path
     mask = build_industrial_mask(df, cfg)
     df = apply_vegetation_screens(df, mask, cfg, qc)
     df["cell_id"] = cell_lookup(grid, meta, df["x"].to_numpy(), df["y"].to_numpy())
-    df, events = link_and_label(df, grid, meta, cfg, cfg.events.spatial_link_km,
-                                cfg.events.temporal_link_h)
+    df, events = link_and_label(
+        df, grid, meta, cfg, cfg.events.spatial_link_km, cfg.events.temporal_link_h
+    )
     positives = positives_from_events(events, cfg)
     qc.add("events_total", len(events))
     qc.add("events_first_detection_outside_grid", int((~events["first_in_grid"]).sum()))
     qc.add("positive_cell_days", len(positives))
 
     out_dir.mkdir(parents=True, exist_ok=True)
-    keep_cols = ["acq_datetime", "latitude", "longitude", "x", "y", "cell_id", "confidence",
-                 "confidence_rank", "frp", "type", "event_id"]
+    keep_cols = [
+        "acq_datetime",
+        "latitude",
+        "longitude",
+        "x",
+        "y",
+        "cell_id",
+        "confidence",
+        "confidence_rank",
+        "frp",
+        "type",
+        "event_id",
+    ]
     df[keep_cols].to_parquet(out_dir / "detections_qc.parquet", index=False)
     events.to_parquet(out_dir / "events.parquet", index=False)
     positives.to_parquet(out_dir / "positives.parquet", index=False)
@@ -168,8 +218,9 @@ def run_events(cfg: Config, grid_file: Path, grid_meta_file: Path, out_dir: Path
     return qc.counts
 
 
-def run_event_sensitivity(cfg: Config, out_dir: Path, grid_file: Path, grid_meta_file: Path
-                          ) -> pd.DataFrame:
+def run_event_sensitivity(
+    cfg: Config, out_dir: Path, grid_file: Path, grid_meta_file: Path
+) -> pd.DataFrame:
     """Event/positive counts for every spatial x temporal linkage setting (1–5 km x 24–72 h)."""
     grid = load_grid(grid_file)
     meta = GridMeta.load(grid_meta_file)
@@ -179,11 +230,18 @@ def run_event_sensitivity(cfg: Config, out_dir: Path, grid_file: Path, grid_meta
         for th in cfg.events.sensitivity.temporal_h:
             _, ev = link_and_label(det, grid, meta, cfg, skm, th)
             pos = positives_from_events(ev, cfg)
-            rows.append({"spatial_km": skm, "temporal_h": th, "n_events": len(ev),
-                         "n_positive_cell_days": len(pos),
-                         "median_detections_per_event": float(ev["n_detections"].median()),
-                         "is_primary": (skm == cfg.events.spatial_link_km
-                                        and th == cfg.events.temporal_link_h)})
+            rows.append(
+                {
+                    "spatial_km": skm,
+                    "temporal_h": th,
+                    "n_events": len(ev),
+                    "n_positive_cell_days": len(pos),
+                    "median_detections_per_event": float(ev["n_detections"].median()),
+                    "is_primary": (
+                        skm == cfg.events.spatial_link_km and th == cfg.events.temporal_link_h
+                    ),
+                }
+            )
     table = pd.DataFrame(rows)
     table.to_csv(out_dir / "event_linkage_sensitivity.csv", index=False)
     return table

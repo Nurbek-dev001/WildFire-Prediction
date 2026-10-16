@@ -9,15 +9,27 @@ import rasterio
 from rasterio.transform import Affine
 
 
-def write_geotiff(path: Path, bands: np.ndarray, transform: Affine, crs: str,
-                  nodata: float | int | None = None, tags: dict[str, str] | None = None,
-                  band_descriptions: list[str] | None = None) -> None:
+def write_geotiff(
+    path: Path,
+    bands: np.ndarray,
+    transform: Affine,
+    crs: str,
+    nodata: float | int | None = None,
+    tags: dict[str, str] | None = None,
+    band_descriptions: list[str] | None = None,
+) -> None:
     """Write a (bands, rows, cols) or (rows, cols) array as a compressed GeoTIFF."""
     arr = bands if bands.ndim == 3 else bands[np.newaxis]
     path.parent.mkdir(parents=True, exist_ok=True)
     profile = {
-        "driver": "GTiff", "height": arr.shape[1], "width": arr.shape[2], "count": arr.shape[0],
-        "dtype": arr.dtype.name, "crs": crs, "transform": transform, "compress": "deflate",
+        "driver": "GTiff",
+        "height": arr.shape[1],
+        "width": arr.shape[2],
+        "count": arr.shape[0],
+        "dtype": arr.dtype.name,
+        "crs": crs,
+        "transform": transform,
+        "compress": "deflate",
         "tiled": arr.shape[1] >= 256 and arr.shape[2] >= 256,
     }
     if nodata is not None:

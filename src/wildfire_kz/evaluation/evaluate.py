@@ -28,8 +28,9 @@ from wildfire_kz.utils.runtime import derive_seed, get_logger, read_json, write_
 log = get_logger("evaluate")
 
 
-def collect_models(paths: RunPaths) -> tuple[dict[str, FittedModel], dict[str, Platt],
-                                             dict[str, float], dict[str, str]]:
+def collect_models(
+    paths: RunPaths,
+) -> tuple[dict[str, FittedModel], dict[str, Platt], dict[str, float], dict[str, str]]:
     """All trained, calibrated models: main, class-weight variants, baselines, ablations."""
     calib = read_json(paths.stage("calibrate") / "calibration_artifacts.json")["models"]
     abl_cal_path = paths.stage("ablate") / "ablation_calibration.json"
@@ -51,10 +52,9 @@ def collect_models(paths: RunPaths) -> tuple[dict[str, FittedModel], dict[str, P
     return models, platts, taus, kinds
 
 
-def comparison_pairs(cfg: Config, names: list[str], kinds: dict[str, str]) -> list[tuple[str,
-                                                                                          str]]:
+def comparison_pairs(cfg: Config, names: list[str], kinds: dict[str, str]) -> list[tuple[str, str]]:
     main = [n for n in names if kinds[n] == "main"]
-    pairs = [(a, b) for i, a in enumerate(main) for b in main[i + 1:]]
+    pairs = [(a, b) for i, a in enumerate(main) for b in main[i + 1 :]]
     for n in names:
         if kinds[n] == "class_weight_sensitivity":
             pairs.append((n.split("__")[0], n))
@@ -63,59 +63,95 @@ def comparison_pairs(cfg: Config, names: list[str], kinds: dict[str, str]) -> li
     return pairs
 
 
-def stratified_metrics(cfg: Config, pred: pd.DataFrame, models: list[str],
-                       taus: dict[str, float]) -> pd.DataFrame:
+def stratified_metrics(
+    cfg: Config, pred: pd.DataFrame, models: list[str], taus: dict[str, float]
+) -> pd.DataFrame:
     rows = []
     min_pos = cfg.evaluation.min_positives_for_stratum
     strata = dict.fromkeys(cfg.evaluation.strata)
-    pred = pred.assign(cropland=np.where(pred["lc_group"] == "cropland", "cropland",
-                                         "non-cropland"))
+    pred = pred.assign(
+        cropland=np.where(pred["lc_group"] == "cropland", "cropland", "non-cropland")
+    )
     for col in [*strata, "cropland"]:
         for val, g in pred.groupby(col):
             y, w = g["label"].to_numpy(), g["w_eval"].to_numpy()
             for m in models:
-                met = summary_metrics(y, g[f"p_{m}"].to_numpy(), w, taus[m],
-                                      g["p_reference"].to_numpy(), cfg.evaluation.reliability_bins)
-                rows.append({"stratum_type": col, "stratum": str(val), "model": m, **met,
-                             "unstable_few_positives": bool(y.sum() < min_pos)})
+                met = summary_metrics(
+                    y,
+                    g[f"p_{m}"].to_numpy(),
+                    w,
+                    taus[m],
+                    g["p_reference"].to_numpy(),
+                    cfg.evaluation.reliability_bins,
+                )
+                rows.append(
+                    {
+                        "stratum_type": col,
+                        "stratum": str(val),
+                        "model": m,
+                        **met,
+                        "unstable_few_positives": bool(y.sum() < min_pos),
+                    }
+                )
     return pd.DataFrame(rows)
 
 
-def result_flags(cfg: Config, overall: pd.DataFrame, pairs: pd.DataFrame,
-                 strat: pd.DataFrame, spatial: pd.DataFrame | None) -> list[str]:
+def result_flags(
+    cfg: Config,
+    overall: pd.DataFrame,
+    pairs: pd.DataFrame,
+    strat: pd.DataFrame,
+    spatial: pd.DataFrame | None,
+) -> list[str]:
     """Explicit statements of negative, null or unstable results (generated, not curated)."""
     flags = []
-    for _, r in overall.iterrows():
-        if r["bss"] <= 0:
-            flags.append(f"{r['model']}: Brier skill vs seasonal reference is not positive "
-                         f"(BSS={r['bss']:.4f})")
-        if r["average_precision"] <= r["prevalence"]:
-            flags.append(f"{r['model']}: AP does not exceed the no-skill prevalence")
-    base = overall.set_index("model")
+    for rec in overall.to_dict(orient="records"):
+        if float(rec["bss"]) <= 0:
+            flags.append(
+                f"{rec['model']}: Brier skill vs seasonal reference is not positive "
+                f"(BSS={float(rec['bss']):.4f})"
+            )
+        if float(rec["average_precision"]) <= float(rec["prevalence"]):
+            flags.append(f"{rec['model']}: AP does not exceed the no-skill prevalence")
+    ap = {
+        str(k): float(v)
+        for k, v in zip(overall["model"], overall["average_precision"], strict=True)
+    }
     for b in ("seasonal_landcover", "weather_logistic"):
-        if b not in base.index:
+        if b not in ap:
             continue
-        for m in cfg.models.classifiers:
-            if m in base.index and base.loc[m, "average_precision"] <= base.loc[
-                    b, "average_precision"]:
-                flags.append(f"{m}: test AP not above baseline {b}")
+        for clf in cfg.models.classifiers:
+            if clf in ap and ap[clf] <= ap[b]:
+                flags.append(f"{clf}: test AP not above baseline {b}")
     for _, r in pairs.iterrows():
         if r["metric"] == "average_precision" and not r["ci_excludes_zero"]:
-            flags.append(f"AP difference {r['model_a']} - {r['model_b']}: 95% block-bootstrap "
-                         f"CI [{r['ci_lo']:.4f}, {r['ci_hi']:.4f}] includes 0 (no clear "
-                         "difference)")
+            flags.append(
+                f"AP difference {r['model_a']} - {r['model_b']}: 95% block-bootstrap "
+                f"CI [{r['ci_lo']:.4f}, {r['ci_hi']:.4f}] includes 0 (no clear "
+                "difference)"
+            )
     unstable = strat[strat["unstable_few_positives"]]
     if len(unstable):
-        flags.append(f"{unstable[['stratum_type', 'stratum']].drop_duplicates().shape[0]} "
-                     f"strata have < {cfg.evaluation.min_positives_for_stratum} positives; "
-                     "their metrics are unstable")
+        flags.append(
+            f"{unstable[['stratum_type', 'stratum']].drop_duplicates().shape[0]} "
+            f"strata have < {cfg.evaluation.min_positives_for_stratum} positives; "
+            "their metrics are unstable"
+        )
     if spatial is not None and len(spatial):
-        g = spatial.groupby(["block_km", "model"])["average_precision"]
-        for (bk, m), s in g:
-            cv = s.std() / s.mean() if s.mean() > 0 else np.nan
+        agg = (
+            spatial.groupby(["block_km", "model"])["average_precision"]
+            .agg(["mean", "std"])
+            .reset_index()
+        )
+        for rec in agg.to_dict(orient="records"):
+            mean, sd = float(rec["mean"]), float(rec["std"])
+            cv = sd / mean if mean > 0 else np.nan
             if np.isfinite(cv) and cv > 0.5:
-                flags.append(f"spatial CV ({bk:.0f} km) {m}: AP varies strongly across "
-                             f"held-out regions (coefficient of variation {cv:.2f})")
+                flags.append(
+                    f"spatial CV ({float(rec['block_km']):.0f} km) {rec['model']}: AP "
+                    "varies strongly across held-out regions (coefficient of "
+                    f"variation {cv:.2f})"
+                )
     return flags
 
 
@@ -132,30 +168,50 @@ def run_evaluate(cfg: Config, paths: RunPaths) -> dict[str, Any]:
     test = test.merge(g, on="cell_id", how="left")
     models, platts, taus, kinds = collect_models(paths)
     names = sorted(models)
-    pred = test[["cell_id", "date", "year", "month", "lc_group", "region", "label", "w_eval",
-                 "x", "y", "area_km2"]].copy()
+    pred = test[
+        [
+            "cell_id",
+            "date",
+            "year",
+            "month",
+            "lc_group",
+            "region",
+            "label",
+            "w_eval",
+            "x",
+            "y",
+            "area_km2",
+        ]
+    ].copy()
     resources = []
     for m in names:
         with track_resources() as usage:
             raw = models[m].decision_logit(test)
         pred[f"p_{m}"] = platts[m].apply(raw)
         pred[f"raw_{m}"] = raw
-        resources.append({"model": m, "inference_seconds": usage.wall_seconds,
-                          "inference_peak_rss_mb": usage.peak_rss_mb, "rows": len(test)})
+        resources.append(
+            {
+                "model": m,
+                "inference_seconds": usage.wall_seconds,
+                "inference_peak_rss_mb": usage.peak_rss_mb,
+                "rows": len(test),
+            }
+        )
     # seasonal reference: land-cover x month climatology fitted on development years only
     ref = models["seasonal_landcover"].predict_proba(test)
     pred["p_reference"] = ref
     y, w = pred["label"].to_numpy(), pred["w_eval"].to_numpy()
-    dev = store.load(cfg.splits.development_years, "train", columns=["label", "w_eval",
-                                                                       "in_eval"])
+    dev = store.load(cfg.splits.development_years, "train", columns=["label", "w_eval", "in_eval"])
     dev = dev[dev["in_eval"]]
     clim = float((dev["label"] * dev["w_eval"]).sum() / dev["w_eval"].sum())
     rows = []
     for m in names:
-        met = summary_metrics(y, pred[f"p_{m}"].to_numpy(), w, taus[m], ref,
-                              cfg.evaluation.reliability_bins)
-        met["bss_vs_climatology"] = 1 - met["brier"] / float(np.sum(w * (clim - y) ** 2)
-                                                             / np.sum(w))
+        met = summary_metrics(
+            y, pred[f"p_{m}"].to_numpy(), w, taus[m], ref, cfg.evaluation.reliability_bins
+        )
+        met["bss_vs_climatology"] = 1 - met["brier"] / float(
+            np.sum(w * (clim - y) ** 2) / np.sum(w)
+        )
         rows.append({"model": m, "kind": kinds[m], **met})
     overall = pd.DataFrame(rows)
     overall.to_csv(out / "metrics_overall.csv", index=False)
@@ -163,9 +219,14 @@ def run_evaluate(cfg: Config, paths: RunPaths) -> dict[str, Any]:
     rel = []
     for m in names:
         for binning in ("uniform", "quantile"):
-            t = reliability_table(y, pred[f"p_{m}"].to_numpy(), w,
-                                  cfg.evaluation.reliability_bins, binning,
-                                  cfg.evaluation.wilson_z)
+            t = reliability_table(
+                y,
+                pred[f"p_{m}"].to_numpy(),
+                w,
+                cfg.evaluation.reliability_bins,
+                binning,
+                cfg.evaluation.wilson_z,
+            )
             rel.append(t.assign(model=m, binning=binning))
     pd.concat(rel).to_csv(out / "reliability.csv", index=False)
     # capture rates
@@ -173,8 +234,14 @@ def run_evaluate(cfg: Config, paths: RunPaths) -> dict[str, Any]:
     for m in names:
         for mode in cfg.evaluation.capture_modes:
             for frac in cfg.evaluation.capture_fractions:
-                c = capture_rate(y, pred[f"p_{m}"].to_numpy(), frac, w, pred["area_km2"],
-                                 pred["date"] if mode == "daily" else None)
+                c = capture_rate(
+                    y,
+                    pred[f"p_{m}"].to_numpy(),
+                    frac,
+                    w,
+                    pred["area_km2"].to_numpy(),
+                    pred["date"].to_numpy() if mode == "daily" else None,
+                )
                 cap.append({"model": m, "mode": mode, **c})
     pd.DataFrame(cap).to_csv(out / "capture_rates.csv", index=False)
     # stratified metrics (main models + baselines)
@@ -183,20 +250,33 @@ def run_evaluate(cfg: Config, paths: RunPaths) -> dict[str, Any]:
     strat.to_csv(out / "metrics_stratified.csv", index=False)
     # paired space-time block bootstrap on identical resampled units
     bcfg = cfg.evaluation.bootstrap
-    blocks = space_time_blocks(pred["x"], pred["y"], pred["date"], bcfg.spatial_block_km,
-                               bcfg.temporal_block_days)
+    blocks = space_time_blocks(
+        pred["x"].to_numpy(),
+        pred["y"].to_numpy(),
+        pred["date"],
+        bcfg.spatial_block_km,
+        bcfg.temporal_block_days,
+    )
     pairs = comparison_pairs(cfg, names, kinds)
     model_ci, pair_ci = paired_block_bootstrap(
-        y, w, blocks, {m: pred[f"p_{m}"].to_numpy() for m in names}, ref, pairs,
-        bcfg.n_resamples, derive_seed(cfg.project.seed, "bootstrap"), bcfg.ci_level)
+        y,
+        w,
+        blocks,
+        {m: pred[f"p_{m}"].to_numpy() for m in names},
+        ref,
+        pairs,
+        bcfg.n_resamples,
+        derive_seed(cfg.project.seed, "bootstrap"),
+        bcfg.ci_level,
+    )
     model_ci.to_csv(out / "bootstrap_model_ci.csv", index=False)
     pair_ci.to_csv(out / "bootstrap_pairs.csv", index=False)
     # map classes: observed frequencies on the test years with frozen boundaries
     cal = read_json(paths.stage("calibrate") / "calibration_artifacts.json")
     mm = cal["map_model"]
-    class_frequencies(pred[f"p_{mm}"].to_numpy(), y, w, cal["map_class_boundaries"],
-                      cal["map_class_labels"]).to_csv(out / "map_class_frequencies_test.csv",
-                                                      index=False)
+    class_frequencies(
+        pred[f"p_{mm}"].to_numpy(), y, w, cal["map_class_boundaries"], cal["map_class_labels"]
+    ).to_csv(out / "map_class_frequencies_test.csv", index=False)
     # resources: training (from train stage) + inference
     sel = read_json(paths.stage("train") / "selection.json")["models"]
     res = pd.DataFrame(resources)

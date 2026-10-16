@@ -91,8 +91,8 @@ def build_grid(cfg: Config, spec: GridSpec, variant: str) -> tuple[gpd.GeoDataFr
     minx, miny, maxx, maxy = domain.bounds
     ix0, ix1 = int(np.floor(minx / s)), int(np.ceil(maxx / s))
     iy0, iy1 = int(np.floor(miny / s)), int(np.ceil(maxy / s))
-    ixs, iys = np.meshgrid(np.arange(ix0, ix1), np.arange(iy0, iy1))
-    ixs, iys = ixs.ravel(), iys.ravel()
+    gx, gy = np.meshgrid(np.arange(ix0, ix1), np.arange(iy0, iy1))
+    ixs, iys = gx.ravel(), gy.ravel()
     cells = shapely.box(ixs * s, iys * s, (ixs + 1) * s, (iys + 1) * s)
     shapely.prepare(domain)
     candidate = shapely.intersects(domain, cells)
@@ -102,25 +102,50 @@ def build_grid(cfg: Config, spec: GridSpec, variant: str) -> tuple[gpd.GeoDataFr
     keep = frac >= cfg.grid.min_inside_fraction
     ixs, iys, cells, frac = ixs[keep], iys[keep], cells[keep], frac[keep]
     xmin, ymax = ix0 * s, iy1 * s
-    meta = GridMeta(crs=cfg.crs.proj4, crs_name=cfg.crs.name, cell_size_m=s, xmin=xmin,
-                    ymax=ymax, width=ix1 - ix0, height=iy1 - iy0, n_cells=int(keep.sum()),
-                    variant=variant)
+    meta = GridMeta(
+        crs=cfg.crs.proj4,
+        crs_name=cfg.crs.name,
+        cell_size_m=s,
+        xmin=xmin,
+        ymax=ymax,
+        width=ix1 - ix0,
+        height=iy1 - iy0,
+        n_cells=int(keep.sum()),
+        variant=variant,
+    )
     cx, cy = (ixs + 0.5) * s, (iys + 0.5) * s
     lon, lat = Transformer.from_crs(cfg.crs.proj4, cfg.crs.geographic, always_xy=True).transform(
-        cx, cy)
-    gdf = gpd.GeoDataFrame(
-        {
-            "cell_id": make_cell_id(ixs, iys),
-            "ix": ixs.astype(np.int32), "iy": iys.astype(np.int32),
-            "col": (ixs - ix0).astype(np.int32), "row": (iy1 - 1 - iys).astype(np.int32),
-            "x": cx, "y": cy, "lon": lon, "lat": lat,
-            "inside_fraction": frac.astype(np.float32),
-            "area_km2": (frac * s * s / 1e6).astype(np.float32),
-        },
-        geometry=cells, crs=cfg.crs.proj4,
-    ).sort_values("cell_id").reset_index(drop=True)
-    log.info("grid '%s': %d cells of %.0f m (%dx%d raster)", variant, len(gdf), s, meta.width,
-             meta.height)
+        cx, cy
+    )
+    gdf = (
+        gpd.GeoDataFrame(
+            {
+                "cell_id": make_cell_id(ixs, iys),
+                "ix": ixs.astype(np.int32),
+                "iy": iys.astype(np.int32),
+                "col": (ixs - ix0).astype(np.int32),
+                "row": (iy1 - 1 - iys).astype(np.int32),
+                "x": cx,
+                "y": cy,
+                "lon": lon,
+                "lat": lat,
+                "inside_fraction": frac.astype(np.float32),
+                "area_km2": (frac * s * s / 1e6).astype(np.float32),
+            },
+            geometry=cells,
+            crs=cfg.crs.proj4,
+        )
+        .sort_values("cell_id")
+        .reset_index(drop=True)
+    )
+    log.info(
+        "grid '%s': %d cells of %.0f m (%dx%d raster)",
+        variant,
+        len(gdf),
+        s,
+        meta.width,
+        meta.height,
+    )
     return gdf, meta
 
 

@@ -62,25 +62,36 @@ def assign_classes(p: np.ndarray, boundaries: list[float]) -> np.ndarray:
     return np.searchsorted(np.asarray(boundaries), np.asarray(p), side="right")
 
 
-def class_frequencies(p: np.ndarray, y: np.ndarray, w: np.ndarray, boundaries: list[float],
-                      labels: list[str]) -> pd.DataFrame:
+def class_frequencies(
+    p: np.ndarray, y: np.ndarray, w: np.ndarray, boundaries: list[float], labels: list[str]
+) -> pd.DataFrame:
     cls = assign_classes(p, boundaries)
     rows = []
     for k, lab in enumerate(labels):
         m = cls == k
         sw = float(w[m].sum())
-        rows.append({"class": k, "label": lab, "weighted_cell_days": sw,
-                     "share_of_cell_days": sw / float(w.sum()),
-                     "observed_event_frequency": float((w[m] * y[m]).sum() / sw) if sw else np.nan,
-                     "share_of_events": float((w[m] * y[m]).sum() / (w * y).sum())
-                     if (w * y).sum() else np.nan,
-                     "mean_calibrated_p": float((w[m] * p[m]).sum() / sw) if sw else np.nan})
+        rows.append(
+            {
+                "class": k,
+                "label": lab,
+                "weighted_cell_days": sw,
+                "share_of_cell_days": sw / float(w.sum()),
+                "observed_event_frequency": float((w[m] * y[m]).sum() / sw) if sw else np.nan,
+                "share_of_events": float((w[m] * y[m]).sum() / (w * y).sum())
+                if (w * y).sum()
+                else np.nan,
+                "mean_calibrated_p": float((w[m] * p[m]).sum() / sw) if sw else np.nan,
+            }
+        )
     return pd.DataFrame(rows)
 
 
 def model_dirs(train_dir: Path) -> dict[str, Path]:
-    return {p.name: p for p in sorted(train_dir.iterdir())
-            if p.is_dir() and (p / "model.joblib").exists()}
+    return {
+        p.name: p
+        for p in sorted(train_dir.iterdir())
+        if p.is_dir() and (p / "model.joblib").exists()
+    }
 
 
 def score_frame(fm: FittedModel, df: pd.DataFrame) -> np.ndarray:
@@ -88,8 +99,9 @@ def score_frame(fm: FittedModel, df: pd.DataFrame) -> np.ndarray:
     return fm.decision_logit(df)
 
 
-def calibrate_models(cfg: Config, models: dict[str, FittedModel], cal: pd.DataFrame
-                     ) -> tuple[dict[str, Any], pd.DataFrame]:
+def calibrate_models(
+    cfg: Config, models: dict[str, FittedModel], cal: pd.DataFrame
+) -> tuple[dict[str, Any], pd.DataFrame]:
     """Fit Platt + tau for each model on the calibration rows; returns (params, predictions)."""
     y = cal["label"].to_numpy()
     w = cal["w_eval"].to_numpy(dtype=float)
@@ -100,13 +112,24 @@ def calibrate_models(cfg: Config, models: dict[str, FittedModel], cal: pd.DataFr
         platt = fit_platt(s, y, w)
         p = platt.apply(s)
         tau, f1 = best_f1_threshold(y, p, w)
-        out[name] = {"platt_a": platt.a, "platt_b": platt.b, "tau": tau,
-                     "weighted_f1_calibration": f1, "n_calibration_rows": len(cal),
-                     "calibration_positives": int(y.sum())}
+        out[name] = {
+            "platt_a": platt.a,
+            "platt_b": platt.b,
+            "tau": tau,
+            "weighted_f1_calibration": f1,
+            "n_calibration_rows": len(cal),
+            "calibration_positives": int(y.sum()),
+        }
         preds[f"p_{name}"] = p
         preds[f"s_{name}"] = s
-        log.info("calibrated %s: a=%.3f b=%.3f tau=%.4g (weighted F1 %.3f)", name, platt.a,
-                 platt.b, tau, f1)
+        log.info(
+            "calibrated %s: a=%.3f b=%.3f tau=%.4g (weighted F1 %.3f)",
+            name,
+            platt.a,
+            platt.b,
+            tau,
+            f1,
+        )
     return out, preds
 
 
@@ -123,16 +146,20 @@ def run_calibrate(cfg: Config, paths: RunPaths) -> dict[str, Any]:
     mc = cfg.mapping
     p_map = preds[f"p_{map_model}"].to_numpy()
     boundaries = weighted_quantiles(p_map, preds["w_eval"].to_numpy(), mc.class_quantiles)
-    freq = class_frequencies(p_map, preds["label"].to_numpy(), preds["w_eval"].to_numpy(),
-                             boundaries, mc.class_labels)
+    freq = class_frequencies(
+        p_map, preds["label"].to_numpy(), preds["w_eval"].to_numpy(), boundaries, mc.class_labels
+    )
     freq.to_csv(out_dir / "map_class_frequencies_calibration.csv", index=False)
     preds.to_parquet(out_dir / "calibration_predictions.parquet", index=False)
     artifacts = {
-        "frozen_at": utc_now(), "calibration_years": cfg.splits.calibration_years,
+        "frozen_at": utc_now(),
+        "calibration_years": cfg.splits.calibration_years,
         "method": "sigmoid (Platt) on uncalibrated log-odds, inverse-inclusion weighted",
         "threshold_rule": "maximise weighted F1 on the calibration year",
-        "models": params, "map_model": map_model,
-        "map_class_quantiles": mc.class_quantiles, "map_class_boundaries": boundaries,
+        "models": params,
+        "map_model": map_model,
+        "map_class_quantiles": mc.class_quantiles,
+        "map_class_boundaries": boundaries,
         "map_class_labels": mc.class_labels,
     }
     write_json(out_dir / "calibration_artifacts.json", artifacts)

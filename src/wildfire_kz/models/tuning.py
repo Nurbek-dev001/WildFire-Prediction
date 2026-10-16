@@ -58,8 +58,12 @@ def _suggest(trial: optuna.Trial, name: str, rng: IntRange | FloatRange) -> Any:
 
 def search_space(cfg: Config, estimator: str) -> dict[str, IntRange | FloatRange]:
     spaces = cfg.models.search_spaces
-    space = {"logistic": spaces.logistic, "random_forest": spaces.random_forest,
-             "xgboost": spaces.xgboost, "catboost": spaces.catboost}[estimator]
+    space = {
+        "logistic": spaces.logistic,
+        "random_forest": spaces.random_forest,
+        "xgboost": spaces.xgboost,
+        "catboost": spaces.catboost,
+    }[estimator]
     return {k: getattr(space, k) for k in type(space).model_fields}
 
 
@@ -71,47 +75,76 @@ def n_trials_for(cfg: Config, estimator: str, spatial: bool = False) -> int:
     return cfg.models.n_trials_logistic if estimator == "logistic" else cfg.models.n_trials_ensemble
 
 
-def evaluate_params(spec: ModelSpec, cfg: Config, folds: list[Fold], seed: int,
-                    scheme: str) -> tuple[float, list[float], list[int | None]]:
+def evaluate_params(
+    spec: ModelSpec, cfg: Config, folds: list[Fold], seed: int, scheme: str
+) -> tuple[float, list[float], list[int | None]]:
     scores, iters = [], []
     for fold in folds:
         tr, va = fold.train, fold.val
-        fm = fit_model(spec, cfg, seed, tr, tr["label"].to_numpy(), training_weights(tr, scheme),
-                       va, va["label"].to_numpy(), eval_weights(va))
+        fm = fit_model(
+            spec,
+            cfg,
+            seed,
+            tr,
+            tr["label"].to_numpy(),
+            training_weights(tr, scheme),
+            va,
+            va["label"].to_numpy(),
+            eval_weights(va),
+        )
         p = fm.predict_proba(va)
         scores.append(average_precision(va["label"].to_numpy(), p, eval_weights(va)))
         iters.append(fm.best_iteration)
     return float(np.nanmean(scores)), scores, iters
 
 
-def tune(spec: ModelSpec, cfg: Config, folds: list[Fold], seed: int, scheme: str,
-         n_trials: int, on_trial: Callable[[dict[str, Any]], None] | None = None
-         ) -> tuple[dict[str, Any], pd.DataFrame]:
+def tune(
+    spec: ModelSpec,
+    cfg: Config,
+    folds: list[Fold],
+    seed: int,
+    scheme: str,
+    n_trials: int,
+    on_trial: Callable[[dict[str, Any]], None] | None = None,
+) -> tuple[dict[str, Any], pd.DataFrame]:
     """Return (best params incl. refit iteration count, trials table)."""
     if n_trials <= 0:
         mean, scores, _ = evaluate_params(spec, cfg, folds, seed, scheme)
-        table = pd.DataFrame([{"trial": 0, "value": mean,
-                               **{f"ap_{f.name}": s for f, s in zip(folds, scores, strict=True)}}])
+        table = pd.DataFrame(
+            [
+                {
+                    "trial": 0,
+                    "value": mean,
+                    **{f"ap_{f.name}": s for f, s in zip(folds, scores, strict=True)},
+                }
+            ]
+        )
         return dict(spec.params), table
     space = search_space(cfg, spec.estimator)
     records: list[dict[str, Any]] = []
 
     def objective(trial: optuna.Trial) -> float:
         params = {k: _suggest(trial, k, r) for k, r in space.items()}
-        trial_spec = ModelSpec(spec.name, spec.estimator, spec.features, spec.categorical,
-                               {**spec.params, **params})
+        trial_spec = ModelSpec(
+            spec.name, spec.estimator, spec.features, spec.categorical, {**spec.params, **params}
+        )
         mean, scores, iters = evaluate_params(trial_spec, cfg, folds, seed, scheme)
-        rec = {"trial": trial.number, "value": mean, **params,
-               **{f"ap_{f.name}": s for f, s in zip(folds, scores, strict=True)},
-               "best_iterations": [i for i in iters if i is not None]}
+        rec = {
+            "trial": trial.number,
+            "value": mean,
+            **params,
+            **{f"ap_{f.name}": s for f, s in zip(folds, scores, strict=True)},
+            "best_iterations": [i for i in iters if i is not None],
+        }
         trial.set_user_attr("best_iterations", rec["best_iterations"])
         records.append(rec)
         if on_trial:
             on_trial(rec)
         return mean if np.isfinite(mean) else -1.0
 
-    study = optuna.create_study(direction="maximize",
-                                sampler=optuna.samplers.TPESampler(seed=seed % (2**31)))
+    study = optuna.create_study(
+        direction="maximize", sampler=optuna.samplers.TPESampler(seed=seed % (2**31))
+    )
     study.optimize(objective, n_trials=n_trials, show_progress_bar=False)
     best = dict(study.best_params)
     its = study.best_trial.user_attrs.get("best_iterations") or []

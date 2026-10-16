@@ -41,8 +41,9 @@ def test_overlapping_splits_rejected() -> None:
 
 def test_non_chronological_rolling_origin_rejected() -> None:
     with pytest.raises(ValidationError):
-        Config.model_validate({"splits": {"rolling_origin": [
-            {"train_years": [2019], "val_year": 2018}]}})
+        Config.model_validate(
+            {"splits": {"rolling_origin": [{"train_years": [2019], "val_year": 2018}]}}
+        )
 
 
 def test_dotted_overrides() -> None:

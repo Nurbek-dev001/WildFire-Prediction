@@ -25,15 +25,15 @@ class FeatureSpec:
 
 GROUP_ASOF_RULE = {
     "weather_prior_day": "UTC day t-1 (hourly fields 00-23 UTC of t-1; precipitation total of "
-                         "t-1 read from the 00 UTC step of t per ERA5-Land accumulation)",
+    "t-1 read from the 00 UTC step of t per ERA5-Land accumulation)",
     "weather_antecedent": "window [t-W, t-1] (W = 7, 14 days); as-of = t-1",
     "fire_weather": "computed only from t-1 daily weather; as-of = t-1",
     "vegetation": "latest MOD13A2 composite whose interval ended and publication lag elapsed "
-                  "by t-1; as-of = availability date",
+    "by t-1; as-of = availability date",
     "landcover": "MCD12Q1 map of the preceding year; as-of = 31 Dec of the product year",
     "terrain": "SRTM (static, acquired Feb 2000); as-of = acquisition date",
     "anthropogenic": "WorldPop of the preceding year; settlement/road snapshots dated before t; "
-                     "as-of = latest of these dates",
+    "as-of = latest of these dates",
     "fire_history": "detections strictly before t (window [t-W, t-1]); as-of = t-1",
     "calendar": "deterministic function of the target date (no observation; exempt)",
 }
@@ -65,22 +65,33 @@ def feature_specs(cfg: Config) -> list[FeatureSpec]:
         add(f"t2m_max_mean_{w}d_c", "weather_antecedent", f"{w}-day mean of daily Tmax (°C)")
         add(f"rh_mean_{w}d_pct", "weather_antecedent", f"{w}-day mean relative humidity (%)")
     wmax = max(f.weather.antecedent_windows_days)
-    add(f"dry_days_{wmax}d", "weather_antecedent",
-        f"days with precip < {f.weather.rain_day_threshold_mm} mm in the last {wmax} days")
+    add(
+        f"dry_days_{wmax}d",
+        "weather_antecedent",
+        f"days with precip < {f.weather.rain_day_threshold_mm} mm in the last {wmax} days",
+    )
     if f.weather.include_fire_weather_index:
-        add("ffwi_fosberg", "fire_weather", "Fosberg fire-weather index from t-1 Tmax, RHmin, "
-            "mean wind")
-    for n, d in [("ndvi", "NDVI (QA-masked, gap-filled <= max_gap_fill_days)"),
-                 ("evi", "EVI (QA-masked, gap-filled)"),
-                 ("ndvi_delta", "NDVI change between the two latest valid composites"),
-                 ("veg_age_days", "days between composite end and t-1")]:
+        add(
+            "ffwi_fosberg",
+            "fire_weather",
+            "Fosberg fire-weather index from t-1 Tmax, RHmin, mean wind",
+        )
+    for n, d in [
+        ("ndvi", "NDVI (QA-masked, gap-filled <= max_gap_fill_days)"),
+        ("evi", "EVI (QA-masked, gap-filled)"),
+        ("ndvi_delta", "NDVI change between the two latest valid composites"),
+        ("veg_age_days", "days between composite end and t-1"),
+    ]:
         add(n, "vegetation", d)
     for g in ("forest", "shrubland", "grassland", "cropland", "other"):
         add(f"lc_frac_{g}", "landcover", f"area fraction of {g}")
     add("lc_group", "landcover", "dominant broad land-cover group", categorical=True)
-    for n, d in [("elevation_m", "mean elevation (m)"),
-                 ("slope_deg", "mean slope from native-resolution DEM (°)"),
-                 ("aspect_sin", "mean sine of aspect"), ("aspect_cos", "mean cosine of aspect")]:
+    for n, d in [
+        ("elevation_m", "mean elevation (m)"),
+        ("slope_deg", "mean slope from native-resolution DEM (°)"),
+        ("aspect_sin", "mean sine of aspect"),
+        ("aspect_cos", "mean cosine of aspect"),
+    ]:
         add(n, "terrain", d)
     if f.human.use_population:
         add("pop_density", "anthropogenic", "population density (persons/km²)")
@@ -89,8 +100,11 @@ def feature_specs(cfg: Config) -> list[FeatureSpec]:
     if f.human.use_roads:
         add("dist_road_km", "anthropogenic", "distance to nearest road, historical snapshot (km)")
     if f.fire_history.enabled:
-        add("hist_det_days", "fire_history",
-            f"distinct detection days in the cell in the previous {f.fire_history.window_days} d")
+        add(
+            "hist_det_days",
+            "fire_history",
+            f"distinct detection days in the cell in the previous {f.fire_history.window_days} d",
+        )
     if f.include_calendar:
         add("doy_sin", "calendar", "sin(2π doy/365.25) of the target day", deterministic=True)
         add("doy_cos", "calendar", "cos(2π doy/365.25) of the target day", deterministic=True)

@@ -11,14 +11,18 @@ import typer
 from wildfire_kz.config.loader import load_config
 from wildfire_kz.config.schema import Config
 
-app = typer.Typer(add_completion=False, no_args_is_help=True,
-                  help="Explainable multisource next-day wildfire occurrence-hazard pipeline.")
+app = typer.Typer(
+    add_completion=False,
+    no_args_is_help=True,
+    help="Explainable multisource next-day wildfire occurrence-hazard pipeline.",
+)
 download_app = typer.Typer(help="Optional real-data downloads (network + credentials).")
 app.add_typer(download_app, name="download")
 
 ConfigOpt = Annotated[list[Path], typer.Option("--config", "-c", help="YAML config file(s).")]
-SetOpt = Annotated[list[str] | None, typer.Option("--set", "-s",
-                                                  help="Override, e.g. events.spatial_link_km=3")]
+SetOpt = Annotated[
+    list[str] | None, typer.Option("--set", "-s", help="Override, e.g. events.spatial_link_km=3")
+]
 ForceOpt = Annotated[bool, typer.Option("--force", "-f", help="Re-run even if cached.")]
 
 DEFAULT_CONFIG = [Path("configs/default.yaml")]
@@ -29,8 +33,9 @@ def _cfg(config: list[Path] | None, overrides: list[str] | None) -> Config:
 
 
 def _stage(name: str):  # type: ignore[no-untyped-def]
-    def command(config: ConfigOpt = DEFAULT_CONFIG, set_: SetOpt = None,
-                force: ForceOpt = False) -> None:
+    def command(
+        config: ConfigOpt = DEFAULT_CONFIG, set_: SetOpt = None, force: ForceOpt = False
+    ) -> None:
         from wildfire_kz.cli.pipeline import run_stage
 
         summary = run_stage(name, _cfg(config, set_), force=force)
@@ -61,9 +66,12 @@ for _name, _help in [
 
 
 @app.command("run")
-def run_pipeline(config: ConfigOpt = DEFAULT_CONFIG, set_: SetOpt = None,
-                 until: Annotated[str | None, typer.Option(help="Stop after this stage.")] = None,
-                 force: ForceOpt = False) -> None:
+def run_pipeline(
+    config: ConfigOpt = DEFAULT_CONFIG,
+    set_: SetOpt = None,
+    until: Annotated[str | None, typer.Option(help="Stop after this stage.")] = None,
+    force: ForceOpt = False,
+) -> None:
     """Run all stages in order (cached stages are skipped)."""
     from wildfire_kz.cli.pipeline import run_all
 
@@ -95,22 +103,32 @@ def event_sensitivity(config: ConfigOpt = DEFAULT_CONFIG, set_: SetOpt = None) -
 
 
 @download_app.command("firms")
-def dl_firms(start: str, end: str, config: ConfigOpt = DEFAULT_CONFIG,
-             bbox: Annotated[str, typer.Option(help="minlon,minlat,maxlon,maxlat")] =
-             "46.4,40.5,87.4,55.5") -> None:
+def dl_firms(
+    start: str,
+    end: str,
+    config: ConfigOpt = DEFAULT_CONFIG,
+    bbox: Annotated[str, typer.Option(help="minlon,minlat,maxlon,maxlat")] = "46.4,40.5,87.4,55.5",
+) -> None:
     """Download FIRMS VIIRS_SNPP_SP detections (needs FIRMS_MAP_KEY)."""
     from wildfire_kz.data.download import download_firms
 
     b = tuple(float(v) for v in bbox.split(","))
-    files = download_firms(_cfg(config, None), b,  # type: ignore[arg-type]
-                           dt.date.fromisoformat(start), dt.date.fromisoformat(end))
+    files = download_firms(
+        _cfg(config, None),
+        b,  # type: ignore[arg-type]
+        dt.date.fromisoformat(start),
+        dt.date.fromisoformat(end),
+    )
     typer.echo(f"{len(files)} files written")
 
 
 @download_app.command("era5")
-def dl_era5(year: int, month: int, config: ConfigOpt = DEFAULT_CONFIG,
-            bbox: Annotated[str, typer.Option(help="minlon,minlat,maxlon,maxlat")] =
-            "46.4,40.5,87.4,55.5") -> None:
+def dl_era5(
+    year: int,
+    month: int,
+    config: ConfigOpt = DEFAULT_CONFIG,
+    bbox: Annotated[str, typer.Option(help="minlon,minlat,maxlon,maxlat")] = "46.4,40.5,87.4,55.5",
+) -> None:
     """Download one month of hourly ERA5-Land (needs cdsapi + ~/.cdsapirc)."""
     from wildfire_kz.data.download import download_era5_land
 

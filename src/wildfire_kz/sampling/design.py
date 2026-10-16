@@ -17,6 +17,7 @@ Strata are nested within calendar years so that the samples of different split p
 from __future__ import annotations
 
 import math
+from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
 
@@ -40,8 +41,12 @@ def allocate_evaluation(n_neg: int, fraction: float) -> int:
     return n_neg if fraction >= 1.0 else int(min(n_neg, math.ceil(fraction * n_neg)))
 
 
-def stratified_sample(df: pd.DataFrame, strata_cols: list[str], design: str, cfg: Config,
-                      ) -> tuple[pd.Series, pd.Series, pd.DataFrame]:
+def stratified_sample(
+    df: pd.DataFrame,
+    strata_cols: Sequence[str],
+    design: str,
+    cfg: Config,
+) -> tuple[pd.Series, pd.Series, pd.DataFrame]:
     """Return (inclusion indicator, inclusion probability q, strata table) for one design."""
     sc = cfg.sampling
     included = pd.Series(False, index=df.index)
@@ -50,29 +55,42 @@ def stratified_sample(df: pd.DataFrame, strata_cols: list[str], design: str, cfg
     pos_mask = df["label"] == 1
     included[pos_mask] = True
     q[pos_mask] = 1.0
-    for key, g in df.groupby(strata_cols, sort=True, observed=True):
+    for key, g in df.groupby(list(strata_cols), sort=True, observed=True):
         key_t = key if isinstance(key, tuple) else (key,)
         neg_idx = g.index[g["label"] == 0]
         n_pos, n_neg = int((g["label"] == 1).sum()), len(neg_idx)
         if design == "train":
-            n = allocate_training(n_neg, n_pos, sc.negatives_per_positive,
-                                  sc.min_negatives_per_stratum)
+            n = allocate_training(
+                n_neg, n_pos, sc.negatives_per_positive, sc.min_negatives_per_stratum
+            )
         else:
             n = allocate_evaluation(n_neg, sc.eval_negative_fraction)
         rng = np.random.default_rng(derive_seed(cfg.project.seed, "sampling", design, *key_t))
-        chosen = rng.choice(neg_idx.to_numpy(), size=n, replace=False) if n < n_neg else \
-            neg_idx.to_numpy()
+        chosen = (
+            rng.choice(neg_idx.to_numpy(), size=n, replace=False)
+            if n < n_neg
+            else neg_idx.to_numpy()
+        )
         qh = n / n_neg if n_neg else 1.0
         included[chosen] = True
         q[chosen] = qh
-        rows.append({**dict(zip(strata_cols, key_t, strict=True)), "design": design,
-                     "N_negatives": n_neg, "P_positives": n_pos, "n_sampled_negatives": n,
-                     "q_h": qh, "weight": 1.0 / qh if qh > 0 else np.nan})
+        rows.append(
+            {
+                **dict(zip(strata_cols, key_t, strict=True)),
+                "design": design,
+                "N_negatives": n_neg,
+                "P_positives": n_pos,
+                "n_sampled_negatives": n,
+                "q_h": qh,
+                "weight": 1.0 / qh if qh > 0 else np.nan,
+            }
+        )
     return included, q, pd.DataFrame(rows)
 
 
-def run_sampling(cfg: Config, grid_file: Path, grid_meta_file: Path, risk_dir: Path,
-                 out_dir: Path) -> dict[str, Any]:
+def run_sampling(
+    cfg: Config, grid_file: Path, grid_meta_file: Path, risk_dir: Path, out_dir: Path
+) -> dict[str, Any]:
     grid = load_grid(grid_file)
     meta = GridMeta.load(grid_meta_file)
     years = cfg.study.years
@@ -84,8 +102,7 @@ def run_sampling(cfg: Config, grid_file: Path, grid_meta_file: Path, risk_dir: P
     summary: dict[str, Any] = {}
     for year in years:
         rs = read_partitions(risk_dir / "risk_set", "year", [year])
-        rs = rs.merge(lc.loc[lc["year"] == year, ["cell_id", "lc_group"]], on="cell_id",
-                      how="left")
+        rs = rs.merge(lc.loc[lc["year"] == year, ["cell_id", "lc_group"]], on="cell_id", how="left")
         rs["lc_group"] = rs["lc_group"].fillna("other")
         rs["month"] = pd.to_datetime(rs["date"]).dt.month.astype(np.int8)
         rs["year"] = year
@@ -100,17 +117,21 @@ def run_sampling(cfg: Config, grid_file: Path, grid_meta_file: Path, risk_dir: P
         out["w_train"] = np.where(out["in_train"], 1.0 / out["q_train"], 0.0)
         out["w_eval"] = np.where(out["in_eval"], 1.0 / out["q_eval"], 0.0)
         out["stratum"] = out[strata_cols].astype(str).agg("|".join, axis=1)
-        write_partition(out.drop(columns="year").reset_index(drop=True), out_dir / "sample",
-                        "year", year)
+        write_partition(
+            out.drop(columns="year").reset_index(drop=True), out_dir / "sample", "year", year
+        )
         tables += [tab_t, tab_e]
         summary[str(year)] = {
-            "risk_set_cell_days": len(rs), "positives": int(rs["label"].sum()),
-            "train_rows": int(out["in_train"].sum()), "eval_rows": int(out["in_eval"].sum()),
+            "risk_set_cell_days": len(rs),
+            "positives": int(rs["label"].sum()),
+            "train_rows": int(out["in_train"].sum()),
+            "eval_rows": int(out["in_eval"].sum()),
             "train_weight_total": float(out["w_train"].sum()),
             "eval_weight_total": float(out["w_eval"].sum()),
         }
         log.info("sampling %d: %s", year, summary[str(year)])
-    pd.concat(tables, ignore_index=True).to_csv(out_dir / "strata_inclusion_probabilities.csv",
-                                                index=False)
+    pd.concat(tables, ignore_index=True).to_csv(
+        out_dir / "strata_inclusion_probabilities.csv", index=False
+    )
     write_json(out_dir / "sampling_summary.json", summary)
     return summary

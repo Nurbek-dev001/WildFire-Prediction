@@ -61,8 +61,12 @@ def read_firms(files: list[Path], src: FirmsSource, qc: QCCounts) -> pd.DataFram
         )
     df["confidence"] = conf
     if "satellite" in df.columns:
-        sat_ok = df["satellite"].astype(str).str.upper().isin([src.expected_satellite.upper(),
-                                                               "SUOMI NPP", "NPP"])
+        sat_ok = (
+            df["satellite"]
+            .astype(str)
+            .str.upper()
+            .isin([src.expected_satellite.upper(), "SUOMI NPP", "NPP"])
+        )
         qc.add("dropped_other_satellite", int((~sat_ok).sum()))
         df = df[sat_ok]
     if "instrument" in df.columns:
@@ -84,10 +88,13 @@ def read_firms(files: list[Path], src: FirmsSource, qc: QCCounts) -> pd.DataFram
 
 def deduplicate(df: pd.DataFrame, decimals: int, qc: QCCounts) -> pd.DataFrame:
     """Remove exact duplicates (same rounded location and acquisition time)."""
-    key = pd.DataFrame({
-        "lat": df["latitude"].round(decimals), "lon": df["longitude"].round(decimals),
-        "t": df["acq_datetime"],
-    })
+    key = pd.DataFrame(
+        {
+            "lat": df["latitude"].round(decimals),
+            "lon": df["longitude"].round(decimals),
+            "t": df["acq_datetime"],
+        }
+    )
     dup = key.duplicated(keep="first")
     qc.add("dropped_duplicates", int(dup.sum()))
     return df.loc[~dup].reset_index(drop=True)

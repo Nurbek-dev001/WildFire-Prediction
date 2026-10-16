@@ -37,13 +37,23 @@ def terrain_features(cfg: Config, grid: pd.DataFrame, meta: GridMeta) -> pd.Data
         z = bands[0]
         slope, aspect = slope_aspect(z, res)
         defined = slope >= flat
-        return {"elevation_m": z, "slope_deg": slope,
-                "aspect_sin": np.where(defined, np.sin(aspect), np.nan),
-                "aspect_cos": np.where(defined, np.cos(aspect), np.nan)}
+        return {
+            "elevation_m": z,
+            "slope_deg": slope,
+            "aspect_sin": np.where(defined, np.sin(aspect), np.nan),
+            "aspect_cos": np.where(defined, np.cos(aspect), np.nan),
+        }
 
     agg = GridAggregator(grid, meta)
-    res = agg.aggregate(files, src.working_resolution_m, src.window_size_km, Resampling.bilinear,
-                        pixel_fn=pixel_fn, halo_px=2, src_nodata=src.nodata)
+    res = agg.aggregate(
+        files,
+        src.working_resolution_m,
+        src.window_size_km,
+        Resampling.bilinear,
+        pixel_fn=pixel_fn,
+        halo_px=2,
+        src_nodata=src.nodata,
+    )
     df = pd.DataFrame({"cell_id": grid["cell_id"].to_numpy()})
     for k in ("elevation_m", "slope_deg", "aspect_sin", "aspect_cos"):
         df[k] = res.get(k, np.full(len(grid), np.nan)).astype(np.float32)

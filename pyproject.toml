@@ -57,6 +57,7 @@ ignore = ["N803", "N806", "RUF001", "RUF002", "RUF003"]
 
 [tool.mypy]
 python_version = "3.11"
+plugins = ["pydantic.mypy"]
 packages = ["wildfire_kz"]
 mypy_path = "src"
 ignore_missing_imports = true
@@ -69,4 +70,5 @@ check_untyped_defs = true
 testpaths = ["tests"]
 addopts = "-ra"
 markers = ["slow: end-to-end tests on synthetic data"]
-filterwarnings = ["ignore::DeprecationWarning", "ignore::FutureWarning"]
+filterwarnings = ["ignore::DeprecationWarning", "ignore::FutureWarning",
+                  "ignore::PendingDeprecationWarning"]

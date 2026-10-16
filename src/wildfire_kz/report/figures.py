@@ -18,8 +18,9 @@ from wildfire_kz.report.style import (
 )
 
 
-def reliability_figure(rel: pd.DataFrame, models: list[str], binning: str, path: Path,
-                       note: str) -> None:
+def reliability_figure(
+    rel: pd.DataFrame, models: list[str], binning: str, path: Path, note: str
+) -> None:
     """Small multiples (one panel per model): observed vs predicted, Wilson CI, bin counts."""
     import matplotlib.pyplot as plt
 
@@ -35,11 +36,17 @@ def reliability_figure(rel: pd.DataFrame, models: list[str], binning: str, path:
         hi = float(np.nanmax([t["mean_pred"].max(), t["obs_hi"].max(), 1e-6])) * 1.15
         ax.plot([lo_lim, hi], [lo_lim, hi], color=OTHER, linewidth=1, linestyle="--")
         obs = t["obs_freq"].clip(lower=lo_lim) if log_axes else t["obs_freq"]
-        ax.errorbar(t["mean_pred"], obs,
-                    yerr=[(obs - t["obs_lo"].clip(lower=lo_lim)).clip(lower=0),
-                          t["obs_hi"] - obs],
-                    fmt="o", color=CATEGORICAL[0], ecolor=CATEGORICAL[0], elinewidth=1,
-                    markersize=5, capsize=2)
+        ax.errorbar(
+            t["mean_pred"],
+            obs,
+            yerr=[(obs - t["obs_lo"].clip(lower=lo_lim)).clip(lower=0), t["obs_hi"] - obs],
+            fmt="o",
+            color=CATEGORICAL[0],
+            ecolor=CATEGORICAL[0],
+            elinewidth=1,
+            markersize=5,
+            capsize=2,
+        )
         if log_axes:
             ax.set_xscale("log")
             ax.set_yscale("log")
@@ -50,9 +57,14 @@ def reliability_figure(rel: pd.DataFrame, models: list[str], binning: str, path:
             if pos - last < 0.12 * span or (log_axes and r["obs_freq"] <= lo_lim):
                 continue  # skip labels that would collide (counts stay in the CSV)
             last = pos
-            ax.annotate(f"n={int(r['n'])}", (r["mean_pred"], max(r["obs_freq"], lo_lim)),
-                        fontsize=6, color=TEXT_SECONDARY, xytext=(4, -9),
-                        textcoords="offset points")
+            ax.annotate(
+                f"n={int(r['n'])}",
+                (r["mean_pred"], max(r["obs_freq"], lo_lim)),
+                fontsize=6,
+                color=TEXT_SECONDARY,
+                xytext=(4, -9),
+                textcoords="offset points",
+            )
         ax.set_xlim(lo_lim, hi)
         ax.set_ylim(lo_lim, hi)
         ax.set_title(m, loc="left")
@@ -61,9 +73,13 @@ def reliability_figure(rel: pd.DataFrame, models: list[str], binning: str, path:
     for ax in axes.ravel()[n:]:
         ax.set_visible(False)
     scale = "log–log axes; " if binning == "quantile" else ""
-    fig.suptitle(f"Reliability ({binning} bins, {scale}95% Wilson interval on effective n; "
-                 "all bin counts in reliability.csv)",
-                 x=0.01, ha="left", fontsize=10)
+    fig.suptitle(
+        f"Reliability ({binning} bins, {scale}95% Wilson interval on effective n; "
+        "all bin counts in reliability.csv)",
+        x=0.01,
+        ha="left",
+        fontsize=10,
+    )
     fig.tight_layout()
     save(fig, path, note)
 
@@ -77,8 +93,7 @@ def pr_curves(pred: pd.DataFrame, models: list[str], path: Path, note: str) -> N
     y, w = pred["label"].to_numpy(), pred["w_eval"].to_numpy()
     for m in models:
         p, r, _ = precision_recall_steps(y, pred[f"p_{m}"].to_numpy(), w)
-        ax.step(np.r_[0, r], np.r_[p[0], p], where="pre", color=colors[m], linewidth=1.6,
-                label=m)
+        ax.step(np.r_[0, r], np.r_[p[0], p], where="pre", color=colors[m], linewidth=1.6, label=m)
     prev = float((w * y).sum() / w.sum())
     ax.axhline(prev, color=OTHER, linestyle="--", linewidth=1, label="no-skill (prevalence)")
     ax.set_xlabel("recall (weighted)")
@@ -88,8 +103,7 @@ def pr_curves(pred: pd.DataFrame, models: list[str], path: Path, note: str) -> N
     save(fig, path, note)
 
 
-def capture_figure(cap: pd.DataFrame, models: list[str], mode: str, path: Path,
-                   note: str) -> None:
+def capture_figure(cap: pd.DataFrame, models: list[str], mode: str, path: Path, note: str) -> None:
     import matplotlib.pyplot as plt
 
     apply_style()
@@ -100,10 +114,22 @@ def capture_figure(cap: pd.DataFrame, models: list[str], mode: str, path: Path,
     fig, ax = plt.subplots(figsize=(6.0, 3.8))
     for i, m in enumerate(sorted(models)):
         s = t[t["model"] == m].set_index("fraction").reindex(fracs)
-        ax.bar(np.arange(len(fracs)) + i * width, s["capture_rate"], width * 0.92,
-               color=colors[m], label=m)
-    ax.plot(np.arange(len(fracs)) + 0.4 - width / 2, fracs, color=OTHER, marker="_",
-            markersize=18, linestyle="none", label="random ranking")
+        ax.bar(
+            np.arange(len(fracs)) + i * width,
+            s["capture_rate"],
+            width * 0.92,
+            color=colors[m],
+            label=m,
+        )
+    ax.plot(
+        np.arange(len(fracs)) + 0.4 - width / 2,
+        fracs,
+        color=OTHER,
+        marker="_",
+        markersize=18,
+        linestyle="none",
+        label="random ranking",
+    )
     ax.set_xticks(np.arange(len(fracs)) + 0.4 - width / 2, [f"top {f:.0%}" for f in fracs])
     ax.set_ylabel("share of new-event starts captured")
     ax.set_title(f"Capture rate ({mode} ranking of eligible cell-days)", loc="left")
@@ -141,8 +167,9 @@ def spatial_cv_figure(sp: pd.DataFrame, path: Path, note: str) -> None:
     models = sorted(sp["model"].unique())
     colors = color_for(models)
     blocks = sorted(sp["block_km"].unique())
-    fig, axes = plt.subplots(1, len(blocks), figsize=(4.2 * len(blocks), 3.6), squeeze=False,
-                             sharey=True)
+    fig, axes = plt.subplots(
+        1, len(blocks), figsize=(4.2 * len(blocks), 3.6), squeeze=False, sharey=True
+    )
     for ax, b in zip(axes.ravel(), blocks, strict=True):
         t = sp[sp["block_km"] == b]
         for i, m in enumerate(models):

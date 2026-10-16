@@ -25,11 +25,13 @@ def assign_blocks(x: np.ndarray, y: np.ndarray, block_km: float) -> np.ndarray:
 def assign_folds(cells: pd.DataFrame, block_km: float, n_folds: int, seed: int) -> pd.DataFrame:
     """Return cells with ``block_id`` and ``fold`` (0..n_folds-1)."""
     out = cells[["cell_id", "x", "y"]].copy()
-    out["block_id"] = assign_blocks(out["x"], out["y"], block_km)
+    out["block_id"] = assign_blocks(out["x"].to_numpy(), out["y"].to_numpy(), block_km)
     blocks = out.groupby("block_id")[["x", "y"]].mean()
     if len(blocks) < n_folds:
-        raise ValueError(f"only {len(blocks)} blocks of {block_km} km for {n_folds} folds; "
-                         "reduce block size or the number of folds")
+        raise ValueError(
+            f"only {len(blocks)} blocks of {block_km} km for {n_folds} folds; "
+            "reduce block size or the number of folds"
+        )
     km = KMeans(n_clusters=n_folds, n_init=20, random_state=seed % (2**31))
     lab = km.fit_predict(blocks[["x", "y"]].to_numpy())
     # deterministic fold numbering: west -> east by fold centroid x
@@ -59,8 +61,11 @@ def fold_roles(folds: pd.DataFrame, buffer_km: float, cell_size_m: float) -> pd.
         test_idx = np.flatnonzero(fold_arr == k)
         role = np.where(fold_arr == k, "test", "train").astype(object)
         near = tree.query_ball_point(xy[test_idx], r=radius)
-        cand = np.unique(np.concatenate([np.asarray(n, dtype=int) for n in near])) if len(
-            near) else np.array([], int)
+        cand = (
+            np.unique(np.concatenate([np.asarray(n, dtype=int) for n in near]))
+            if len(near)
+            else np.array([], int)
+        )
         cand = cand[fold_arr[cand] != k]
         if len(cand):
             # exact minimum edge distance to the held-out set
@@ -69,30 +74,32 @@ def fold_roles(folds: pd.DataFrame, buffer_km: float, cell_size_m: float) -> pd.
             for c, lst in zip(cand, nb, strict=True):
                 if not lst:
                     continue
-                d = edge_distance(xy[test_idx][lst, 0] - xy[c, 0],
-                                  xy[test_idx][lst, 1] - xy[c, 1], cell_size_m)
+                d = edge_distance(
+                    xy[test_idx][lst, 0] - xy[c, 0], xy[test_idx][lst, 1] - xy[c, 1], cell_size_m
+                )
                 if d.min() < buf:
                     role[c] = "buffer"
-        rows.append(pd.DataFrame({"cell_id": folds["cell_id"].to_numpy(), "fold": k,
-                                  "role": role}))
+        rows.append(pd.DataFrame({"cell_id": folds["cell_id"].to_numpy(), "fold": k, "role": role}))
     return pd.concat(rows, ignore_index=True)
 
 
-def min_train_test_distance(folds: pd.DataFrame, roles: pd.DataFrame, cell_size_m: float
-                            ) -> dict[int, float]:
+def min_train_test_distance(
+    folds: pd.DataFrame, roles: pd.DataFrame, cell_size_m: float
+) -> dict[int, float]:
     """Diagnostic: minimum edge distance (km) between training and held-out cells per fold."""
     xy = folds.set_index("cell_id")[["x", "y"]]
     out = {}
-    for k, g in roles.groupby("fold"):
+    for k_, g in roles.groupby("fold"):
+        k = int(str(k_))
         test = xy.loc[g.loc[g["role"] == "test", "cell_id"]].to_numpy()
         train = xy.loc[g.loc[g["role"] == "train", "cell_id"]].to_numpy()
         if len(test) == 0 or len(train) == 0:
-            out[int(k)] = float("nan")
+            out[k] = float("nan")
             continue
         d, idx = cKDTree(test).query(train, k=min(8, len(test)))
         d = np.atleast_2d(d.T).T if d.ndim == 1 else d
         idx = idx.reshape(len(train), -1)
         dx = test[idx, 0] - train[:, [0]]
         dy = test[idx, 1] - train[:, [1]]
-        out[int(k)] = float(edge_distance(dx, dy, cell_size_m).min() / 1000.0)
+        out[k] = float(edge_distance(dx, dy, cell_size_m).min() / 1000.0)
     return out

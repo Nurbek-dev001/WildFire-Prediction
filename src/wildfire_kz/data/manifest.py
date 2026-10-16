@@ -81,8 +81,10 @@ def build_manifest(cfg: Config, cache_path: Path | None = None) -> dict[str, Any
     for sf in enumerate_sources(cfg):
         meta = sf.meta.model_dump(mode="json")
         if not sf.files:
-            msg = f"source '{sf.name}' ({sf.meta.source_id}) has no files at " \
-                  f"{_describe_location(cfg, sf)}"
+            msg = (
+                f"source '{sf.name}' ({sf.meta.source_id}) has no files at "
+                f"{_describe_location(cfg, sf)}"
+            )
             if sf.meta.required:
                 problems.append(msg)
             else:
@@ -95,14 +97,22 @@ def build_manifest(cfg: Config, cache_path: Path | None = None) -> dict[str, Any
             if not p.exists():
                 continue
             st = p.stat()
-            files.append({
-                "path": str(p), "bytes": st.st_size, "sha256": _checksum_cached(p, cache),
-                "modified_utc": dt.datetime.fromtimestamp(st.st_mtime, dt.UTC).isoformat(),
-            })
+            files.append(
+                {
+                    "path": str(p),
+                    "bytes": st.st_size,
+                    "sha256": _checksum_cached(p, cache),
+                    "modified_utc": dt.datetime.fromtimestamp(st.st_mtime, dt.UTC).isoformat(),
+                }
+            )
         if isinstance(sf.meta, RasterCatalogSource):
             meta["backend"] = sf.meta.backend
-        entries[sf.name] = {"meta": meta, "n_files": len(files), "files": files,
-                            "retrieved_on": str(sf.meta.retrieved_on or "unrecorded")}
+        entries[sf.name] = {
+            "meta": meta,
+            "n_files": len(files),
+            "files": files,
+            "retrieved_on": str(sf.meta.retrieved_on or "unrecorded"),
+        }
     if problems:
         raise MissingSourceError(
             "Required data sources are missing — the pipeline will not fabricate data.\n  - "
@@ -113,11 +123,18 @@ def build_manifest(cfg: Config, cache_path: Path | None = None) -> dict[str, Any
     if cache_path:
         write_json(cache_path, cache)
     return {
-        "created_utc": utc_now(), "project": cfg.project.name, "run_label": cfg.project.run_label,
-        "seed": cfg.project.seed, "synthetic": synthetic,
-        "synthetic_notice": ("ALL INPUT DATA ARE SYNTHETIC — results are not findings about "
-                             "Kazakhstan") if synthetic else "",
-        "crs": cfg.crs.model_dump(), "study": cfg.study.model_dump(mode="json"),
+        "created_utc": utc_now(),
+        "project": cfg.project.name,
+        "run_label": cfg.project.run_label,
+        "seed": cfg.project.seed,
+        "synthetic": synthetic,
+        "synthetic_notice": (
+            "ALL INPUT DATA ARE SYNTHETIC — results are not findings about Kazakhstan"
+        )
+        if synthetic
+        else "",
+        "crs": cfg.crs.model_dump(),
+        "study": cfg.study.model_dump(mode="json"),
         "sources": entries,
     }
 
@@ -133,6 +150,10 @@ def run_ingest(cfg: Config, out_dir: Path) -> Path:
     path = out_dir / "data_manifest.json"
     write_json(path, manifest)
     n = sum(e["n_files"] for e in manifest["sources"].values())
-    log.info("manifest written: %d files across %d sources (synthetic=%s)", n,
-             len(manifest["sources"]), manifest["synthetic"])
+    log.info(
+        "manifest written: %d files across %d sources (synthetic=%s)",
+        n,
+        len(manifest["sources"]),
+        manifest["synthetic"],
+    )
     return path

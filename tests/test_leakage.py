@@ -20,8 +20,13 @@ from wildfire_kz.features.registry import feature_specs
 
 
 def _frame(asof_weather: str, date: str = "2020-07-10") -> pd.DataFrame:
-    return pd.DataFrame({"date": [pd.Timestamp(date)], "t2m_max_c": [30.0],
-                         "asof_weather": [pd.Timestamp(asof_weather)]})
+    return pd.DataFrame(
+        {
+            "date": [pd.Timestamp(date)],
+            "t2m_max_c": [30.0],
+            "asof_weather": [pd.Timestamp(asof_weather)],
+        }
+    )
 
 
 def test_leakage_check_accepts_prior_day() -> None:
@@ -57,8 +62,9 @@ def test_era5_land_accumulation_convention() -> None:
         if t.hour == 0:  # 00 UTC holds the complete total of the previous UTC day
             acc[i] = hourly_mm[(day == t - pd.Timedelta(days=1)) & (times.hour >= 1)].sum()
         else:  # accumulation since 00 UTC of the same day
-            acc[i] = hourly_mm[(day == t.normalize()) & (times.hour >= 1)
-                               & (times.hour <= t.hour)].sum()
+            acc[i] = hourly_mm[
+                (day == t.normalize()) & (times.hour >= 1) & (times.hour <= t.hour)
+            ].sum()
     tp = xr.DataArray(acc / 1000.0, coords={"valid_time": times}, dims="valid_time")
     daily = daily_precip_from_accumulated(tp)
     got = daily.to_series()
@@ -80,8 +86,16 @@ def _composites(values: dict[int, float]) -> tuple[pd.DataFrame, ModisVISource]:
     rows = []
     for doy, val in values.items():
         c = composite_dates(2020, doy, src)
-        rows.append({"cell_idx": 0, "start": pd.Timestamp(c.start), "end": pd.Timestamp(c.end),
-                     "available": pd.Timestamp(c.available), "ndvi": val, "evi": val / 2})
+        rows.append(
+            {
+                "cell_idx": 0,
+                "start": pd.Timestamp(c.start),
+                "end": pd.Timestamp(c.end),
+                "available": pd.Timestamp(c.available),
+                "ndvi": val,
+                "evi": val / 2,
+            }
+        )
     return pd.DataFrame(rows), src
 
 
@@ -121,7 +135,8 @@ def test_later_detections_never_enter_predictors() -> None:
     base = fire_history_counts(det_cell, det_time, rows_cell, target, 365)
     # add later detections (same day and after) of the event: result unchanged
     more_cell = np.r_[det_cell, [5, 5, 5]]
-    more_time = det_time.append(pd.to_datetime(["2020-07-04 20:00", "2020-07-05 08:00",
-                                                "2020-08-01 08:00"]))
+    more_time = det_time.append(
+        pd.to_datetime(["2020-07-04 20:00", "2020-07-05 08:00", "2020-08-01 08:00"])
+    )
     after = fire_history_counts(more_cell, more_time, rows_cell, target, 365)
     assert base[0] == after[0] == 2  # Jul 1 and Jul 3 only (Jul 4 is the target day)

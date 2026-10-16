@@ -8,8 +8,20 @@ from pathlib import Path
 from wildfire_kz.config.schema import Config
 
 STAGES = (
-    "ingest", "grid", "events", "risk_set", "sampling", "features", "splits", "train",
-    "calibrate", "ablate", "evaluate", "explain", "map", "report",
+    "ingest",
+    "grid",
+    "events",
+    "risk_set",
+    "sampling",
+    "features",
+    "splits",
+    "train",
+    "calibrate",
+    "ablate",
+    "evaluate",
+    "explain",
+    "map",
+    "report",
 )
 
 

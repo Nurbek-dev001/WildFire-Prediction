@@ -47,19 +47,26 @@ def unlock_final_evaluation(cfg: Config, paths: RunPaths, stage: str) -> dict[st
     if not calib.exists():
         raise TestSetAccessError(
             "calibration, threshold and class boundaries must be frozen before the test years "
-            f"can be opened (missing {calib})")
+            f"can be opened (missing {calib})"
+        )
     digest = sha256_file(calib)
     ledger_path = _ledger(paths)
     if ledger_path.exists():
         ledger = read_json(ledger_path)
         if ledger["calibration_sha256"] != digest:
-            raise TestSetAccessError("calibration artifacts changed after the test years were "
-                                     "opened; results would be tuned on test data")
+            raise TestSetAccessError(
+                "calibration artifacts changed after the test years were "
+                "opened; results would be tuned on test data"
+            )
         ledger.setdefault("accessed_by", []).append({"stage": stage, "at": utc_now()})
     else:
-        ledger = {"unlocked_at": utc_now(), "unlocked_by": stage,
-                  "calibration_sha256": digest, "test_years": cfg.splits.test_years,
-                  "accessed_by": [{"stage": stage, "at": utc_now()}]}
+        ledger = {
+            "unlocked_at": utc_now(),
+            "unlocked_by": stage,
+            "calibration_sha256": digest,
+            "test_years": cfg.splits.test_years,
+            "accessed_by": [{"stage": stage, "at": utc_now()}],
+        }
     write_json(ledger_path, ledger)
     return ledger
 
@@ -80,21 +87,25 @@ class FeatureStore:
         self.paths = paths
         self.root = paths.features
 
-    def load(self, years: list[int], purpose: Purpose,
-             columns: list[str] | None = None) -> pd.DataFrame:
+    def load(
+        self, years: list[int], purpose: Purpose, columns: list[str] | None = None
+    ) -> pd.DataFrame:
         test = set(years) & set(self.cfg.splits.test_years)
         if test:
             if purpose not in ("test", "explain", "map"):
                 raise TestSetAccessError(
                     f"test years {sorted(test)} requested for purpose '{purpose}'. Test data "
-                    "may never be used for training, tuning, calibration or thresholds.")
+                    "may never be used for training, tuning, calibration or thresholds."
+                )
             if not test_years_unlocked(self.cfg, self.paths):
                 raise TestSetAccessError(
-                    f"test years {sorted(test)} are locked until the final evaluation stage")
+                    f"test years {sorted(test)} are locked until the final evaluation stage"
+                )
         cal = set(years) & set(self.cfg.splits.calibration_years)
         if cal and purpose == "train":
-            raise TestSetAccessError(f"calibration years {sorted(cal)} may not be used for "
-                                     "model fitting or tuning")
+            raise TestSetAccessError(
+                f"calibration years {sorted(cal)} may not be used for model fitting or tuning"
+            )
         df = read_partitions(self.root, "year", years, columns=columns)
         if df.empty:
             raise FileNotFoundError(f"no feature rows for years {years} in {self.root}")

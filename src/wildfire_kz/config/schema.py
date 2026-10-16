@@ -43,8 +43,9 @@ class StudyConfig(_Strict):
     start: dt.date = dt.date(2015, 1, 1)
     end: dt.date = dt.date(2024, 12, 31)
     lookback_days: int = Field(
-        60, description="Days of input data required before `start` (antecedent windows, "
-        "48 h exclusion, MODIS lag, event linking across the start date)."
+        60,
+        description="Days of input data required before `start` (antecedent windows, "
+        "48 h exclusion, MODIS lag, event linking across the start date).",
     )
     timezone: Literal["UTC"] = "UTC"
 
@@ -98,8 +99,9 @@ class SourceMeta(_Strict):
 class BoundarySource(SourceMeta):
     path: Path = Path("boundary/kazakhstan_adm0.geojson")
     border_buffer_km: float = Field(
-        10.0, description="Detections within this buffer outside the border are kept for event "
-        "linking only; positives must fall inside the grid."
+        10.0,
+        description="Detections within this buffer outside the border are kept for event "
+        "linking only; positives must fall inside the grid.",
     )
 
 
@@ -150,8 +152,11 @@ class RasterCatalogSource(SourceMeta):
     path: Path
     glob: str = "*.tif"
     filename_regex: str
-    working_resolution_m: float = Field(..., description="Resolution of the equal-area working "
-                                        "raster used during aggregation (~native).")
+    working_resolution_m: float = Field(
+        ...,
+        description="Resolution of the equal-area working "
+        "raster used during aggregation (~native).",
+    )
     window_size_km: float = 200.0
     backend: Literal["local", "gee"] = "local"
     gee_collection: str | None = None
@@ -270,7 +275,9 @@ class SamplingConfig(_Strict):
     min_negatives_per_stratum: int = 50
     strata: list[Literal["year", "month", "lc_group"]] = ["year", "month", "lc_group"]
     eval_negative_fraction: float = Field(
-        1.0, gt=0.0, le=1.0,
+        1.0,
+        gt=0.0,
+        le=1.0,
         description="1.0 = complete (unbalanced) evaluation risk set; <1 = stratified "
         "probability sample with inverse-inclusion weights.",
     )
@@ -305,15 +312,34 @@ class FeatureGroupsConfig(_Strict):
         "vegetation": ["@vegetation"],
     }
     correlated_groups: dict[str, list[str]] = {
-        "temperature": ["t2m_max_c", "t2m_min_c", "t2m_mean_c", "d2m_mean_c",
-                        "t2m_max_mean_7d_c", "t2m_max_mean_14d_c"],
-        "moisture": ["rh_mean_pct", "rh_min_pct", "precip_mm", "swvl1",
-                     "precip_sum_7d_mm", "precip_sum_14d_mm", "rh_mean_7d_pct",
-                     "rh_mean_14d_pct", "dry_days_14d"],
+        "temperature": [
+            "t2m_max_c",
+            "t2m_min_c",
+            "t2m_mean_c",
+            "d2m_mean_c",
+            "t2m_max_mean_7d_c",
+            "t2m_max_mean_14d_c",
+        ],
+        "moisture": [
+            "rh_mean_pct",
+            "rh_min_pct",
+            "precip_mm",
+            "swvl1",
+            "precip_sum_7d_mm",
+            "precip_sum_14d_mm",
+            "rh_mean_7d_pct",
+            "rh_mean_14d_pct",
+            "dry_days_14d",
+        ],
         "wind": ["wind_mean_ms", "wind_max_ms"],
         "vegetation_index": ["ndvi", "evi", "ndvi_delta", "veg_age_days"],
-        "land_cover": ["lc_frac_forest", "lc_frac_shrubland", "lc_frac_grassland",
-                       "lc_frac_cropland", "lc_frac_other"],
+        "land_cover": [
+            "lc_frac_forest",
+            "lc_frac_shrubland",
+            "lc_frac_grassland",
+            "lc_frac_cropland",
+            "lc_frac_other",
+        ],
         "terrain": ["elevation_m", "slope_deg", "aspect_sin", "aspect_cos"],
         "human": ["pop_density", "dist_settlement_km", "dist_road_km"],
     }
@@ -357,8 +383,10 @@ class SplitsConfig(_Strict):
 
     @model_validator(mode="after")
     def _disjoint(self) -> SplitsConfig:
-        dev, cal, test = set(self.development_years), set(self.calibration_years), set(
-            self.test_years
+        dev, cal, test = (
+            set(self.development_years),
+            set(self.calibration_years),
+            set(self.test_years),
         )
         if dev & cal or dev & test or cal & test:
             raise ValueError("development, calibration and test years must be disjoint")
@@ -436,8 +464,9 @@ class ModelsConfig(_Strict):
     objective: Literal["weighted_average_precision"] = "weighted_average_precision"
     logistic_max_iter: int = 2000
     seasonal_smoothing_alpha: float = Field(
-        50.0, description="Pseudo-count (weighted cell-days) shrinking each LC x month rate "
-        "toward the overall training rate."
+        50.0,
+        description="Pseudo-count (weighted cell-days) shrinking each LC x month rate "
+        "toward the overall training rate.",
     )
     feature_screening_max_missing: float = Field(
         0.99,

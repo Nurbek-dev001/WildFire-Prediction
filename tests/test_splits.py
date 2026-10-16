@@ -20,8 +20,13 @@ CELL = 5000.0
 
 def _grid(nx: int = 80, ny: int = 60) -> pd.DataFrame:
     ix, iy = np.meshgrid(np.arange(nx), np.arange(ny))
-    return pd.DataFrame({"cell_id": np.arange(ix.size), "x": (ix.ravel() + 0.5) * CELL,
-                         "y": (iy.ravel() + 0.5) * CELL})
+    return pd.DataFrame(
+        {
+            "cell_id": np.arange(ix.size),
+            "x": (ix.ravel() + 0.5) * CELL,
+            "y": (iy.ravel() + 0.5) * CELL,
+        }
+    )
 
 
 @pytest.fixture(scope="module")
@@ -55,8 +60,9 @@ def test_buffer_of_25km_is_respected_brute_force(folds_roles) -> None:  # type: 
         # and the buffer is not excessive: buffer cells are all within 25 km
         buf = xy.loc[g.loc[g.role == "buffer", "cell_id"]].to_numpy()
         if len(buf):
-            d = edge_distance(buf[:, None, 0] - test[None, :, 0],
-                              buf[:, None, 1] - test[None, :, 1], CELL).min(axis=1)
+            d = edge_distance(
+                buf[:, None, 0] - test[None, :, 0], buf[:, None, 1] - test[None, :, 1], CELL
+            ).min(axis=1)
             assert (d < 25_000).all()
 
 

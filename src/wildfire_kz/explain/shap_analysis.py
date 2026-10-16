@@ -53,7 +53,7 @@ def base_feature(col: str, categorical: list[str]) -> str:
         if col.startswith(f"{c}_"):
             return c
     if col.startswith("missingindicator_"):
-        return col[len("missingindicator_"):]
+        return col[len("missingindicator_") :]
     return col
 
 
@@ -109,8 +109,9 @@ def run_explain(cfg: Config, paths: RunPaths) -> dict[str, Any]:
     for part in cfg.explain.partitions:
         years = cfg.splits.calibration_years if part == "calibration" else cfg.splits.test_years
         df = store.load(years, "explain" if part == "test" else "calibration")
-        frames.append(_sample_rows(df[df["in_eval"]], cfg.explain.max_rows, seed)
-                      .assign(partition=part))
+        frames.append(
+            _sample_rows(df[df["in_eval"]], cfg.explain.max_rows, seed).assign(partition=part)
+        )
     data = pd.concat(frames, ignore_index=True)
     sv, Xt, scale = tree_shap(fm, data)
     raw = fm.decision_logit(data)
@@ -123,7 +124,8 @@ def run_explain(cfg: Config, paths: RunPaths) -> dict[str, Any]:
     group_of = {s.name: s.group for s in specs}
     sv_group = aggregate_columns(sv_feat, {f: group_of.get(f, f) for f in sv_feat.columns})
     sv_group.abs().mean().sort_values(ascending=False).rename("mean_abs_shap").to_csv(
-        out / "shap_feature_group_importance.csv")
+        out / "shap_feature_group_importance.csv"
+    )
     corr_map: dict[str, str] = {}
     for gname, refs in cfg.features.groups.correlated_groups.items():
         for f in resolve_group_refs(refs, specs):
@@ -132,15 +134,26 @@ def run_explain(cfg: Config, paths: RunPaths) -> dict[str, Any]:
     clusters = read_json(clusters_path) if clusters_path.exists() else {}
     sv_corr = aggregate_columns(sv_feat, corr_map)
     sv_corr.abs().mean().sort_values(ascending=False).rename("mean_abs_shap").to_csv(
-        out / "shap_correlated_group_importance.csv")
-    write_json(out / "explain_meta.json", {
-        "model": model_name, "output_scale": scale, "partitions": cfg.explain.partitions,
-        "n_rows": len(data), "interpretation": CAUSAL_NOTE,
-        "data_driven_correlation_clusters": clusters})
-    _bar(glob, f"Global mean |SHAP| — {model_name}, {scale}", out / "shap_global_importance",
-         note)
-    _bar(sv_group.abs().mean(), "Mean |summed SHAP| by feature group",
-         out / "shap_feature_group_importance", note)
+        out / "shap_correlated_group_importance.csv"
+    )
+    write_json(
+        out / "explain_meta.json",
+        {
+            "model": model_name,
+            "output_scale": scale,
+            "partitions": cfg.explain.partitions,
+            "n_rows": len(data),
+            "interpretation": CAUSAL_NOTE,
+            "data_driven_correlation_clusters": clusters,
+        },
+    )
+    _bar(glob, f"Global mean |SHAP| — {model_name}, {scale}", out / "shap_global_importance", note)
+    _bar(
+        sv_group.abs().mean(),
+        "Mean |summed SHAP| by feature group",
+        out / "shap_feature_group_importance",
+        note,
+    )
     # ---- dependence plots for the top features
     for f in [f for f in glob.index if f in Xt.columns][: cfg.explain.n_dependence_plots]:
         fig, ax = plt.subplots(figsize=(4.8, 3.4))
@@ -154,30 +167,48 @@ def run_explain(cfg: Config, paths: RunPaths) -> dict[str, Any]:
     y = data["label"].to_numpy()
     p = data["p_calibrated"].to_numpy()
     n = cfg.explain.n_local_examples
-    picks = {
-        "high_scoring": np.argsort(-p)[:n],
-        "false_positive": [i for i in np.argsort(-p) if y[i] == 0 and p[i] >= tau][:n],
-        "false_negative": [i for i in np.argsort(p) if y[i] == 1 and p[i] < tau][:n],
+    picks: dict[str, list[int]] = {
+        "high_scoring": [int(i) for i in np.argsort(-p)[:n]],
+        "false_positive": [int(i) for i in np.argsort(-p) if y[i] == 0 and p[i] >= tau][:n],
+        "false_negative": [int(i) for i in np.argsort(p) if y[i] == 1 and p[i] < tau][:n],
     }
     local_rows = []
+    cell_ids = data["cell_id"].to_numpy()
+    dates = pd.to_datetime(data["date"]).to_numpy()
+    parts = data["partition"].to_numpy()
     for kind, idx in picks.items():
         for j, i in enumerate(idx):
             contrib = sv_feat.iloc[i].sort_values(key=np.abs, ascending=False)
-            for f, v in contrib.head(10).items():
-                local_rows.append({"example_type": kind, "rank": j,
-                                   "cell_id": int(data.loc[i, "cell_id"]),
-                                   "date": data.loc[i, "date"], "label": int(y[i]),
-                                   "p_calibrated": float(p[i]), "feature": f, "shap": float(v),
-                                   "partition": data.loc[i, "partition"]})
+            for f, v in zip(contrib.index[:10], contrib.to_numpy()[:10], strict=True):
+                local_rows.append(
+                    {
+                        "example_type": kind,
+                        "rank": j,
+                        "cell_id": int(cell_ids[i]),
+                        "date": dates[i],
+                        "label": int(y[i]),
+                        "p_calibrated": float(p[i]),
+                        "feature": str(f),
+                        "shap": float(v),
+                        "partition": parts[i],
+                    }
+                )
             if j == 0:
                 top = contrib.head(10)[::-1]
                 fig, ax = plt.subplots(figsize=(5.6, 3.6))
-                ax.barh(top.index, top.to_numpy(), height=0.7,
-                        color=[CATEGORICAL[7] if v > 0 else CATEGORICAL[0] for v in top])
+                ax.barh(
+                    top.index,
+                    top.to_numpy(),
+                    height=0.7,
+                    color=[CATEGORICAL[7] if v > 0 else CATEGORICAL[0] for v in top],
+                )
                 ax.axvline(0, color="#8a8984", linewidth=0.8)
-                ax.set_title(f"{kind}: cell {int(data.loc[i, 'cell_id'])}, "
-                             f"{pd.Timestamp(data.loc[i, 'date']):%Y-%m-%d}, p={p[i]:.3f}, "
-                             f"y={int(y[i])}", loc="left")
+                ax.set_title(
+                    f"{kind}: cell {int(cell_ids[i])}, "
+                    f"{pd.Timestamp(dates[i]):%Y-%m-%d}, p={p[i]:.3f}, "
+                    f"y={int(y[i])}",
+                    loc="left",
+                )
                 ax.set_xlabel("SHAP contribution (red raises, blue lowers the score)")
                 ax.grid(axis="y", visible=False)
                 save(fig, out / "local" / f"local_{kind}", note)

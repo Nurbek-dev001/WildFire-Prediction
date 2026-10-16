@@ -11,8 +11,7 @@ from wildfire_kz.events.firms import QCCounts, deduplicate, parse_acq_datetime, 
 from wildfire_kz.events.linking import earliest_detection, link_detections
 
 
-def _link(points: list[tuple[float, float, float]], km: float = 2.0, h: float = 48.0
-          ) -> np.ndarray:
+def _link(points: list[tuple[float, float, float]], km: float = 2.0, h: float = 48.0) -> np.ndarray:
     arr = np.asarray(points, dtype=float)
     return link_detections(arr[:, 0], arr[:, 1], arr[:, 2], km, h, window_days=2)
 
@@ -66,12 +65,15 @@ def test_event_ids_are_chronological_and_deterministic() -> None:
 
 def test_earliest_detection_defines_the_positive() -> None:
     t0 = pd.Timestamp("2019-05-01 20:40")
-    df = pd.DataFrame({
-        "event_id": [0, 0, 0, 1],
-        "acq_datetime": [t0 + pd.Timedelta(hours=12), t0, t0 + pd.Timedelta(hours=36), t0],
-        "confidence_rank": [0, 1, 0, 1], "frp": [9.0, 1.0, 50.0, 2.0],
-        "cell_id": [11, 10, 12, 99],
-    })
+    df = pd.DataFrame(
+        {
+            "event_id": [0, 0, 0, 1],
+            "acq_datetime": [t0 + pd.Timedelta(hours=12), t0, t0 + pd.Timedelta(hours=36), t0],
+            "confidence_rank": [0, 1, 0, 1],
+            "frp": [9.0, 1.0, 50.0, 2.0],
+            "cell_id": [11, 10, 12, 99],
+        }
+    )
     first = earliest_detection(df)
     ev0 = first.loc[first["event_id"] == 0].iloc[0]
     assert ev0["acq_datetime"] == t0 and ev0["cell_id"] == 10
@@ -80,9 +82,15 @@ def test_earliest_detection_defines_the_positive() -> None:
 
 def test_tie_break_prefers_high_confidence_then_frp() -> None:
     t0 = pd.Timestamp("2020-07-01 08:40")
-    df = pd.DataFrame({"event_id": [0, 0, 0], "acq_datetime": [t0, t0, t0],
-                       "confidence_rank": [1, 0, 0], "frp": [99.0, 3.0, 7.0],
-                       "cell_id": [1, 2, 3]})
+    df = pd.DataFrame(
+        {
+            "event_id": [0, 0, 0],
+            "acq_datetime": [t0, t0, t0],
+            "confidence_rank": [1, 0, 0],
+            "frp": [99.0, 3.0, 7.0],
+            "cell_id": [1, 2, 3],
+        }
+    )
     assert earliest_detection(df).iloc[0]["cell_id"] == 3
 
 
@@ -95,10 +103,19 @@ def test_acq_time_parsing_is_utc_hhmm() -> None:
 
 def _csv(tmp_path, conf: list[object]):  # type: ignore[no-untyped-def]
     n = len(conf)
-    df = pd.DataFrame({"latitude": [50.0] * n, "longitude": [70.0 + i for i in range(n)],
-                       "acq_date": ["2020-06-01"] * n, "acq_time": [840] * n,
-                       "confidence": conf, "satellite": ["N"] * n,
-                       "instrument": ["VIIRS"] * n, "frp": [1.0] * n, "type": [0] * n})
+    df = pd.DataFrame(
+        {
+            "latitude": [50.0] * n,
+            "longitude": [70.0 + i for i in range(n)],
+            "acq_date": ["2020-06-01"] * n,
+            "acq_time": [840] * n,
+            "confidence": conf,
+            "satellite": ["N"] * n,
+            "instrument": ["VIIRS"] * n,
+            "frp": [1.0] * n,
+            "type": [0] * n,
+        }
+    )
     p = tmp_path / "f.csv"
     df.to_csv(p, index=False)
     return p
@@ -123,7 +140,8 @@ def test_firms_config_rejects_percent_thresholds() -> None:
 
 def test_exact_duplicates_removed() -> None:
     t = pd.Timestamp("2020-06-01 08:40")
-    df = pd.DataFrame({"latitude": [50.00001, 50.00001, 50.1], "longitude": [70.0] * 3,
-                       "acq_datetime": [t, t, t]})
+    df = pd.DataFrame(
+        {"latitude": [50.00001, 50.00001, 50.1], "longitude": [70.0] * 3, "acq_datetime": [t, t, t]}
+    )
     qc = QCCounts()
     assert len(deduplicate(df, 4, qc)) == 2 and qc.counts["dropped_duplicates"] == 1

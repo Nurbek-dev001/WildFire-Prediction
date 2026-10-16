@@ -134,29 +134,84 @@ def _report(cfg: Config, p: RunPaths) -> dict[str, Any]:
 
 
 STAGE_LIST: tuple[Stage, ...] = (
-    Stage("ingest", ("sources", "study", "crs", "project.raw_dir"), (),
-          ("data_manifest.json",), _ingest),
-    Stage("grid", ("crs", "grid", "sources.boundary"), ("ingest",),
-          ("grid.parquet", "grid_meta.json"), _grid),
-    Stage("events", ("events", "sources.firms", "sources.boundary", "sources.mcd12q1", "study",
-                     "splits.development_years"), ("grid",),
-          ("detections_qc.parquet", "events.parquet", "positives.parquet"), _events),
-    Stage("risk_set", ("risk_set", "study"), ("events",), ("risk_set_summary.json",),
-          _risk_set),
-    Stage("sampling", ("sampling", "sources.mcd12q1", "study"), ("risk_set",),
-          ("sampling_summary.json", "landcover_fractions.parquet"), _sampling),
-    Stage("features", ("features", "sources", "study"), ("sampling",),
-          ("feature_registry.json", "leakage_report.json"), _features),
-    Stage("splits", ("splits", "evaluation.bootstrap"), ("features",),
-          ("temporal_splits.json", "spatial_blocks.parquet"), _splits),
-    Stage("train", ("models", "splits", "sampling.training_weighting", "features"),
-          ("splits",), ("selection.json",), _train),
-    Stage("calibrate", ("calibration", "mapping.class_quantiles", "splits.calibration_years"),
-          ("train",), ("calibration_artifacts.json",), _calibrate),
-    Stage("ablate", ("ablation", "features.groups"), ("calibrate",),
-          ("ablation_validation.csv",), _ablate),
-    Stage("evaluate", ("evaluation", "splits.test_years"), ("calibrate", "ablate"),
-          ("metrics_overall.csv",), _evaluate),
+    Stage(
+        "ingest",
+        ("sources", "study", "crs", "project.raw_dir"),
+        (),
+        ("data_manifest.json",),
+        _ingest,
+    ),
+    Stage(
+        "grid",
+        ("crs", "grid", "sources.boundary"),
+        ("ingest",),
+        ("grid.parquet", "grid_meta.json"),
+        _grid,
+    ),
+    Stage(
+        "events",
+        (
+            "events",
+            "sources.firms",
+            "sources.boundary",
+            "sources.mcd12q1",
+            "study",
+            "splits.development_years",
+        ),
+        ("grid",),
+        ("detections_qc.parquet", "events.parquet", "positives.parquet"),
+        _events,
+    ),
+    Stage("risk_set", ("risk_set", "study"), ("events",), ("risk_set_summary.json",), _risk_set),
+    Stage(
+        "sampling",
+        ("sampling", "sources.mcd12q1", "study"),
+        ("risk_set",),
+        ("sampling_summary.json", "landcover_fractions.parquet"),
+        _sampling,
+    ),
+    Stage(
+        "features",
+        ("features", "sources", "study"),
+        ("sampling",),
+        ("feature_registry.json", "leakage_report.json"),
+        _features,
+    ),
+    Stage(
+        "splits",
+        ("splits", "evaluation.bootstrap"),
+        ("features",),
+        ("temporal_splits.json", "spatial_blocks.parquet"),
+        _splits,
+    ),
+    Stage(
+        "train",
+        ("models", "splits", "sampling.training_weighting", "features"),
+        ("splits",),
+        ("selection.json",),
+        _train,
+    ),
+    Stage(
+        "calibrate",
+        ("calibration", "mapping.class_quantiles", "splits.calibration_years"),
+        ("train",),
+        ("calibration_artifacts.json",),
+        _calibrate,
+    ),
+    Stage(
+        "ablate",
+        ("ablation", "features.groups"),
+        ("calibrate",),
+        ("ablation_validation.csv",),
+        _ablate,
+    ),
+    Stage(
+        "evaluate",
+        ("evaluation", "splits.test_years"),
+        ("calibrate", "ablate"),
+        ("metrics_overall.csv",),
+        _evaluate,
+    ),
     Stage("explain", ("explain",), ("evaluate",), ("shap_global_importance.csv",), _explain),
     Stage("map", ("mapping",), ("evaluate",), ("map_index.csv",), _map),
     Stage("report", (), ("evaluate", "explain", "map"), ("REPORT.md",), _report),
@@ -181,8 +236,10 @@ def run_stage(name: str, cfg: Config, force: bool = False) -> dict[str, Any] | N
     paths = RunPaths.from_config(cfg)
     setup_logging(cfg.project.log_level, paths.log_dir / "pipeline.log")
     set_global_seed(cfg.project.seed)
-    payload: dict[str, Any] = {"config": _subset(cfg, stage.sections),
-                               "grid_variant": cfg.grid.active}
+    payload: dict[str, Any] = {
+        "config": _subset(cfg, stage.sections),
+        "grid_variant": cfg.grid.active,
+    }
     payload["upstream"] = {u: stage_fingerprint(paths.stage(u)) for u in stage.upstream}
     if name == "ingest":
         payload["files"] = _source_listing(cfg)

@@ -57,8 +57,13 @@ def raster_catalog(cfg: Config, src: RasterCatalogSource) -> list[CatalogEntry]:
         if not m:
             continue
         gd = m.groupdict()
-        out.append(CatalogEntry(path=p, year=int(gd["year"]) if "year" in gd else None,
-                                doy=int(gd["doy"]) if "doy" in gd else None))
+        out.append(
+            CatalogEntry(
+                path=p,
+                year=int(gd["year"]) if "year" in gd else None,
+                doy=int(gd["doy"]) if "doy" in gd else None,
+            )
+        )
     if not out:
         raise FileNotFoundError(f"no rasters matching {src.filename_regex!r} in {root}")
     return out
@@ -97,12 +102,18 @@ class GridAggregator:
                     wins.append((r0, r1, c0, c1))
         return wins
 
-    def aggregate(self, files: list[Path], working_res_m: float, window_km: float,
-                  resampling: Resampling, pixel_fn: PixelFn | None = None,
-                  halo_px: int = 0, src_nodata: float | None = None,
-                  bands: tuple[int, ...] = (1,),
-                  categorical_classes: dict[str, list[int]] | None = None,
-                  ) -> dict[str, np.ndarray]:
+    def aggregate(
+        self,
+        files: list[Path],
+        working_res_m: float,
+        window_km: float,
+        resampling: Resampling,
+        pixel_fn: PixelFn | None = None,
+        halo_px: int = 0,
+        src_nodata: float | None = None,
+        bands: tuple[int, ...] = (1,),
+        categorical_classes: dict[str, list[int]] | None = None,
+    ) -> dict[str, np.ndarray]:
         """Return per-cell means of each output layer (NaN where no valid pixels).
 
         * continuous: mean of ``pixel_fn`` outputs (or the band itself) over valid pixels;
@@ -130,10 +141,14 @@ class GridAggregator:
                     for band, dst in zip(bands, dsts, strict=True):
                         tmp = np.full((h, w), np.nan, dtype=np.float32)
                         reproject(
-                            source=rasterio.band(src, band), destination=tmp,
-                            src_transform=src.transform, src_crs=src.crs,
+                            source=rasterio.band(src, band),
+                            destination=tmp,
+                            src_transform=src.transform,
+                            src_crs=src.crs,
                             src_nodata=src_nodata if src_nodata is not None else src.nodata,
-                            dst_transform=dst_tr, dst_crs=self.meta.crs, dst_nodata=np.nan,
+                            dst_transform=dst_tr,
+                            dst_crs=self.meta.crs,
+                            dst_nodata=np.nan,
                             resampling=resampling,
                         )
                         fill = np.isnan(dst) & ~np.isnan(tmp)
@@ -167,8 +182,14 @@ class GridAggregator:
         acc.sums[name] += np.bincount(idx, weights=vals.astype(float), minlength=self.n)
         acc.counts[name] += np.bincount(idx, minlength=self.n)
 
-    def _acc_categorical(self, acc: _Accumulator, a: np.ndarray, valid: np.ndarray,
-                         cell_idx: np.ndarray, classes: dict[str, list[int]]) -> None:
+    def _acc_categorical(
+        self,
+        acc: _Accumulator,
+        a: np.ndarray,
+        valid: np.ndarray,
+        cell_idx: np.ndarray,
+        classes: dict[str, list[int]],
+    ) -> None:
         idx = cell_idx[valid]
         vals = a[valid].astype(np.int64)
         for name, codes in classes.items():
@@ -184,12 +205,17 @@ def sample_points(path: Path, lon: np.ndarray, lat: np.ndarray, band: int = 1) -
             xs, ys = tr.transform(lon, lat)
         else:
             xs, ys = lon, lat
-        vals = np.array([v[0] for v in src.sample(zip(xs, ys, strict=True), indexes=band)],
-                        dtype=float)
+        vals = np.array(
+            [v[0] for v in src.sample(zip(xs, ys, strict=True), indexes=band)], dtype=float
+        )
         if src.nodata is not None:
             vals[vals == src.nodata] = np.nan
         b = src.bounds
-        outside = (np.asarray(xs) < b.left) | (np.asarray(xs) > b.right) | (
-            np.asarray(ys) < b.bottom) | (np.asarray(ys) > b.top)
+        outside = (
+            (np.asarray(xs) < b.left)
+            | (np.asarray(xs) > b.right)
+            | (np.asarray(ys) < b.bottom)
+            | (np.asarray(ys) > b.top)
+        )
         vals[outside] = np.nan
     return vals

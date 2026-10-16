@@ -14,9 +14,14 @@ def _data(seed: int, shift: float, n: int = 2000) -> pd.DataFrame:
     rng = np.random.default_rng(seed)
     x = rng.normal(shift, 1.0 + shift, n)
     x[rng.random(n) < 0.3] = np.nan
-    return pd.DataFrame({"x": x, "z": rng.normal(shift, 1, n),
-                         "lc_group": rng.choice(["forest", "cropland"], n),
-                         "label": (rng.random(n) < 0.1).astype(int)})
+    return pd.DataFrame(
+        {
+            "x": x,
+            "z": rng.normal(shift, 1, n),
+            "lc_group": rng.choice(["forest", "cropland"], n),
+            "label": (rng.random(n) < 0.1).astype(int),
+        }
+    )
 
 
 @pytest.fixture()
@@ -44,8 +49,13 @@ def test_feature_screening_decided_on_training_rows(cfg: Config) -> None:
     train["empty_in_train"] = np.nan
     test = _data(1, 0.0)
     test["empty_in_train"] = 1.0  # informative only in test -> must still be dropped
-    spec = ModelSpec("xgb", "xgboost", ["x", "z", "empty_in_train", "lc_group"], ["lc_group"],
-                     {"n_estimators": 10})
+    spec = ModelSpec(
+        "xgb",
+        "xgboost",
+        ["x", "z", "empty_in_train", "lc_group"],
+        ["lc_group"],
+        {"n_estimators": 10},
+    )
     fm = fit_model(spec, cfg, 0, train, train["label"].to_numpy(), np.ones(len(train)))
     screen = fm.preprocessor.named_steps["screen"].named_transformers_["screen"]  # type: ignore[union-attr]
     assert "empty_in_train" in screen.dropped_ and screen.train_stats_["n_rows"] == len(train)

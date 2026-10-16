@@ -35,8 +35,9 @@ class HumanAvailability:
     flags: list[str] = field(default_factory=list)
 
 
-def check_snapshot_coverage(src: VectorSource, first_target: dt.date, name: str,
-                            enabled: bool, avail: HumanAvailability) -> None:
+def check_snapshot_coverage(
+    src: VectorSource, first_target: dt.date, name: str, enabled: bool, avail: HumanAvailability
+) -> None:
     if not enabled:
         avail.usable[name] = False
         avail.flags.append(f"{name}: disabled in configuration")
@@ -44,12 +45,16 @@ def check_snapshot_coverage(src: VectorSource, first_target: dt.date, name: str,
     dates = sorted(s.snapshot_date for s in src.snapshots)
     if not dates:
         avail.usable[name] = False
-        avail.flags.append(f"{name}: no historical snapshot configured -> omitted from the "
-                           "primary experiment (present-day data are never substituted)")
+        avail.flags.append(
+            f"{name}: no historical snapshot configured -> omitted from the "
+            "primary experiment (present-day data are never substituted)"
+        )
     elif dates[0] >= first_target:
         avail.usable[name] = False
-        avail.flags.append(f"{name}: earliest snapshot {dates[0]} does not predate the first "
-                           f"target day {first_target} -> omitted from the primary experiment")
+        avail.flags.append(
+            f"{name}: earliest snapshot {dates[0]} does not predate the first "
+            f"target day {first_target} -> omitted from the primary experiment"
+        )
     else:
         avail.usable[name] = True
 
@@ -62,8 +67,7 @@ def snapshot_for(src: VectorSource, target: pd.Series) -> pd.Series:
     return pd.Series(np.searchsorted(dates, t, side="left") - 1, index=target.index)
 
 
-def snapshot_distances(cfg: Config, grid: pd.DataFrame, src: VectorSource, kind: str
-                       ) -> np.ndarray:
+def snapshot_distances(cfg: Config, grid: pd.DataFrame, src: VectorSource, kind: str) -> np.ndarray:
     """(n_snapshots, n_cells) distance (km) from cell centroids to the nearest feature."""
     snaps = sorted(src.snapshots, key=lambda s: s.snapshot_date)
     out = np.full((len(snaps), len(grid)), np.nan, dtype=np.float32)
@@ -85,8 +89,9 @@ def snapshot_distances(cfg: Config, grid: pd.DataFrame, src: VectorSource, kind:
     return out
 
 
-def population_by_year(cfg: Config, grid: pd.DataFrame, meta: GridMeta, years: list[int]
-                       ) -> tuple[pd.DataFrame, list[str]]:
+def population_by_year(
+    cfg: Config, grid: pd.DataFrame, meta: GridMeta, years: list[int]
+) -> tuple[pd.DataFrame, list[str]]:
     """Population density (persons/km²) per target year using the preceding-year product."""
     src = cfg.sources.worldpop
     catalog = {e.year: e.path for e in raster_catalog(cfg, src) if e.year is not None}
@@ -97,20 +102,34 @@ def population_by_year(cfg: Config, grid: pd.DataFrame, meta: GridMeta, years: l
     for year in years:
         pyear, exact = lc_year_for(year, sorted(catalog), src.year_offset)
         if not exact:
-            flags.append(f"population for {year}: product {year + src.year_offset} missing, "
-                         f"using earlier {pyear}")
+            flags.append(
+                f"population for {year}: product {year + src.year_offset} missing, "
+                f"using earlier {pyear}"
+            )
         if pyear not in cache:
             if src.product == "ppp_counts":
                 # counts are summed into cells (mass-preserving) then divided by area
-                res = agg.aggregate([catalog[pyear]], meta.cell_size_m, src.window_size_km,
-                                    Resampling.sum)
+                res = agg.aggregate(
+                    [catalog[pyear]], meta.cell_size_m, src.window_size_km, Resampling.sum
+                )
                 # WorldPop counts only land inside the country -> divide by the inside area
                 cache[pyear] = res["value"] / grid["area_km2"].to_numpy()
             else:
-                res = agg.aggregate([catalog[pyear]], src.working_resolution_m,
-                                    src.window_size_km, Resampling.average)
+                res = agg.aggregate(
+                    [catalog[pyear]],
+                    src.working_resolution_m,
+                    src.window_size_km,
+                    Resampling.average,
+                )
                 cache[pyear] = res["value"]
-        frames.append(pd.DataFrame({"cell_id": grid["cell_id"].to_numpy(), "year": year,
-                                    "pop_density": cache[pyear].astype(np.float32),
-                                    "pop_asof": pd.Timestamp(pyear, 12, 31)}))
+        frames.append(
+            pd.DataFrame(
+                {
+                    "cell_id": grid["cell_id"].to_numpy(),
+                    "year": year,
+                    "pop_density": cache[pyear].astype(np.float32),
+                    "pop_asof": pd.Timestamp(pyear, 12, 31),
+                }
+            )
+        )
     return pd.concat(frames, ignore_index=True), flags
