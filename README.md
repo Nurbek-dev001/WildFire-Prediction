@@ -85,4 +85,20 @@ Raster input uses lazy xarray/Dask or windowed rasterio reads. Feature extractio
 
 Read [methodology mapping](docs/methodology_mapping.md), [assumptions and deviations](docs/deviations.md), and [the experiment protocol](docs/protocol.md) before interpreting any output. [Validation](docs/validation.md) records executed checks and their scope.
 
-![Reviewed dashboard preview](docs/dashboard-preview.jpg)
+## Interactive Kazakhstan map platform
+
+The [Steppe platform](platform/README.md) adds an interactive actual national
+map, daily demonstration scenarios, cell details, region search, CSV export,
+and genuine 2015–2022 VIIRS observation layers. Run:
+
+```powershell
+.venv\Scripts\python.exe -m http.server 8770 --bind 127.0.0.1 --directory platform\dist
+```
+
+Open http://127.0.0.1:8770/. The default probability layer is explicitly an
+illustrative scenario; the real model layer remains unavailable until actual
+training and evaluation complete. The 2023–2024 observation archives remain
+sealed. Verified pipeline rasters can later be connected with
+`scripts/export_platform_forecast.py`.
+
+![Reviewed synthetic research report](docs/dashboard-preview.jpg)

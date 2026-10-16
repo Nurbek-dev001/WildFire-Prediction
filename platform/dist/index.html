@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#153e35">
+  <meta name="description" content="Steppe — интерактивная карта вероятности возникновения природных пожаров в Казахстане. Реальная география, архив VIIRS и демонстрация прогноза.">
+  <title>Steppe — карта пожарной опасности</title>
+  <link rel="icon" href="./assets/mark.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <svg class="icon-library" aria-hidden="true"><defs>
+    <symbol id="i-map" viewBox="0 0 24 24"><path d="m3 6 6-3 6 3 6-3v15l-6 3-6-3-6 3Zm6-3v15m6-12v15"/></symbol>
+    <symbol id="i-layers" viewBox="0 0 24 24"><path d="m12 3 10 6-10 6L2 9Zm-10 12 10 6 10-6M2 12l10 6 10-6"/></symbol>
+    <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></symbol>
+    <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v6m0-10v1"/></symbol>
+    <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14m-6-6 6 6-6 6"/></symbol>
+    <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 3v12m-5-5 5 5 5-5M4 16v5h16v-5"/></symbol>
+    <symbol id="i-cross" viewBox="0 0 24 24"><circle cx="12" cy="12" r="6"/><path d="M12 2v4m0 12v4M2 12h4m12 0h4"/></symbol>
+    <symbol id="i-close" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></symbol>
+  </defs></svg>
+  <nav class="rail" aria-label="Разделы">
+    <a class="brand-mark" href="./" aria-label="Steppe">s<span>·</span></a>
+    <button class="rail-button active" id="nav-map" aria-label="Карта" title="Карта"><svg><use href="#i-map"/></svg></button>
+    <button class="rail-button" id="nav-data" aria-label="Источники и готовность данных" title="Источники данных"><svg><use href="#i-layers"/></svg></button>
+    <button class="rail-button" id="nav-method" aria-label="О методике" title="Методика"><svg><use href="#i-info"/></svg></button>
+    <div class="rail-bottom"><span class="connection-dot"></span><span>KZ</span></div>
+  </nav>
+  <div class="app">
+    <header>
+      <div class="wordmark">steppe<span>observatory</span></div>
+      <div class="header-divider"></div><span class="header-label">Мониторинг природных пожаров</span>
+      <div class="header-end"><span class="country-flag">☀</span><span>Казахстан</span><button class="profile" id="about-button" aria-label="О платформе">KZ</button></div>
+    </header>
+    <main>
+      <aside class="sidebar">
+        <div class="section-eyebrow">РАБОЧАЯ ОБЛАСТЬ <span>01</span></div>
+        <h1>Карта прогноза<span class="title-dot">.</span></h1>
+        <p class="sidebar-intro">Где может возникнуть<br>новый природный пожар</p>
+        <div class="mode-switch" role="group" aria-label="Режим карты">
+          <button class="selected" id="demo-mode" aria-pressed="true">Демо-сценарий</button><button id="real-mode" aria-pressed="false">Модель</button>
+        </div>
+        <div class="demo-note" id="mode-note"><span class="tiny-dot"></span><div><strong>Демонстрация прогноза</strong><p>Условные вероятности на реальной карте. Модель ещё не обучена.</p></div></div>
+        <div class="sidebar-label">СЛОИ КАРТЫ <svg><use href="#i-layers"/></svg></div>
+        <button class="layer-option selected" id="forecast-layer" aria-pressed="true"><span class="layer-symbol heat-symbol"></span><span><strong>Вероятность пожара</strong><small>Новый очаг · следующие сутки</small></span><span class="radio-dot"></span></button>
+        <button class="layer-option" id="history-layer" aria-pressed="false"><span class="layer-symbol fire-symbol">✦</span><span><strong>Наблюдения VIIRS</strong><small>Реальные детекции · 2015–2022</small></span><span class="radio-dot"></span></button>
+        <div class="history-options" id="history-options" hidden><label for="history-year">Год наблюдений</label><select id="history-year"><option>2022</option><option>2021</option><option>2020</option><option>2019</option><option>2018</option><option>2017</option><option>2016</option><option>2015</option></select></div>
+        <label class="toggle-row"><span>Границы областей</span><input id="region-lines" type="checkbox" checked><span class="toggle"></span></label>
+        <label class="toggle-row" id="high-only-row"><span>Только вероятность ≥ 5%</span><input id="high-only" type="checkbox"><span class="toggle"></span></label>
+        <div class="sidebar-label regions-heading">ОБЛАСТИ <span id="region-count">16</span></div>
+        <div class="search-wrap"><svg><use href="#i-search"/></svg><input id="region-search" placeholder="Найти область" aria-label="Найти область"></div>
+        <div id="region-list" class="region-list" aria-label="Области Казахстана"></div>
+        <div class="sidebar-footer"><svg><use href="#i-grid"/></svg><div><strong>Сетка 5 × 5 км</strong><span>110 129 ячеек · равновеликая проекция</span></div></div>
+      </aside>
+      <section class="workspace" aria-label="Интерактивная карта">
+        <div class="workspace-top"><div><div class="section-eyebrow">КАЗАХСТАН / ПРИРОДНЫЕ ПОЖАРЫ</div><h2 id="map-title">Прогноз на <span id="title-date">15 июля 2022</span></h2></div><button class="export-button" id="export-button" aria-label="Экспорт слоя в CSV"><svg><use href="#i-download"/></svg><span>Экспорт</span></button></div>
+        <div class="stats-row" aria-live="polite"><div class="stat"><span id="stat-one-label">Ячеек на карте</span><strong id="stat-cells">—</strong><small id="stat-cells-unit">5 × 5 км</small></div><div class="stat"><span id="stat-two-label">Вероятность ≥ 5%</span><strong id="stat-high">—</strong><small id="stat-high-unit">демо-ячейки</small></div><div class="stat"><span id="stat-three-label">Максимум на карте</span><strong class="accent-number" id="stat-max">—</strong><small id="stat-max-unit">условная вероятность</small></div><div class="stat-source"><span class="tiny-dot"></span><span id="stat-source">Сценарий · не оперативный прогноз</span></div></div>
+        <div class="map-shell" id="map-shell">
+          <canvas id="map" aria-label="Карта Казахстана. Нажмите на ячейку, чтобы увидеть вероятность пожара." tabindex="0"></canvas>
+          <div class="map-top-label"><span class="map-status-dot"></span><span id="map-badge">ДЕМО-СЦЕНАРИЙ</span><span class="map-label-divider"></span><span>5 КМ</span></div>
+          <div class="map-compass"><span>N</span><i></i></div>
+          <div class="map-tools"><button id="zoom-in" aria-label="Увеличить масштаб">+</button><button id="zoom-out" aria-label="Уменьшить масштаб">−</button><button id="reset-map" aria-label="Показать весь Казахстан" title="Весь Казахстан"><svg><use href="#i-cross"/></svg></button></div>
+          <div class="map-loading" id="loading"><span class="loading-ring"></span>Загружаем карту Казахстана…</div>
+          <div class="map-empty" id="map-empty" hidden><svg><use href="#i-layers"/></svg><strong>Реальный прогноз пока недоступен</strong><p>Для обучения нужны метеоданные, растительность, земной покров, рельеф и антропогенные признаки.</p><button id="return-demo">Посмотреть демо-сценарий <span>↗</span></button></div>
+          <article class="cell-card" id="cell-card" hidden aria-label="Выбранная ячейка">
+            <div class="card-top"><span id="card-kind">ВЫБРАННАЯ ЯЧЕЙКА</span><button id="close-card" aria-label="Закрыть карточку"><svg><use href="#i-close"/></svg></button></div>
+            <h3 id="cell-region">Карагандинская область</h3><div class="cell-coordinates" id="cell-coordinates">—</div>
+            <div class="probability-row"><strong id="cell-probability">—</strong><span id="cell-category">Повышенная<br>вероятность</span></div>
+            <div class="probability-meter"><span id="probability-meter"></span></div>
+            <p class="cell-context" id="cell-context">Условная вероятность нового очага за сутки</p>
+            <div class="card-divider"></div><div class="card-section-title" id="factor-title">ФАКТОРЫ ДЕМО-СЦЕНАРИЯ</div>
+            <div id="cell-factors"></div>
+            <div class="cell-card-foot"><span id="cell-area">25 км²</span><span id="cell-id">—</span></div>
+            <p class="card-disclaimer" id="card-disclaimer">Иллюстрация интерфейса. Значения не рассчитаны обученной моделью.</p>
+          </article>
+          <div class="legend"><span id="legend-title">Вероятность нового пожара · демо</span><div class="legend-ramp" id="legend-ramp"></div><div class="legend-ticks" id="legend-ticks"><span>0%</span><span>2%</span><span>4%</span><span>6%</span><span>≥ 8%</span></div></div>
+          <div class="map-scale"><span id="scale-label">200 км</span><i></i></div>
+          <div class="map-hint" id="map-hint">Нажмите на карту, чтобы изучить ячейку</div>
+          <div class="attribution"><a href="https://www.geoboundaries.org/" target="_blank" rel="noopener">geoBoundaries / OSM · ODbL</a><span>Границы областей: 2017</span></div>
+        </div>
+        <div class="timeline" id="timeline"><div class="timeline-title"><svg><use href="#i-map"/></svg><div><strong>Дата сценария</strong><span>Горизонт: 24 часа</span></div></div><button class="day-arrow" id="previous-day" aria-label="Предыдущий день">‹</button><label class="date-input-wrap"><input id="forecast-date" type="date" value="2022-07-15" min="2015-01-01" max="2022-12-31" aria-label="Дата демо-сценария"></label><button class="day-arrow" id="next-day" aria-label="Следующий день">›</button><div class="timeline-days" id="timeline-days"></div><span class="utc-label">UTC</span></div>
+        <footer class="workspace-footer"><span><i></i> Вероятность возникновения, без оценки ущерба</span><button id="holdout-button"><span>⌑</span> 2023–2024 закрыты для финальной оценки</button></footer>
+      </section>
+    </main>
+  </div>
+  <dialog id="info-dialog"><div class="dialog-heading"><span class="section-eyebrow" id="dialog-eyebrow">STEPPE OBSERVATORY</span><button id="close-dialog" aria-label="Закрыть"><svg><use href="#i-close"/></svg></button></div><div id="dialog-content"></div></dialog>
+  <div class="toast" id="toast" role="status" hidden></div>
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
