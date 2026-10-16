@@ -58,7 +58,8 @@ def download_firms(cfg: Config, bbox: tuple[float, float, float, float],
         try:
             resp = requests.get(url, timeout=120)  # type: ignore[attr-defined]
         except Exception as exc:
-            raise DownloadError(f"FIRMS unreachable ({exc}); no data were written for {day}") from exc
+            raise DownloadError(
+                f"FIRMS unreachable ({exc}); no data were written for {day}") from exc
         if resp.status_code != 200 or resp.text.lower().startswith("invalid"):
             raise DownloadError(f"FIRMS request failed ({resp.status_code}): {resp.text[:200]}")
         path = out / f"firms_{src.api_product}_{day:%Y%m%d}_{n}d.csv"

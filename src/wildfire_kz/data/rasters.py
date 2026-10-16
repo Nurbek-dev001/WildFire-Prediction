@@ -88,7 +88,7 @@ class GridAggregator:
         self.s = s
 
     def _windows(self, window_km: float) -> list[tuple[int, int, int, int]]:
-        step = max(1, int(round(window_km * 1000 / self.s)))
+        step = max(1, round(window_km * 1000 / self.s))
         wins = []
         for r0 in range(0, self.meta.height, step):
             for c0 in range(0, self.meta.width, step):
@@ -109,7 +109,7 @@ class GridAggregator:
         * categorical: fraction of valid pixels in each named class group.
         """
         # the effective working resolution is adjusted so that it divides the cell size
-        k = max(1, int(round(self.s / working_res_m)))
+        k = max(1, round(self.s / working_res_m))
         res = self.s / k
         acc = _Accumulator(sums={}, counts={})
         srcs = [rasterio.open(f) for f in files]
