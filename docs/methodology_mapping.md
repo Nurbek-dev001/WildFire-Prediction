@@ -70,3 +70,12 @@ that check the behaviour.
 | Paired 95 % CIs via 1,000 space–time block bootstrap resamples on identical units | `evaluation/bootstrap.py` (`paired_block_bootstrap`) | `test_bootstrap.py` |
 | Training time, inference time, peak memory | `utils/resources.py`, `models/pipelines.py`, `evaluation/evaluate.py` (`resources.csv`) | — |
 | Report negative or unstable improvements explicitly | `evaluation/evaluate.py` (`result_flags`), `report/build.py` section "Negative, null or unstable results" | — |
+
+## Platform (extension, not part of the methodology)
+
+| Purpose | Code | Tests |
+|---|---|---|
+| Production model = best development-CV candidate (incl. optional ensemble) | `models/train.py` (`train_ensemble`, `select_models`) | `test_platform.py::test_production_model_selected_on_development_scores_only` |
+| Additive per-cell explanations for any production model | `explain/contributions.py` | `test_platform.py::test_contributions_are_additive_on_log_odds` |
+| Operational next-day forecasts with the test-year guard | `forecast/engine.py` | `test_platform.py::test_forecast_*` |
+| Web API + UI | `platform/api.py`, `platform/data.py`, `platform/static/` | `test_platform.py::test_api_*` |

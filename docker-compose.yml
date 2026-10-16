@@ -1,0 +1,17 @@
+# docker compose up platform          -> web platform on http://localhost:8000
+# docker compose run --rm pipeline run -c configs/default.yaml
+# docker compose run --rm pipeline forecast 2025-07-15 -c configs/default.yaml
+services:
+  platform:
+    build: .
+    image: wildfire-kz:latest
+    command: ["serve", "--config", "${WILDFIRE_CONFIG:-configs/default.yaml}"]
+    ports: ["8000:8000"]
+    volumes: ["./data:/app/data"]
+    restart: unless-stopped
+  pipeline:
+    image: wildfire-kz:latest
+    profiles: ["batch"]
+    volumes: ["./data:/app/data"]
+    environment:
+      FIRMS_MAP_KEY: ${FIRMS_MAP_KEY:-}

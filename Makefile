@@ -19,13 +19,16 @@ STAGES := ingest grid events risk-set sampling features splits train calibrate a
           evaluate explain map report
 
 .PHONY: help install dev all $(STAGES) synth synthetic-demo smoke lint format typecheck test \
-        check clean-synthetic
+        check clean-synthetic serve forecast platform-demo docker
 
 help:
 	@echo "Stages (in order): $(STAGES)"
 	@echo "make all CONFIG=...   run every stage;  make <stage> CONFIG=...   run one stage"
 	@echo "make synthetic-demo   generate synthetic data and run the full pipeline offline"
 	@echo "make check            lint + type-check + tests"
+	@echo "make serve CONFIG=... start the web platform (PORT=8000)"
+	@echo "make forecast DATE=YYYY-MM-DD CONFIG=...   operational next-day map"
+	@echo "make platform-demo    synthetic smoke run + platform on http://localhost:8000"
 
 install:
 	$(PY) -m pip install -e .
@@ -94,3 +97,19 @@ check: lint typecheck test
 
 clean-synthetic:
 	rm -rf data/synthetic_raw data/smoke_raw data/work/synthetic data/work/smoke
+
+PORT ?= 8000
+DATE ?=
+
+serve:
+	$(CLI) serve --config $(CONFIG) $(SET_ARGS) --port $(PORT)
+
+forecast:
+	@test -n "$(DATE)" || (echo "usage: make forecast DATE=YYYY-MM-DD CONFIG=..." && exit 1)
+	$(CLI) forecast $(DATE) --config $(CONFIG) $(SET_ARGS)
+
+platform-demo: smoke
+	$(MAKE) serve CONFIG=configs/test_smoke.yaml
+
+docker:
+	docker build -t wildfire-kz:latest .

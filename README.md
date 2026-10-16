@@ -42,6 +42,24 @@ that cell on that day, using only information observed before day *t*.
 Stages are idempotent and cached by fingerprint (config + upstream + seed), and log to
 `<work_dir>/<run_label>/logs/`. See [`docs/architecture.md`](docs/architecture.md).
 
+## Platform
+
+A web platform serves the results operationally: a daily hazard map, cell drill-down with
+model drivers, the production-model card and an API (FastAPI + a vendored Leaflet UI).
+
+```bash
+pip install -e ".[platform]"
+make platform-demo            # synthetic smoke run, then http://localhost:8000
+wildfire-kz forecast 2025-07-15 -c configs/default.yaml     # operational next-day map
+wildfire-kz serve -c configs/default.yaml                   # or: docker compose up platform
+```
+
+The **production model** is chosen automatically. It is the candidate (four classifiers plus a
+log-odds-averaging XGBoost+CatBoost ensemble) with the best weighted AP on the
+**development** validation folds. Calibration and test years never influence that choice, so
+the test metrics shown in the platform remain an honest estimate. See
+[`docs/platform.md`](docs/platform.md).
+
 ## Installation
 
 Python ≥ 3.11.
@@ -128,7 +146,7 @@ data/work/<run_label>/<grid>/
 
 ```bash
 make check          # ruff (lint + format check), mypy, pytest
-pytest -q           # 80 tests incl. an end-to-end synthetic smoke test (~2–3 min)
+pytest -q           # 91 tests incl. an end-to-end synthetic smoke test (~2–3 min)
 ```
 
 CI (`.github/workflows/ci.yml`) runs the same checks. Notebooks in `notebooks/` are for
@@ -143,6 +161,8 @@ exploration only; all logic lives in `src/wildfire_kz`.
 * [`docs/assumptions.md`](docs/assumptions.md): resolved ambiguities and deviations, with
   justification.
 * [`docs/data_acquisition.md`](docs/data_acquisition.md): obtaining and laying out real data.
+* [`docs/platform.md`](docs/platform.md): production-model selection, forecasts, API,
+  deployment.
 
 ## Licence
 

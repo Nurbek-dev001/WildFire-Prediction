@@ -46,6 +46,15 @@ otherwise, and each is recorded here so it can be challenged or changed.
 | B6 | **The test-year guard protects model-facing reads**, i.e. `FeatureStore` used by train/calibrate/ablate. The features stage still *computes* feature rows for 2023–2024. | Feature construction uses no labels or fitted quantities, and building all years at once keeps caches consistent. Nothing fitted (models, calibration, threshold, class boundaries) can read test rows before the ledger is opened, and the ledger refuses to open until calibration artifacts are frozen. |
 | B7 | **Settlement proximity is computed from point snapshots** (one dated snapshot per configured file) rather than a gridded settlement-extent product. | The methodology names no specific settlement product; point gazetteers are the most widely available dated source. |
 
+## B′. Platform extensions (beyond the methodology)
+
+| # | Extension | Justification |
+|---|---|---|
+| B8 | **Extra candidate `ensemble_trees`** (mean of XGBoost and CatBoost uncalibrated log-odds), competing for production on the same rolling-origin development folds. | Requested "best model" for the platform. The four methodology classifiers and both baselines are still trained, calibrated, evaluated and reported unchanged. The ensemble only adds a candidate, and selection never looks at calibration or test data. Disable with `models.ensemble.enabled: false`. |
+| B9 | **Production model = best development-CV candidate**, used by maps, forecasts and the platform. | The methodology selects on development validation. Using the same rule for deployment keeps the reported test metrics an honest estimate of the deployed model. |
+| B10 | **Operational forecasts beyond the study period** (`wildfire-kz forecast`). | Uses the identical feature builder. For new years, land cover and population come from the preceding-year products, never from later ones. Test-year days are refused until the final evaluation exists. |
+| B11 | **Re-calibrating after the test years were opened re-locks them**. Re-running `train`/`calibrate` on an evaluated run makes `evaluate` fail. | Intended protocol behaviour. Start a new experiment with a new `project.run_label` instead of overwriting an evaluated one. |
+
 ## C. What is deliberately *not* in this repository
 
 * No performance numbers, published-style scores or claims of novelty. The only numbers in
