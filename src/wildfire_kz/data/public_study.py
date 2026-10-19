@@ -359,6 +359,11 @@ def feature_frame(keys: pd.DataFrame, release: Path | None = None) -> pd.DataFra
     for column in ["cell_id", "x", "y_coord", "area_km2"]:
         result[column] = grid[column].to_numpy()[indices]
     values = meteorology(indices, dates, release)
+    soil = values["soil_moisture"]
+    result["soil_moisture_clipped"] = np.isfinite(soil) & ((soil < 0) | (soil > 1))
+    # ERA5 can encode near-zero soil water as negative. Preserve source arrays;
+    # bound this volumetric predictor physically and record every changed row.
+    values["soil_moisture"] = np.clip(soil, 0, 1)
     values.update(vegetation_features(indices, dates, release))
     cover = cover_year(year - 1, release)
     if "landcover" not in result:
@@ -405,6 +410,7 @@ def table(year: int, *, training: bool, release: Path | None = None) -> Path:
     frame = feature_frame(keys, release)
     invalid = ~frame.required_features_valid
     invalid_rows, invalid_positives = int(invalid.sum()), int(frame.loc[invalid, "label"].sum())
+    bounded_soil_rows = int(frame.soil_moisture_clipped.sum())
     frame = frame.loc[~invalid].reset_index(drop=True)
     if len(frame) == 0 or frame.label.nunique() != 2:
         raise ValueError("Verified sources produced no usable two-class study sample")
@@ -422,6 +428,7 @@ def table(year: int, *, training: bool, release: Path | None = None) -> Path:
             "input_fingerprint": fingerprint,
             "missing_required_source_rows_excluded": invalid_rows,
             "missing_required_source_positives_excluded": invalid_positives,
+            "soil_moisture_rows_bounded_0_1": bounded_soil_rows,
         },
     )
     log(f"features {year}: {len(frame):,} rows; {frame.label.sum():,} positives")

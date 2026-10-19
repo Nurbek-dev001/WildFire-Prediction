@@ -109,4 +109,17 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    if sys.platform == "win32":
+        import ctypes
+
+        # Prevent automatic idle sleep during this computation only. This does
+        # not keep the display on or override a user's explicit sleep action.
+        execution_state = ctypes.windll.kernel32.SetThreadExecutionState
+        execution_state.argtypes = [ctypes.c_uint]
+        execution_state.restype = ctypes.c_uint
+        execution_state(0x80000001)
+    try:
+        main()
+    finally:
+        if sys.platform == "win32":
+            execution_state(0x80000000)

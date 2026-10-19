@@ -28,6 +28,12 @@ does not divide an entire source pixel's count by an arbitrarily tiny clipped
 study-cell area. The clipped study-cell population estimate is density multiplied
 by that study cell's actual area. Source nodata remains missing.
 
+The untouched ERA5 arrays occasionally contain slightly negative volumetric soil
+water. Before modelling, daily soil moisture is bounded to its physical 0–1 range;
+the number of adjusted rows is recorded in each feature-table sidecar. This follows
+the [ECMWF explanation of near-zero negative GRIB encoding](https://forum.ecmwf.int/t/negative-volumetric-soil-water-values-in-era5-dataset/1222).
+The rule is fixed using development data before any held-out observations are read.
+
 ## Temporal limits
 
 The source archives contain later reprocessed releases. Actual retrieval and
