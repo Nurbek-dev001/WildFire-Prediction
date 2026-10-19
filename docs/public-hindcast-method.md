@@ -22,6 +22,12 @@ arrays have SHA-256 sidecars; range-read archives record the provider URL, objec
 ETag, full object size, native grid and selection. An ETag is not misrepresented
 as a checksum of a global file that was never downloaded.
 
+WorldPop density divides the sum of observed native population counts by the
+geodesic area represented by those same native pixels. A national boundary sliver
+does not divide an entire source pixel's count by an arbitrarily tiny clipped
+study-cell area. The clipped study-cell population estimate is density multiplied
+by that study cell's actual area. Source nodata remains missing.
+
 ## Temporal limits
 
 The source archives contain later reprocessed releases. Actual retrieval and
@@ -48,6 +54,11 @@ strictly before target midnight. Persistent nonvegetated hot spots are identifie
 using development data only and frozen. All eligible positives are retained.
 Negatives are probability sampled within year × month × broad cover, with explicit
 inclusion probabilities and inverse-probability weights.
+
+The target is first satellite detection, not independently verified ignition.
+Clouds, overpass timing, detection limits and missed fires affect the labels;
+absence of a detection does not establish absence of vegetation fire. Later
+detections may establish connected-component labels but never enter predictors.
 
 Development is 2015–2021; rolling validation years are 2019, 2020 and 2021, with
 earlier years as training. Logistic regression, random forest, XGBoost and CatBoost

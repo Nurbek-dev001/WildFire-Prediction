@@ -10,9 +10,20 @@ import s3fs
 from sklearn.metrics import average_precision_score
 
 from wildfire_kz.data import checksum, dump_json, public_study
-from wildfire_kz.data.public_predictors import WeatherSeries, permitted
+from wildfire_kz.data.public_predictors import WeatherSeries, complete, permitted
 from wildfire_kz.data.range_cache import RangeCachedS3
-from wildfire_kz.public_evaluation import weighted_ap_sorted
+from wildfire_kz.public_evaluation import bootstrap, weighted_ap_sorted
+
+
+def test_multifile_source_checksums_preserve_extensions(tmp_path: Path):
+    shape, index = tmp_path / "places.shp", tmp_path / "places.shx"
+    for path in [shape, index]:
+        path.write_bytes(path.suffix.encode())
+        dump_json(path.with_name(path.name + ".sha256.json"), {"sha256": checksum(path)})
+    assert complete(shape) and complete(index)
+    shape.write_bytes(b"altered")
+    assert not complete(shape)
+    assert complete(index)
 
 
 def test_release_requires_model_calibration_and_threshold_hashes(tmp_path: Path):
@@ -89,6 +100,31 @@ def test_cached_bootstrap_ap_preserves_ties_and_design_weights():
     assert weighted_ap_sorted(y, w, order, endpoints) == pytest.approx(
         average_precision_score(y, p, sample_weight=w)
     )
+
+
+def test_public_bootstrap_pairs_models_and_reports_fixed_bin_uncertainty(tmp_path: Path):
+    y = np.array([0, 1, 0, 1] * 6)
+    p = np.array([0.05, 0.8, 0.3, 0.7] * 6)
+    w = np.array([30.0, 1.0, 10.0, 1.0] * 6)
+    frame = pd.DataFrame(
+        {
+            "label": y,
+            "weight": w,
+            "day": pd.date_range("2021-01-01", periods=len(y), freq="10D", tz="UTC"),
+            "x": np.arange(len(y)) * 100000,
+            "y_coord": 0,
+        }
+    )
+    bootstrap(
+        frame, {"a": p, "b": p}, "a", tmp_path, 20, {"a": [0, 0.2, 0.5, 1], "b": [0, 0.2, 0.5, 1]}
+    )
+    intervals = pd.read_csv(tmp_path / "cluster_intervals.csv")
+    differences = intervals[intervals.model == "a minus b"]
+    assert differences.lower.eq(0).all() and differences.upper.eq(0).all()
+    bins = pd.read_csv(tmp_path / "calibration_intervals_a.csv")
+    np.testing.assert_array_equal(bins.observed, [0, 0, 1])
+    assert bins["count"].sum() == len(frame)
+    assert bins.ci_lower.between(0, 1).all() and bins.ci_upper.between(0, 1).all()
 
 
 def test_range_cache_preserves_bytes_and_coalesces_concurrent_reads(monkeypatch):

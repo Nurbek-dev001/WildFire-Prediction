@@ -1,0 +1,124 @@
+"""Readable final metrics and publication-quality figures from actual evaluated files."""
+
+from __future__ import annotations
+
+import html
+import json
+from pathlib import Path
+
+import matplotlib
+
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+import pandas as pd
+
+from wildfire_kz.data import checksum, dump_json
+from wildfire_kz.data.public_predictors import permitted
+from wildfire_kz.data.public_study import RUN
+
+LABELS = {
+    "logistic": "Logistic regression",
+    "random_forest": "Random forest",
+    "xgboost": "XGBoost",
+    "catboost": "CatBoost",
+    "weather_logistic": "Weather logistic",
+    "seasonal": "Seasonal baseline",
+}
+
+
+def report() -> Path:
+    permitted([2023, 2024], RUN / "release.json")
+    result = json.loads((RUN / "evaluate/complete.json").read_text())
+    if result["release_sha256"] != checksum(RUN / "release.json"):
+        raise ValueError("Evaluation belongs to another frozen experiment")
+    for name, digest in result["outputs"].items():
+        if checksum(RUN / "evaluate" / name) != digest:
+            raise ValueError(f"Evaluation output changed: {name}")
+    selected = result["selected_model"]
+    destination = RUN / "report"
+    destination.mkdir(parents=True, exist_ok=True)
+    scores = pd.read_csv(RUN / "evaluate/metrics.csv", dtype={"period": str})
+    full = scores[scores.period == "2023–2024"].set_index("model")
+    intervals = pd.read_csv(RUN / "evaluate/cluster_intervals.csv")
+    ap_ci = intervals[intervals.metric == "average_precision"].set_index("model")
+    names = list(LABELS)
+    values = full.loc[names, "average_precision"].to_numpy()
+    lower, upper = ap_ci.loc[names, "lower"].to_numpy(), ap_ci.loc[names, "upper"].to_numpy()
+    figure, axes = plt.subplots(1, 2, figsize=(12, 4.6), layout="constrained")
+    colors = ["#2d6351" if name == selected else "#c1cbb7" for name in names]
+    axes[0].barh([LABELS[n] for n in names], values, color=colors)
+    for i, (lo, hi, p) in enumerate(zip(lower, upper, values, strict=True)):
+        axes[0].plot([lo, hi], [i, i], color="#364f43", linewidth=1.3)
+        axes[0].plot(p, i, "o", color="#364f43", markersize=3)
+    axes[0].axvline(
+        float(full.prevalence.iloc[0]), color="#a45d35", linestyle="--", label="Prevalence"
+    )
+    axes[0].set(xlabel="Design-weighted average precision", title="Final holdout: 2023–2024")
+    axes[0].legend(frameon=False, fontsize=8)
+    axes[1].barh([LABELS[n] for n in names], full.loc[names, "roc_auc"], color=colors)
+    axes[1].set(
+        xlabel="Design-weighted ROC-AUC", xlim=(0, 1), title="Selection fixed using 2019–2021"
+    )
+    for ax in axes:
+        ax.spines[["top", "right"]].set_visible(False)
+        ax.tick_params(axis="y", labelsize=9)
+    figure.savefig(destination / "model_comparison.png", dpi=180)
+    figure.savefig(destination / "model_comparison.pdf")
+    plt.close(figure)
+    rel = pd.read_csv(RUN / f"evaluate/calibration_intervals_{selected}.csv").dropna(
+        subset=["predicted", "observed"]
+    )
+    rel.to_csv(destination / "calibration_bins.csv", index=False)
+    figure, axis = plt.subplots(figsize=(5.6, 4.7), layout="constrained")
+    upper_limit = float(max(rel.predicted.max(), rel.observed.max(), rel.ci_upper.max()) * 1.1)
+    axis.plot(
+        [0, upper_limit], [0, upper_limit], "--", color="#9aa58e", label="Perfect calibration"
+    )
+    axis.scatter(
+        rel.predicted, rel.observed, s=30 + 160 * rel.weight / rel.weight.max(), color="#2d6351"
+    )
+    axis.vlines(rel.predicted, rel.ci_lower, rel.ci_upper, color="#2d6351", linewidth=1.2)
+    axis.set(
+        xlabel="Mean calibrated probability",
+        ylabel="Weighted observed frequency",
+        title=f"{LABELS[selected]} | final holdout",
+        xlim=(0, upper_limit),
+        ylim=(0, upper_limit),
+    )
+    axis.spines[["top", "right"]].set_visible(False)
+    axis.legend(frameon=False, fontsize=8)
+    figure.savefig(destination / "reliability.png", dpi=180)
+    figure.savefig(destination / "reliability.pdf")
+    plt.close(figure)
+    table_html = (
+        full[
+            [
+                "average_precision",
+                "roc_auc",
+                "brier",
+                "bss",
+                "precision",
+                "recall",
+                "f1",
+                "prevalence",
+            ]
+        ]
+        .rename(index=LABELS)
+        .to_html(float_format=lambda v: f"{v:.6f}", border=0)
+    )
+    chosen = full.loc[selected]
+    page = f"""<!doctype html><html lang="ru"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Steppe · реальные результаты</title><style>body{{margin:0;background:#f6f7f1;color:#203d32;font:16px/1.65 Segoe UI,Arial,sans-serif}}main{{max-width:1120px;margin:auto;padding:55px 28px}}h1{{font-size:42px;line-height:1.15;letter-spacing:-1.5px}}small,.note{{color:#68766b}}.badge{{font-size:12px;letter-spacing:2px}}.tiles{{display:flex;gap:20px;margin:32px 0;flex-wrap:wrap}}.tile{{background:white;padding:22px;min-width:170px;flex:1;border-radius:10px}}.tile strong{{display:block;font-size:28px}}img{{max-width:100%;height:auto;margin:20px 0}}.table-wrap{{overflow:auto}}table{{border-collapse:collapse;font-size:12px;background:white;width:100%}}td,th{{padding:12px;border-bottom:1px solid #e4e9df;text-align:right}}th:first-child{{text-align:left}}a{{color:#2d6351}}code{{word-break:break-all;font-size:12px}}section{{margin:42px 0}}@media(max-width:600px){{h1{{font-size:32px}}main{{padding:30px 17px}}}}</style><main><div class="badge">STEPPE OBSERVATORY · REAL PUBLIC DATA</div><h1>Реальная модель.<br>Финальная проверка.</h1><p>Для карты выбрана <b>{html.escape(LABELS[selected])}</b> по средней взвешенной AP временной валидации 2019–2021. Калибровка выполнена на 2022 году. Контрольные данные 2023–2024 открыты после фиксации моделей и порогов.</p><div class="tiles"><div class="tile"><small>AP · тест 2023–2024</small><strong>{chosen.average_precision:.5f}</strong></div><div class="tile"><small>ROC-AUC</small><strong>{chosen.roc_auc:.4f}</strong></div><div class="tile"><small>Brier score</small><strong>{chosen.brier:.6f}</strong></div></div><section><h2>Сравнение замороженных моделей</h2><p class="note">Полосы на AP: 95% интервалы, 1000 одинаковых блочных повторов 100 км × 30 дней. Зелёным отмечена модель, выбранная до доступа к тесту.</p><img src="model_comparison.png" alt="Реальные метрики шести моделей"><div class="table-wrap">{table_html}</div></section><section><h2>Калибровка вероятностей</h2><p class="note">Границы интервалов зафиксированы на 2022 году. Размер точки отражает вес наблюдений.</p><img src="reliability.png" alt="Калибровка выбранной модели"></section><section><h2>Что измерено</h2><p>Цель — первое спутниковое обнаружение связанного события, а не подтверждённое время возгорания. Отсутствие детекций не доказывает отсутствие огня. Метрики имеют веса отбора отрицательных примеров и относятся к допустимым ячейкам с обязательными признаками.</p><p>Всего в финальной выборке: {result["rows"]:,} строк, {result["positive_rows"]:,} положительных. Оценка взвешенного числа допустимых ячейко-дней: {result["weighted_cell_days"]:,.0f}.</p><p>Архивы переобработаны после дат наблюдений. ERA5, NOAA NDVI, SRTM 90 м и исторические антропогенные данные — документированные открытые аналоги. Результат представляет ретроспективный эксперимент; оперативная пригодность не подтверждена.</p></section><section><h2>Проверяемые артефакты</h2><p><a href="../evaluate/metrics.csv">Все метрики CSV</a> · <a href="../evaluate/cluster_intervals.csv">Блочные интервалы CSV</a> · <a href="../comparison.csv">Временная валидация</a> · <a href="../source_registry.json">Реестр данных</a> · <a href="../frozen.json">Параметры фиксации</a> · <a href="https://steppe-kazakhstan-fire-map.peppy-horse-5926.chatgpt.site/">Интерактивная карта</a></p><p class="note">SHA-256 фиксации: <code>{result["release_sha256"]}</code></p></section></main></html>"""
+    (destination / "index.html").write_text(page, encoding="utf-8")
+    dump_json(
+        destination / "complete.json",
+        {
+            "synthetic": False,
+            "release_sha256": result["release_sha256"],
+            "outputs": {
+                p.name: checksum(p)
+                for p in destination.iterdir()
+                if p.is_file() and p.name != "complete.json"
+            },
+        },
+    )
+    return destination / "index.html"

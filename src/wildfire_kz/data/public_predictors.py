@@ -101,12 +101,14 @@ def save_npz(path: Path, **arrays: Any) -> None:
 
 
 def complete(path: Path) -> bool:
-    digest = path.with_suffix(".sha256.json")
-    return (
-        path.is_file()
-        and digest.is_file()
-        and json.loads(digest.read_text())["sha256"] == checksum(path)
-    )
+    if not path.is_file():
+        return False
+    # Keep extensions for multi-file formats (places.shp/shx/dbf/prj); a shared
+    # stem sidecar would overwrite three of their checksums. Retain legacy caches.
+    for digest in [path.with_name(path.name + ".sha256.json"), path.with_suffix(".sha256.json")]:
+        if digest.is_file() and json.loads(digest.read_text())["sha256"] == checksum(path):
+            return True
+    return False
 
 
 def download(url: str, path: Path, *, timeout: int = 300, resumable_zip: bool = False) -> Path:
@@ -155,7 +157,7 @@ def download(url: str, path: Path, *, timeout: int = 300, resumable_zip: bool = 
         raise ValueError(f"Empty provider response: {url}")
     temporary.replace(path)
     dump_json(
-        path.with_suffix(".sha256.json"),
+        path.with_name(path.name + ".sha256.json"),
         {
             "url": url,
             "sha256": checksum(path),
@@ -205,7 +207,12 @@ class WeatherSeries:
             async with semaphore:
                 return await reader.read_array((row, columns, slice(lo - offset, hi - offset)))
 
-        chunks = await asyncio.gather(*(read(offset, r) for offset, r in self.records))
+        chunks = await asyncio.gather(
+            *(read(offset, r) for offset, r in self.records), return_exceptions=True
+        )
+        for chunk in chunks:
+            if isinstance(chunk, BaseException):
+                raise chunk
         arrays = [a for a in chunks if a is not None]
         result = np.concatenate(arrays, axis=-1)
         if result.shape[-1] != stop - start:
@@ -260,7 +267,14 @@ async def open_weather_series(
             )
             return offset, reader
 
-    return WeatherSeries(await asyncio.gather(*(open_one(o, k) for o, k in objects)), hours)
+    opened = await asyncio.gather(*(open_one(o, k) for o, k in objects), return_exceptions=True)
+    failures = [item for item in opened if isinstance(item, BaseException)]
+    if failures:
+        for item in opened:
+            if isinstance(item, tuple):
+                item[1].close()
+        raise failures[0]
+    return WeatherSeries([item for item in opened if isinstance(item, tuple)], hours)
 
 
 def weather_year(year: int, *, release: Path | None = None) -> None:
@@ -336,9 +350,15 @@ def weather_year(year: int, *, release: Path | None = None) -> None:
                         "float32"
                     )
 
-                temperature, dewpoint, u, v, rain, soil = await asyncio.gather(
-                    *(read(variable) for variable in variables)
+                decoded = await asyncio.gather(
+                    *(read(variable) for variable in variables), return_exceptions=True
                 )
+                for item in decoded:
+                    if isinstance(item, BaseException):
+                        raise item
+                temperature, dewpoint, u, v, rain, soil = [
+                    item for item in decoded if not isinstance(item, BaseException)
+                ]
                 values = {
                     "tmax": daily(temperature, "max"),
                     "tmin": daily(temperature, "min"),
@@ -762,21 +782,46 @@ def human() -> None:
         "https://data.worldpop.org/GIS/Population/Global_2000_2020_1km/2010/KAZ/kaz_ppp_2010_1km_Aggregated.tif",
         PUBLIC / "human/worldpop_2010_1km.tif",
     )
-    shape, transform, rows, cols = target_lattice(grid)
+    shape, _, rows, cols = target_lattice(grid)
+    people = np.zeros(shape, dtype="float64")
+    observed_area = np.zeros(shape, dtype="float64")
+    border = (
+        gpd.read_parquet(ROOT / "data/real/normalized/boundary.parquet")
+        .to_crs(4326)
+        .geometry.union_all()
+    )
     with rasterio.open(population) as src:
-        destination = np.full(shape, np.nan, dtype="float32")
-        reproject(
-            rasterio.band(src, 1),
-            destination,
-            src_transform=src.transform,
-            src_crs=src.crs,
-            src_nodata=src.nodata,
-            dst_transform=transform,
-            dst_crs=grid.crs,
-            dst_nodata=np.nan,
-            resampling=Resampling.sum,
-            num_threads=2,
-        )
+        if not src.crs.is_geographic:
+            raise ValueError("Expected the geographic WorldPop 1 km product")
+        geod = pyproj.Geod(ellps="WGS84")
+        projection = pyproj.Transformer.from_crs(src.crs, grid.crs, always_xy=True)
+        row_max, col_min = int(grid.row.max()), int(grid.col.min())
+        for first in range(0, src.height, 128):
+            stop = min(first + 128, src.height)
+            window = Window(0, first, src.width, stop - first)
+            counts = src.read(1, window=window, masked=True).astype("float32").filled(np.nan)
+            affine = src.window_transform(window)
+            inside = geometry_mask(
+                [border.__geo_interface__], out_shape=counts.shape, transform=affine, invert=True
+            )
+            rr, cc = np.nonzero(np.isfinite(counts) & (counts >= 0) & inside)
+            lats = affine.f + (np.arange(stop - first) + 0.5) * affine.e
+            lngs = np.full_like(lats, affine.c)
+            _, _, dx = geod.inv(lngs, lats, lngs + affine.a, lats)
+            _, _, dy = geod.inv(lngs, lats, lngs, lats + affine.e)
+            px, py = projection.transform(
+                affine.c + (cc + 0.5) * affine.a, affine.f + (rr + 0.5) * affine.e
+            )
+            out_rows = row_max - np.floor(py / 5000).astype(int)
+            out_cols = np.floor(px / 5000).astype(int) - col_min
+            keep = (out_rows >= 0) & (out_rows < shape[0]) & (out_cols >= 0) & (out_cols < shape[1])
+            locations = out_rows[keep] * shape[1] + out_cols[keep]
+            people += np.bincount(
+                locations, weights=counts[rr, cc][keep], minlength=shape[0] * shape[1]
+            ).reshape(shape)
+            observed_area += np.bincount(
+                locations, weights=np.abs(dx * dy)[rr][keep] / 1e6, minlength=shape[0] * shape[1]
+            ).reshape(shape)
     # Historical Natural Earth revision dated 2013-06-02, not modern OSM roads.
     directory = PUBLIC / "human/settlements_2013"
     for extension in ["shp", "shx", "dbf", "prj"]:
@@ -787,11 +832,17 @@ def human() -> None:
     places = gpd.read_file(directory / "places.shp").to_crs(grid.crs)
     tree = cKDTree(np.c_[places.geometry.x, places.geometry.y])
     distances, _ = tree.query(np.c_[grid.x, grid.y_coord])
-    values = destination[rows, cols]
+    # Density uses the represented native area, not a tiny clipped cell sliver.
+    # Population in the study footprint is an area-scaled estimate of that density.
+    density = np.divide(people, observed_area, out=np.full(shape, np.nan), where=observed_area > 0)[
+        rows, cols
+    ]
     save_npz(
         PUBLIC / "human/national.npz",
-        population=values,
-        population_density=values / grid.area_km2.to_numpy(),
+        population=(density * grid.area_km2.to_numpy()).astype("float32"),
+        population_density=density.astype("float32"),
+        observed_area_km2=observed_area[rows, cols].astype("float32"),
+        method_version=np.array("native_density_v2"),
         settlement_distance=distances.astype("float32"),
     )
     log("human: population 2010 and historical settlements 2013 complete; roads omitted")

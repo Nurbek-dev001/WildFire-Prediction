@@ -11,9 +11,6 @@ from pathlib import Path
 
 from wildfire_kz.data.public_predictors import ROOT, log, permitted
 from wildfire_kz.data.public_study import RUN, table
-from wildfire_kz.public_evaluation import evaluate
-from wildfire_kz.public_experiment import comparison, freeze
-from wildfire_kz.public_maps import export
 
 
 def prepare(wait: bool) -> None:
@@ -21,6 +18,7 @@ def prepare(wait: bool) -> None:
         (y, False) for y in [2019, 2020, 2021, 2022]
     ]
     for year, training in jobs:
+        last_reason = None
         while True:
             try:
                 table(year, training=training)
@@ -28,7 +26,10 @@ def prepare(wait: bool) -> None:
             except FileNotFoundError as exc:
                 if not wait:
                     raise
-                log(f"Waiting for predictor acquisition: {str(exc).splitlines()[0]}")
+                reason = str(exc).splitlines()[0]
+                if reason != last_reason:
+                    log(f"Waiting for predictor acquisition: {reason}")
+                    last_reason = reason
                 time.sleep(30)
 
 
@@ -55,6 +56,8 @@ def acquire_final() -> None:
                 "2" if part != "weather" else "1",
                 "--release",
                 str(release),
+                "--attempts",
+                "6",
             ],
             cwd=ROOT,
             check=True,
@@ -64,7 +67,8 @@ def acquire_final() -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
-        "stage", choices=["prepare", "compare", "freeze", "acquire-final", "evaluate", "export"]
+        "stage",
+        choices=["prepare", "compare", "freeze", "acquire-final", "evaluate", "report", "export"],
     )
     parser.add_argument("--wait", action="store_true")
     parser.add_argument("--trials", type=int, default=50)
@@ -74,14 +78,26 @@ def main() -> None:
     if args.stage == "prepare":
         prepare(args.wait)
     elif args.stage == "compare":
+        from wildfire_kz.public_experiment import comparison
+
         comparison(args.trials)
     elif args.stage == "freeze":
+        from wildfire_kz.public_experiment import freeze
+
         freeze()
     elif args.stage == "acquire-final":
         acquire_final()
     elif args.stage == "evaluate":
+        from wildfire_kz.public_evaluation import evaluate
+
         evaluate()
+    elif args.stage == "report":
+        from wildfire_kz.public_report import report
+
+        report()
     else:
+        from wildfire_kz.public_maps import export
+
         export(args.destination, dates=args.day)
         shutil.copyfile(
             ROOT / "docs/public-hindcast-method.md", args.destination / "model-method.txt"

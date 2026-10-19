@@ -2,15 +2,20 @@
 
 from __future__ import annotations
 
+import hashlib
+import importlib.metadata
 import json
+import platform
 import time
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import Any
 
 import joblib
 import numpy as np
 import optuna
 import pandas as pd
+import psutil
 from sklearn.metrics import average_precision_score
 
 from wildfire_kz.calibration import fit_sigmoid, map_boundaries
@@ -30,6 +35,40 @@ from wildfire_kz.models import fit_model, fit_seasonal, suggest
 NAMES = ["logistic", "random_forest", "xgboost", "catboost", "weather_logistic", "seasonal"]
 
 
+def runtime_metadata(started: float | None = None) -> dict[str, Any]:
+    """Record the actual local runtime, without claiming unavailable peak measures."""
+    memory = psutil.Process().memory_info()
+    packages = [
+        "numpy",
+        "pandas",
+        "scikit-learn",
+        "xgboost",
+        "catboost",
+        "optuna",
+        "joblib",
+        "geopandas",
+        "rasterio",
+        "pyarrow",
+        "pyproj",
+        "omfiles",
+        "s3fs",
+        "pydap",
+    ]
+    return {
+        "recorded_utc": datetime.now(UTC).isoformat(),
+        "python": platform.python_version(),
+        "os": platform.platform(),
+        "processor": platform.processor(),
+        "logical_cpus": psutil.cpu_count(),
+        "ram_bytes": psutil.virtual_memory().total,
+        "process_peak_resident_bytes": getattr(memory, "peak_wset", None),
+        "process_resident_bytes_at_record": memory.rss,
+        "elapsed_seconds_this_invocation": time.perf_counter() - started if started else None,
+        "packages": {name: importlib.metadata.version(name) for name in packages},
+        "seed": 42,
+    }
+
+
 def config(trials: int = 50) -> Config:
     cfg = load_config(ROOT / "configs/real_public.yaml")
     cfg.output_dir = RUN
@@ -38,7 +77,7 @@ def config(trials: int = 50) -> Config:
     return cfg
 
 
-def source_registry() -> dict[str, Any]:
+def source_registry(max_year: int = 2022) -> dict[str, Any]:
     """Register verified sources actually used by training; never scan sealed CSVs."""
     records = []
     for path in sorted(PUBLIC.rglob("*.npz")):
@@ -46,9 +85,9 @@ def source_registry() -> dict[str, Any]:
         if path.parent.name.startswith("rows_"):
             continue
         relative = path.relative_to(PUBLIC).as_posix()
-        if relative.startswith("weather/") and int(path.stem) > 2022:
+        if relative.startswith("weather/") and int(path.stem) > max_year:
             continue
-        if relative.startswith("vegetation/") and path.stem[:4] > "2022":
+        if relative.startswith("vegetation/") and int(path.stem[:4]) > max_year:
             continue
         if relative.startswith("landcover/") and not path.name.startswith("annual_2014_2021"):
             continue
@@ -56,10 +95,21 @@ def source_registry() -> dict[str, Any]:
             continue
         if not complete(path):
             raise ValueError(f"Unverified predictor: {path}")
-        records.append({"path": relative, "sha256": checksum(path), "bytes": path.stat().st_size})
+        provenance = path.with_suffix(".provenance.json")
+        records.append(
+            {
+                "path": relative,
+                "sha256": checksum(path),
+                "bytes": path.stat().st_size,
+                "prepared_utc": datetime.fromtimestamp(path.stat().st_mtime, UTC).isoformat(),
+                "provenance_sha256": checksum(provenance) if provenance.is_file() else None,
+            }
+        )
     return {
         "synthetic": False,
+        "runtime": runtime_metadata(),
         "variant": "public_reprocessed_hindcast",
+        "source_observation_end": max_year,
         "sources": records,
         "geometry_sha256": {
             name: checksum(ROOT / f"data/real/normalized/{name}.parquet")
@@ -68,12 +118,12 @@ def source_registry() -> dict[str, Any]:
         "feature_tables": [
             {"path": str(p.relative_to(RUN)), "sha256": checksum(p)}
             for p in sorted((RUN / "features").glob("*.parquet"))
-            if int(p.name[:4]) <= 2022
+            if int(p.name[:4]) <= max_year
         ],
         "development_outcome_tables": [
             {"path": str(p.relative_to(RUN)), "sha256": checksum(p)}
             for p in sorted((RUN / "outcomes").glob("events_through_*.parquet"))
-            if int(p.stem.rsplit("_", 1)[1]) <= 2022
+            if int(p.stem.rsplit("_", 1)[1]) <= max_year
         ],
         "method_sha256": checksum(ROOT / "docs/public-hindcast-method.md"),
         "code_sha256": {
@@ -110,15 +160,38 @@ def fit(
 
 def comparison(trials: int = 50) -> None:
     """Tuning sees development only; SQLite allows exact continuation after interruption."""
+    started_comparison = time.perf_counter()
     if (RUN / "release.json").exists():
         raise PermissionError("A released experiment is immutable; use a new run for new tuning")
     cfg = config(trials)
+    columns = FEATURES + ["day", "label", "weight", "cell_id", "landcover"]
     train = pd.concat(
-        [pd.read_parquet(table(y, training=True)) for y in range(2015, 2022)], ignore_index=True
+        [pd.read_parquet(table(y, training=True), columns=columns) for y in range(2015, 2022)],
+        ignore_index=True,
     )
-    valid = {y: pd.read_parquet(table(y, training=False)) for y in [2019, 2020, 2021]}
+    valid = {
+        y: pd.read_parquet(table(y, training=False), columns=columns) for y in [2019, 2020, 2021]
+    }
+    for frame in [train, *valid.values()]:
+        for name in ["cell_id", "landcover"]:
+            frame[name] = frame[name].astype("category")
     RUN.mkdir(exist_ok=True, parents=True)
-    dump_json(RUN / "source_registry.json", source_registry())
+    snapshot = source_registry(max_year=2021)
+    dump_json(RUN / "source_registry.json", snapshot)
+    dump_json(RUN / "training_sources.json", snapshot)
+    fingerprint = hashlib.sha256(
+        json.dumps(
+            {
+                "tables": [
+                    p for p in snapshot["feature_tables"] if int(Path(p["path"]).name[:4]) <= 2021
+                ],
+                "code": snapshot["code_sha256"],
+                "features": FEATURES,
+                "config": cfg.model_dump(mode="json"),
+            },
+            sort_keys=True,
+        ).encode()
+    ).hexdigest()
     dump_json(
         RUN / "design.json",
         {
@@ -136,6 +209,10 @@ def comparison(trials: int = 50) -> None:
         },
     )
     years = train.day.dt.year.to_numpy()
+    if not np.isin(years, np.arange(2015, 2022)).all() or any(
+        not f.day.dt.year.eq(y).all() for y, f in valid.items()
+    ):
+        raise PermissionError("Development tables contain years outside their declared partitions")
     prepared = [
         (
             train.loc[(years < y) & ~train.cell_id.isin(industrial_cells(y - 1))],
@@ -156,6 +233,12 @@ def comparison(trials: int = 50) -> None:
                 sampler=optuna.samplers.TPESampler(seed=42),
                 pruner=optuna.pruners.MedianPruner(n_startup_trials=5),
             )
+            previous_fingerprint = study.user_attrs.get("experiment_fingerprint")
+            if previous_fingerprint is not None and previous_fingerprint != fingerprint:
+                raise PermissionError(
+                    "Tuning data or code changed: start a separately named experiment"
+                )
+            study.set_user_attr("experiment_fingerprint", fingerprint)
 
             def objective(trial: optuna.Trial, name: str = name) -> float:
                 started = time.perf_counter()
@@ -284,7 +367,8 @@ def comparison(trials: int = 50) -> None:
             "positive_rows": int(train.label.sum()),
             "synthetic": False,
             "end_year": 2021,
-            "source_registry_sha256": checksum(RUN / "source_registry.json"),
+            "source_registry_sha256": checksum(RUN / "training_sources.json"),
+            "runtime": runtime_metadata(started_comparison),
         },
     )
 
@@ -298,9 +382,9 @@ def freeze() -> None:
     training = json.loads((RUN / "training_complete.json").read_text())
     if training["models_sha256"] != checksum(RUN / "models.joblib"):
         raise ValueError("Training model changed")
-    if training["source_registry_sha256"] != checksum(RUN / "source_registry.json"):
+    if training["source_registry_sha256"] != checksum(RUN / "training_sources.json"):
         raise ValueError("Training source registry changed")
-    registry = json.loads((RUN / "source_registry.json").read_text())
+    registry = json.loads((RUN / "training_sources.json").read_text())
     for relative, digest in registry["code_sha256"].items():
         if checksum(ROOT / relative) != digest:
             raise ValueError(f"Training code changed before freeze: {relative}")
@@ -345,6 +429,7 @@ def freeze() -> None:
         "selection.json",
         "design.json",
         "source_registry.json",
+        "training_sources.json",
         "training_complete.json",
         "tuning.json",
         "comparison.csv",

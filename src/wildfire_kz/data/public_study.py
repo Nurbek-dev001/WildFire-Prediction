@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import calendar
+import hashlib
 import json
 from functools import lru_cache
 from pathlib import Path
@@ -391,10 +392,13 @@ def table(year: int, *, training: bool, release: Path | None = None) -> Path:
     permitted([year], release)
     path = RUN / f"features/{year}_{'train' if training else 'evaluation'}.parquet"
     code_hash = FEATURE_CODE_HASH
+    fingerprint = input_fingerprint(year, release)
     if (
         complete(path)
         and json.loads(path.with_suffix(".sha256.json").read_text()).get("feature_code_sha256")
         == code_hash
+        and json.loads(path.with_suffix(".sha256.json").read_text()).get("input_fingerprint")
+        == fingerprint
     ):
         return path
     keys = year_keys(year, training=training, release=release)
@@ -415,9 +419,45 @@ def table(year: int, *, training: bool, release: Path | None = None) -> Path:
             "positives": int(frame.label.sum()),
             "variant": "public_reprocessed_hindcast",
             "feature_code_sha256": code_hash,
+            "input_fingerprint": fingerprint,
             "missing_required_source_rows_excluded": invalid_rows,
             "missing_required_source_positives_excluded": invalid_positives,
         },
     )
     log(f"features {year}: {len(frame):,} rows; {frame.label.sum():,} positives")
     return path
+
+
+def input_fingerprint(year: int, release: Path | None = None) -> str:
+    """Reject stale feature tables when any used source bytes change."""
+    permitted([year], release)
+    required = [PUBLIC / f"weather/{y}.npz" for y in [year - 1, year]]
+    required += [PUBLIC / f"{group}/national.npz" for group in ["terrain", "human"]]
+    cover_paths = [
+        p
+        for p in sorted((PUBLIC / "landcover").glob("annual_*.npz"))
+        if int(p.stem.split("_")[1]) <= year - 1 <= int(p.stem.split("_")[2])
+    ]
+    if not cover_paths:
+        raise FileNotFoundError(f"No verified land cover for observation year {year - 1}")
+    required.append(cover_paths[0])
+    first = pd.Timestamp(f"{year}-01-01", tz="UTC") - pd.Timedelta(days=32)
+    last = pd.Timestamp(f"{year}-12-31", tz="UTC") - pd.Timedelta(days=12)
+    for day in pd.date_range("2014-11-01", "2024-12-31", freq="7D", tz="UTC"):
+        if first <= day <= last:
+            path = PUBLIC / f"vegetation/{day:%Y-%m-%d}.npz"
+            absent = path.with_suffix(".unavailable.json")
+            if not path.is_file() and absent.is_file():
+                required.append(absent)
+            else:
+                required.append(path)
+    digests = {}
+    for path in required:
+        if not path.is_file() or (path.suffix == ".npz" and not complete(path)):
+            raise FileNotFoundError(f"Unfinished predictor: {path}")
+        digests[str(path.relative_to(ROOT))] = checksum(path)
+    end = 2021 if year <= 2021 else (2022 if year == 2022 else 2024)
+    event_path = outcomes(end, release)
+    digests[str(event_path.relative_to(ROOT))] = checksum(event_path)
+    digests["grid_5km"] = checksum(ROOT / "data/real/normalized/grid_5km.parquet")
+    return hashlib.sha256(json.dumps(digests, sort_keys=True).encode()).hexdigest()
