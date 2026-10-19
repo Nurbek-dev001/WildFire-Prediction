@@ -73,7 +73,7 @@ def config(trials: int = 50) -> Config:
     cfg = load_config(ROOT / "configs/real_public.yaml")
     cfg.output_dir = RUN
     cfg.models.trials = trials
-    cfg.models.threads = 4
+    cfg.models.threads = 8
     return cfg
 
 
