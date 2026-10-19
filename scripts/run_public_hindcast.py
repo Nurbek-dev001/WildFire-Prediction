@@ -3,13 +3,16 @@
 from __future__ import annotations
 
 import argparse
+import json
 import shutil
 import subprocess
 import sys
 import time
+from datetime import UTC, datetime
 from pathlib import Path
 
-from wildfire_kz.data.public_predictors import ROOT, log, permitted
+from wildfire_kz.data import checksum, dump_json
+from wildfire_kz.data.public_predictors import PUBLIC, ROOT, log, permitted
 from wildfire_kz.data.public_study import RUN, table
 
 
@@ -64,11 +67,52 @@ def acquire_final() -> None:
         )
 
 
+def seal_evaluation_protocol() -> None:
+    """Add the final metric implementation to the release before test materialisation."""
+    release = RUN / "release.json"
+    permitted([2023, 2024], release)
+    path = RUN / "source_registry.json"
+    registry = json.loads(path.read_text())
+    if "evaluation_code_sealed_utc" in registry:
+        return
+    for year in [2023, 2024]:
+        if (
+            (ROOT / f"data/real/normalized/detections_{year}.parquet").exists()
+            or (PUBLIC / f"weather/{year}.npz").exists()
+            or any((PUBLIC / f"weather/rows_{year}").glob("*.npz"))
+            or any((PUBLIC / "vegetation").glob(f"{year}-*.npz"))
+        ):
+            raise PermissionError(
+                "Final metric protocol must be sealed before test materialisation"
+            )
+    for file in [
+        ROOT / "src/wildfire_kz/public_evaluation.py",
+        ROOT / "src/wildfire_kz/evaluation/__init__.py",
+    ]:
+        registry["code_sha256"][str(file.relative_to(ROOT))] = checksum(file)
+    registry["evaluation_code_sealed_utc"] = datetime.now(UTC).isoformat()
+    dump_json(path, registry)
+    record = json.loads(release.read_text())
+    record["artifact_hashes"]["source_registry.json"] = checksum(path)
+    record["evaluation_code_sealed_utc"] = registry["evaluation_code_sealed_utc"]
+    dump_json(release, record)
+    permitted([2023, 2024], release)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "stage",
-        choices=["prepare", "compare", "freeze", "acquire-final", "evaluate", "report", "export"],
+        choices=[
+            "prepare",
+            "compare",
+            "freeze",
+            "acquire-final",
+            "evaluate",
+            "explain",
+            "report",
+            "export",
+        ],
     )
     parser.add_argument("--wait", action="store_true")
     parser.add_argument("--trials", type=int, default=50)
@@ -85,9 +129,20 @@ def main() -> None:
         from wildfire_kz.public_experiment import freeze
 
         freeze()
+        seal_evaluation_protocol()
     elif args.stage == "acquire-final":
         acquire_final()
     elif args.stage == "evaluate":
+        subprocess.run(
+            [sys.executable, str(ROOT / "scripts/reclaim_public_cache.py"), "--include-final"],
+            cwd=ROOT,
+            check=True,
+        )
+        subprocess.run(
+            [sys.executable, str(ROOT / "scripts/finalize_weather_boundary.py")],
+            cwd=ROOT,
+            check=True,
+        )
         from wildfire_kz.public_evaluation import evaluate
 
         evaluate()
@@ -95,6 +150,10 @@ def main() -> None:
         from wildfire_kz.public_report import report
 
         report()
+    elif args.stage == "explain":
+        from wildfire_kz.public_explanation import explain
+
+        explain()
     else:
         from wildfire_kz.public_maps import export
 
@@ -106,6 +165,25 @@ def main() -> None:
         shutil.copyfile(
             RUN / "evaluate/cluster_intervals.csv", args.destination / "cluster_intervals.csv"
         )
+        report_directory = RUN / "report"
+        if (report_directory / "complete.json").is_file():
+            proof = json.loads((report_directory / "complete.json").read_text())
+            if proof["release_sha256"] != checksum(RUN / "release.json"):
+                raise ValueError("Report belongs to a different frozen experiment")
+            for filename, digest in proof["outputs"].items():
+                if checksum(report_directory / filename) != digest:
+                    raise ValueError(f"Report output changed: {filename}")
+            site = args.destination.parent
+            shutil.copytree(report_directory, site / "results", dirs_exist_ok=True)
+            (site / "evaluate").mkdir(exist_ok=True)
+            for path in (RUN / "evaluate").glob("*.csv"):
+                shutil.copyfile(path, site / "evaluate" / path.name)
+            for name in ["comparison.csv", "source_registry.json", "frozen.json"]:
+                shutil.copyfile(RUN / name, site / name)
+        if args.day is None:
+            from wildfire_kz.public_verification import verify
+
+            verify(args.destination)
 
 
 if __name__ == "__main__":

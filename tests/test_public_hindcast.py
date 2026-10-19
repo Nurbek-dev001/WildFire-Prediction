@@ -1,6 +1,7 @@
 """Guard boundaries and source-time logic for the separately documented variant."""
 
 import asyncio
+import importlib
 from pathlib import Path
 
 import numpy as np
@@ -13,6 +14,19 @@ from wildfire_kz.data import checksum, dump_json, public_study
 from wildfire_kz.data.public_predictors import WeatherSeries, complete, permitted
 from wildfire_kz.data.range_cache import RangeCachedS3
 from wildfire_kz.public_evaluation import bootstrap, weighted_ap_sorted
+
+
+@pytest.mark.parametrize("name", ["public_explanation", "public_provenance", "public_verification"])
+def test_final_only_outputs_reject_access_before_release(tmp_path: Path, monkeypatch, name: str):
+    module = importlib.import_module(f"wildfire_kz.{name}")
+    monkeypatch.setattr(module, "RUN", tmp_path)
+    with pytest.raises(PermissionError, match="sealed"):
+        if name == "public_explanation":
+            module.explain()
+        elif name == "public_provenance":
+            module.register_final_sources()
+        else:
+            module.verify(tmp_path / "unpublished")
 
 
 def test_multifile_source_checksums_preserve_extensions(tmp_path: Path):

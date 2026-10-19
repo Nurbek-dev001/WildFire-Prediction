@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import html
 import json
+import shutil
 from pathlib import Path
 
 import matplotlib
@@ -35,8 +36,42 @@ def report() -> Path:
         if checksum(RUN / "evaluate" / name) != digest:
             raise ValueError(f"Evaluation output changed: {name}")
     selected = result["selected_model"]
+    tuning = json.loads((RUN / "tuning.json").read_text())
+    training = json.loads((RUN / "training_complete.json").read_text())
+    trial_rows = []
+    for name in ["random_forest", "xgboost", "catboost"]:
+        trials = tuning[name]["trials"]
+        trial_rows.append(
+            {
+                "model": LABELS[name],
+                "attempts": len(trials),
+                "completed": sum(t["state"] == "COMPLETE" for t in trials),
+                "pruned": sum(t["state"] == "PRUNED" for t in trials),
+                "failed": sum(t["state"] == "FAIL" for t in trials),
+            }
+        )
+    search_table = pd.DataFrame(trial_rows).to_html(index=False, border=0)
+    runtime = training["runtime"]
+    peak = runtime.get("process_peak_resident_bytes")
+    peak_text = f"{peak / 1024**3:.2f} ГиБ" if isinstance(peak, int) else "не измерен"
+    fitting_html = f"""<section><h2>Фактически выполненное обучение</h2><p>{training["train_rows"]:,} обучающих строк; {training["positive_rows"]:,} положительных. Время этого запуска: {runtime["elapsed_seconds_this_invocation"] / 3600:.2f} ч. Пик резидентной памяти процесса: {peak_text}. Аппаратная и программная среда зафиксированы в реестре.</p><div class="table-wrap">{search_table}</div><p class="note">Попытки с ранней остановкой Optuna показаны отдельно. Победитель выбран до доступа к контрольным годам.</p></section>"""
     destination = RUN / "report"
     destination.mkdir(parents=True, exist_ok=True)
+    from wildfire_kz.public_provenance import register_final_sources
+
+    register_final_sources()
+    shutil.copyfile(RUN / "acquisition_manifest.json", destination / "acquisition_manifest.json")
+    explanation_html = ""
+    explanation_directory = RUN / "explain"
+    if (explanation_directory / "complete.json").is_file():
+        proof = json.loads((explanation_directory / "complete.json").read_text())
+        if proof["release_sha256"] != checksum(RUN / "release.json"):
+            raise ValueError("Explanation belongs to another frozen experiment")
+        for name, digest in proof["outputs"].items():
+            if checksum(explanation_directory / name) != digest:
+                raise ValueError(f"Explanation output changed: {name}")
+        shutil.copytree(explanation_directory, destination / "explain", dirs_exist_ok=True)
+        explanation_html = f"""<section><h2>Объяснение предиктивных связей</h2><p>{html.escape(proof["method"])}; единицы вклада: {html.escape(proof["unit"])}. Калибровка находится вне объяснения; аддитивное восстановление исходного выхода модели проверено численно.</p><p class="note">Глобальная оценка использует {proof["global_uniform_sample_rows"]} случайно выбранных строк финальной вероятностной выборки с исходными весами. Дополнительные примеры с высоким прогнозом и ошибками не меняют глобальную важность. Эти связи не являются причинными объяснениями.</p><img src="explain/global.png" alt="Измеренная важность признаков выбранной модели"><p><a href="explain/global.csv">Важность CSV</a> · <a href="explain/grouped.csv">Группы признаков по покрову и областям</a> · <a href="explain/local.parquet">Локальные примеры Parquet</a></p></section>"""
     scores = pd.read_csv(RUN / "evaluate/metrics.csv", dtype={"period": str})
     full = scores[scores.period == "2023–2024"].set_index("model")
     intervals = pd.read_csv(RUN / "evaluate/cluster_intervals.csv")
@@ -107,7 +142,7 @@ def report() -> Path:
         .to_html(float_format=lambda v: f"{v:.6f}", border=0)
     )
     chosen = full.loc[selected]
-    page = f"""<!doctype html><html lang="ru"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Steppe · реальные результаты</title><style>body{{margin:0;background:#f6f7f1;color:#203d32;font:16px/1.65 Segoe UI,Arial,sans-serif}}main{{max-width:1120px;margin:auto;padding:55px 28px}}h1{{font-size:42px;line-height:1.15;letter-spacing:-1.5px}}small,.note{{color:#68766b}}.badge{{font-size:12px;letter-spacing:2px}}.tiles{{display:flex;gap:20px;margin:32px 0;flex-wrap:wrap}}.tile{{background:white;padding:22px;min-width:170px;flex:1;border-radius:10px}}.tile strong{{display:block;font-size:28px}}img{{max-width:100%;height:auto;margin:20px 0}}.table-wrap{{overflow:auto}}table{{border-collapse:collapse;font-size:12px;background:white;width:100%}}td,th{{padding:12px;border-bottom:1px solid #e4e9df;text-align:right}}th:first-child{{text-align:left}}a{{color:#2d6351}}code{{word-break:break-all;font-size:12px}}section{{margin:42px 0}}@media(max-width:600px){{h1{{font-size:32px}}main{{padding:30px 17px}}}}</style><main><div class="badge">STEPPE OBSERVATORY · REAL PUBLIC DATA</div><h1>Реальная модель.<br>Финальная проверка.</h1><p>Для карты выбрана <b>{html.escape(LABELS[selected])}</b> по средней взвешенной AP временной валидации 2019–2021. Калибровка выполнена на 2022 году. Контрольные данные 2023–2024 открыты после фиксации моделей и порогов.</p><div class="tiles"><div class="tile"><small>AP · тест 2023–2024</small><strong>{chosen.average_precision:.5f}</strong></div><div class="tile"><small>ROC-AUC</small><strong>{chosen.roc_auc:.4f}</strong></div><div class="tile"><small>Brier score</small><strong>{chosen.brier:.6f}</strong></div></div><section><h2>Сравнение замороженных моделей</h2><p class="note">Полосы на AP: 95% интервалы, 1000 одинаковых блочных повторов 100 км × 30 дней. Зелёным отмечена модель, выбранная до доступа к тесту.</p><img src="model_comparison.png" alt="Реальные метрики шести моделей"><div class="table-wrap">{table_html}</div></section><section><h2>Калибровка вероятностей</h2><p class="note">Границы интервалов зафиксированы на 2022 году. Размер точки отражает вес наблюдений.</p><img src="reliability.png" alt="Калибровка выбранной модели"></section><section><h2>Что измерено</h2><p>Цель — первое спутниковое обнаружение связанного события, а не подтверждённое время возгорания. Отсутствие детекций не доказывает отсутствие огня. Метрики имеют веса отбора отрицательных примеров и относятся к допустимым ячейкам с обязательными признаками.</p><p>Всего в финальной выборке: {result["rows"]:,} строк, {result["positive_rows"]:,} положительных. Оценка взвешенного числа допустимых ячейко-дней: {result["weighted_cell_days"]:,.0f}.</p><p>Архивы переобработаны после дат наблюдений. ERA5, NOAA NDVI, SRTM 90 м и исторические антропогенные данные — документированные открытые аналоги. Результат представляет ретроспективный эксперимент; оперативная пригодность не подтверждена.</p></section><section><h2>Проверяемые артефакты</h2><p><a href="../evaluate/metrics.csv">Все метрики CSV</a> · <a href="../evaluate/cluster_intervals.csv">Блочные интервалы CSV</a> · <a href="../comparison.csv">Временная валидация</a> · <a href="../source_registry.json">Реестр данных</a> · <a href="../frozen.json">Параметры фиксации</a> · <a href="https://steppe-kazakhstan-fire-map.peppy-horse-5926.chatgpt.site/">Интерактивная карта</a></p><p class="note">SHA-256 фиксации: <code>{result["release_sha256"]}</code></p></section></main></html>"""
+    page = f"""<!doctype html><html lang="ru"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Steppe · реальные результаты</title><style>body{{margin:0;background:#f6f7f1;color:#203d32;font:16px/1.65 Segoe UI,Arial,sans-serif}}main{{max-width:1120px;margin:auto;padding:55px 28px}}h1{{font-size:42px;line-height:1.15;letter-spacing:-1.5px}}small,.note{{color:#68766b}}.badge{{font-size:12px;letter-spacing:2px}}.tiles{{display:flex;gap:20px;margin:32px 0;flex-wrap:wrap}}.tile{{background:white;padding:22px;min-width:170px;flex:1;border-radius:10px}}.tile strong{{display:block;font-size:28px}}img{{max-width:100%;height:auto;margin:20px 0}}.table-wrap{{overflow:auto}}table{{border-collapse:collapse;font-size:12px;background:white;width:100%}}td,th{{padding:12px;border-bottom:1px solid #e4e9df;text-align:right}}th:first-child{{text-align:left}}a{{color:#2d6351}}code{{word-break:break-all;font-size:12px}}section{{margin:42px 0}}@media(max-width:600px){{h1{{font-size:32px}}main{{padding:30px 17px}}}}</style><main><div class="badge">STEPPE OBSERVATORY · REAL PUBLIC DATA</div><h1>Реальная модель.<br>Финальная проверка.</h1><p>Для карты выбрана <b>{html.escape(LABELS[selected])}</b> по средней взвешенной AP временной валидации 2019–2021. Калибровка выполнена на 2022 году. Контрольные данные 2023–2024 открыты после фиксации моделей и порогов.</p><div class="tiles"><div class="tile"><small>AP · тест 2023–2024</small><strong>{chosen.average_precision:.5f}</strong></div><div class="tile"><small>ROC-AUC</small><strong>{chosen.roc_auc:.4f}</strong></div><div class="tile"><small>Brier score</small><strong>{chosen.brier:.6f}</strong></div></div>{fitting_html}<section><h2>Сравнение замороженных моделей</h2><p class="note">Полосы на AP: 95% интервалы, 1000 одинаковых блочных повторов 100 км × 30 дней. Зелёным отмечена модель, выбранная до доступа к тесту.</p><img src="model_comparison.png" alt="Реальные метрики шести моделей"><div class="table-wrap">{table_html}</div></section><section><h2>Калибровка вероятностей</h2><p class="note">Границы интервалов зафиксированы на 2022 году. Размер точки отражает вес наблюдений.</p><img src="reliability.png" alt="Калибровка выбранной модели"></section>{explanation_html}<section><h2>Что измерено</h2><p>Цель — первое спутниковое обнаружение связанного события, а не подтверждённое время возгорания. Отсутствие детекций не доказывает отсутствие огня. Метрики имеют веса отбора отрицательных примеров и относятся к допустимым ячейкам с обязательными признаками.</p><p>Всего в финальной выборке: {result["rows"]:,} строк, {result["positive_rows"]:,} положительных. Оценка взвешенного числа допустимых ячейко-дней: {result["weighted_cell_days"]:,.0f}.</p><p>Архивы переобработаны после дат наблюдений. ERA5, NOAA NDVI, SRTM 90 м и исторические антропогенные данные — документированные открытые аналоги. Результат представляет ретроспективный эксперимент; оперативная пригодность не подтверждена.</p></section><section><h2>Проверяемые артефакты</h2><p><a href="../evaluate/metrics.csv">Все метрики CSV</a> · <a href="../evaluate/cluster_intervals.csv">Блочные интервалы CSV</a> · <a href="../comparison.csv">Временная валидация</a> · <a href="../source_registry.json">Зафиксированные источники</a> · <a href="acquisition_manifest.json">Полный реестр загрузки и версий</a> · <a href="../frozen.json">Параметры фиксации</a> · <a href="https://steppe-kazakhstan-fire-map.peppy-horse-5926.chatgpt.site/">Интерактивная карта</a></p><p class="note">SHA-256 фиксации: <code>{result["release_sha256"]}</code></p></section></main></html>"""
     (destination / "index.html").write_text(page, encoding="utf-8")
     dump_json(
         destination / "complete.json",
@@ -115,9 +150,9 @@ def report() -> Path:
             "synthetic": False,
             "release_sha256": result["release_sha256"],
             "outputs": {
-                p.name: checksum(p)
-                for p in destination.iterdir()
-                if p.is_file() and p.name != "complete.json"
+                p.relative_to(destination).as_posix(): checksum(p)
+                for p in destination.rglob("*")
+                if p.is_file() and p != destination / "complete.json"
             },
         },
     )

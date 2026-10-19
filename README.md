@@ -32,6 +32,53 @@ The demonstration covers the same calendar years, model families, nested tempora
 
 Real Kazakhstan acquisition has begun separately. See [the actual acquisition status](docs/real_data_status.md) and `configs/real_public.yaml`: public boundary and VIIRS assets are registered, 2023–2024 detection archives remain opaque, and required predictor tables are still missing. This configuration deliberately fails preflight/ingest until those inputs exist. The synthetic report above remains a demonstration.
 
+## Public-data hindcast runner
+
+The authorised [public alternative](docs/public-hindcast-method.md) uses actual
+ERA5, NOAA VIIRS NDVI, MCD12Q1, SRTM, WorldPop and dated settlement data. It has
+its own compact feature tables and output directory, `runs/public_hindcast`.
+The strict primary configuration above retains its original source contracts.
+Install the additional readers with `python -m pip install -e ".[dev,public]"`.
+
+After registering the boundary and development/calibration VIIRS partitions:
+
+```sh
+python scripts/acquire_public_predictors.py weather --start-year 2014 --end-year 2022 --workers 1 --attempts 6
+python scripts/acquire_public_predictors.py vegetation --start-year 2014 --end-year 2022 --workers 2 --attempts 6
+python scripts/acquire_public_predictors.py landcover --start-year 2014 --end-year 2021 --workers 2 --attempts 6
+python scripts/acquire_public_predictors.py terrain --workers 2 --attempts 6
+python scripts/acquire_public_predictors.py human
+python scripts/run_public_hindcast.py prepare
+python scripts/audit_public_development.py
+python scripts/run_public_hindcast.py compare --trials 50
+python scripts/run_public_hindcast.py freeze
+python scripts/run_public_hindcast.py acquire-final
+python scripts/run_public_hindcast.py evaluate
+python scripts/run_public_hindcast.py explain
+python scripts/run_public_hindcast.py report
+python scripts/run_public_hindcast.py export
+```
+
+`scripts/complete_public_hindcast.py` runs the prepared sequence and can wait for
+an existing comparison with `--wait-training-pid PID`. Use one coordinator per
+experiment. SQLite retains tuning attempts; a released experiment refuses new
+tuning. Calibration, thresholds, model artifacts and the evaluation implementation
+are sealed before final-year materialisation.
+
+Final evaluation checks 2023–2024 after that release. It records design-weighted
+metrics, year/month/region/cover strata, 1,000 paired cluster resamples and
+calibration uncertainty. Explanations use the estimator's correct uncalibrated
+output unit: boosted-tree/linear log-odds, RF probability. They are predictive
+associations. The map export verifies all 731 dates, exact browser/GeoTIFF
+probability agreement, frozen class bands and full-grid alert burden.
+
+The final report is `runs/public_hindcast/report/index.html`; daily two-band
+GeoTIFFs are in `runs/public_hindcast/maps`. The website consumes verified
+float32 probability assets and the actual evaluation JSON. [Source-quality
+evidence](docs/source-quality-verification.md) documents native QA metadata,
+storage compaction and final-only year-boundary completion. This practical run
+does not claim the primary study's full nested spatial/sensitivity/ablation suite.
+
 ## Run the research protocol
 
 Prepare observations using [the source contracts](docs/data_contracts.md), register source paths, versions, acquisition dates and optional expected checksums in `configs/primary.yaml`, then execute:

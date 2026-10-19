@@ -31,6 +31,7 @@ from wildfire_kz.data.public_study import (
 def export(destination: Path, *, dates: list[str] | None = None) -> None:
     """All dates are evaluated hindcasts; no synthetic probabilities or filled map cells."""
     release = RUN / "release.json"
+    exporter_digest = checksum(Path(__file__))
     permitted([2023, 2024], release)
     evaluation = json.loads((RUN / "evaluate/complete.json").read_text())
     if evaluation["synthetic"] is not False or evaluation["release_sha256"] != checksum(release):
@@ -69,9 +70,11 @@ def export(destination: Path, *, dates: list[str] | None = None) -> None:
         proof_path = raster_directory / f"{iso}.json"
         if payload_path.is_file() and proof_path.is_file():
             proof = json.loads(proof_path.read_text())
-            if proof["payload_sha256"] == checksum(payload_path) and proof[
-                "release_sha256"
-            ] == checksum(release):
+            if (
+                proof["payload_sha256"] == checksum(payload_path)
+                and proof["release_sha256"] == checksum(release)
+                and proof.get("exporter_code_sha256") == exporter_digest
+            ):
                 assets[iso] = proof
                 continue
         keys = pd.DataFrame({"cell_index": np.arange(len(ids), dtype="int32"), "day": day})
@@ -90,13 +93,17 @@ def export(destination: Path, *, dates: list[str] | None = None) -> None:
         raster_path = raster_directory / f"probability_{iso}.tif"
         image = np.full(shape, -9999, dtype="float32")
         image[rows[eligible], cols[eligible]] = probabilities[eligible]
+        classes = np.full(shape, -9999, dtype="float32")
+        classes[rows[eligible], cols[eligible]] = 1 + np.searchsorted(
+            frozen["map_boundaries"][selected], probabilities[eligible], side="right"
+        )
         with rasterio.open(
             raster_path,
             "w",
             driver="GTiff",
             width=shape[1],
             height=shape[0],
-            count=1,
+            count=2,
             dtype="float32",
             crs=grid.crs,
             transform=transform,
@@ -105,12 +112,18 @@ def export(destination: Path, *, dates: list[str] | None = None) -> None:
             predictor=3,
         ) as raster:
             raster.write(image, 1)
+            raster.write(classes, 2)
+            raster.set_band_description(1, "calibrated_new_event_probability")
+            raster.set_band_description(2, "calibration_frozen_probability_class_1_to_4")
             raster.update_tags(
                 synthetic="False",
                 model=selected,
                 target_day=iso,
                 variant="public_reprocessed_hindcast",
                 release_sha256=checksum(release),
+                class_boundaries_json=json.dumps(frozen["map_boundaries"][selected]),
+                threshold=str(frozen["thresholds"][selected]),
+                outcome="first satellite detection of a new connected event; occurrence hazard",
             )
         # IEEE float32 preserves calibrated values; NaN is missing, never a zero-risk claim.
         payload_path.write_bytes(
@@ -127,6 +140,7 @@ def export(destination: Path, *, dates: list[str] | None = None) -> None:
             "payload_sha256": checksum(payload_path),
             "raster_sha256": checksum(raster_path),
             "release_sha256": checksum(release),
+            "exporter_code_sha256": exporter_digest,
         }
         dump_json(proof_path, proof)
         assets[iso] = proof

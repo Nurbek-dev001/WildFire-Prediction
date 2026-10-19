@@ -1,0 +1,22 @@
+{
+  "source": "https://www.ncei.noaa.gov/thredds/dodsC/cdr/ndvi/2020/VIIRS-Land_v001_NPP13C1_S-NPP_20201227_c20240127031556.nc.das",
+  "sha256": "41565e90f37ec512ea79977b667f4685fe5d921fa9c74ed35dbd4305ec6c0603",
+  "verified_utc": "2026-10-19T17:52:03.285848+00:00",
+  "native_product_version": "v2r0",
+  "flag_masks_used": {
+    "cloud_state": 3,
+    "shadow": 4,
+    "land_water": 56,
+    "aerosol_uncertainty": 192,
+    "cirrus_reflective": 256,
+    "cirrus_emissive": 512,
+    "cloud": 1024,
+    "snow_ice": 32768
+  },
+  "ndvi_raw_valid_range": [
+    -1000,
+    10000
+  ],
+  "ndvi_scale": 0.0001,
+  "verification": "actual NetCDF attributes match the adapter; older ATBD and catalog summaries are not substituted for native file metadata"
+}

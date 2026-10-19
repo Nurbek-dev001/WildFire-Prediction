@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 
 from wildfire_kz.data import checksum, dump_json
-from wildfire_kz.data.public_study import COVER, FEATURES, FEATURE_CODE_HASH, RUN
+from wildfire_kz.data.public_study import COVER, FEATURE_CODE_HASH, FEATURES, RUN
 
 names = [f"{y}_train" for y in range(2015, 2022)] + [
     f"{y}_evaluation" for y in [2019, 2020, 2021, 2022]
