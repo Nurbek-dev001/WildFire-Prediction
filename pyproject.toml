@@ -15,6 +15,7 @@ dependencies = [
   "matplotlib>=3.9", "psutil>=6", "joblib>=1.4"
 ]
 [project.optional-dependencies]
+public = ["omfiles==1.2.0", "s3fs==2026.9.0", "h5netcdf==1.8.1", "h5py==3.16.0", "pydap==3.5.11"]
 dev = ["pytest>=8", "ruff>=0.9", "mypy>=1.14", "pandas-stubs", "types-PyYAML", "types-psutil", "pre-commit"]
 [project.scripts]
 wildfire-kz = "wildfire_kz.cli:app"

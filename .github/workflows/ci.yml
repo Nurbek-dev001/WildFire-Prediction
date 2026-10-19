@@ -12,7 +12,7 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
           cache: pip
-      - run: pip install -e '.[dev]'
+      - run: pip install -e '.[dev,public]'
       - run: ruff check . && ruff format --check .
       - run: mypy src/wildfire_kz
       - run: pytest -q
