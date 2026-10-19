@@ -2,6 +2,7 @@
 
 import asyncio
 import importlib
+import importlib.util
 from pathlib import Path
 
 import numpy as np
@@ -27,6 +28,23 @@ def test_final_only_outputs_reject_access_before_release(tmp_path: Path, monkeyp
             module.register_final_sources()
         else:
             module.verify(tmp_path / "unpublished")
+
+
+@pytest.mark.parametrize("script", ["finalize_weather_boundary", "run_public_hindcast"])
+def test_final_boundary_and_metric_protocol_require_a_real_release(
+    tmp_path: Path, monkeypatch, script: str
+):
+    path = Path(__file__).resolve().parents[1] / f"scripts/{script}.py"
+    spec = importlib.util.spec_from_file_location(script, path)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    monkeypatch.setattr(module, "RUN", tmp_path)
+    with pytest.raises(PermissionError, match="sealed"):
+        if script == "finalize_weather_boundary":
+            module.main()
+        else:
+            module.seal_evaluation_protocol()
 
 
 def test_multifile_source_checksums_preserve_extensions(tmp_path: Path):
