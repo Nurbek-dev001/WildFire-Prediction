@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#153e35">
-  <meta name="description" content="Steppe — интерактивная карта вероятности возникновения природных пожаров в Казахстане. Реальная география, архив VIIRS и демонстрация прогноза.">
+  <meta name="description" content="Steppe — интерактивная карта вероятности возникновения природных пожаров в Казахстане. Реальная география, открытые данные, архив VIIRS и проверяемые результаты моделей.">
   <title>Steppe — карта пожарной опасности</title>
   <link rel="icon" href="./assets/mark.svg" type="image/svg+xml">
   <link rel="stylesheet" href="./style.css">
@@ -47,7 +47,7 @@
         <button class="layer-option" id="history-layer" aria-pressed="false"><span class="layer-symbol fire-symbol">✦</span><span><strong>Наблюдения VIIRS</strong><small>Реальные детекции · 2015–2022</small></span><span class="radio-dot"></span></button>
         <div class="history-options" id="history-options" hidden><label for="history-year">Год наблюдений</label><select id="history-year"><option>2022</option><option>2021</option><option>2020</option><option>2019</option><option>2018</option><option>2017</option><option>2016</option><option>2015</option></select></div>
         <label class="toggle-row"><span>Границы областей</span><input id="region-lines" type="checkbox" checked><span class="toggle"></span></label>
-        <label class="toggle-row" id="high-only-row"><span>Только вероятность ≥ 5%</span><input id="high-only" type="checkbox"><span class="toggle"></span></label>
+        <label class="toggle-row" id="high-only-row"><span id="threshold-label">Только вероятность ≥ 5%</span><input id="high-only" type="checkbox"><span class="toggle"></span></label>
         <div class="sidebar-label regions-heading">ОБЛАСТИ <span id="region-count">16</span></div>
         <div class="search-wrap"><svg><use href="#i-search"/></svg><input id="region-search" placeholder="Найти область" aria-label="Найти область"></div>
         <div id="region-list" class="region-list" aria-label="Области Казахстана"></div>

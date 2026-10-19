@@ -152,6 +152,7 @@ def export(destination: Path, *, dates: list[str] | None = None) -> None:
         "synthetic": False,
         "model": selected,
         "available_days": sorted(assets),
+        "input_features": getattr(model, "features", ["landcover", "calendar_month"]),
         "format": "little_endian_float32_gzip",
         "retrospective": True,
         "missing_sources": [],
