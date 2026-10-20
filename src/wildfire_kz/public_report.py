@@ -54,7 +54,7 @@ def report() -> Path:
     runtime = training["runtime"]
     peak = runtime.get("process_peak_resident_bytes")
     peak_text = f"{peak / 1024**3:.2f} ГиБ" if isinstance(peak, int) else "не измерен"
-    fitting_html = f"""<section><h2>Фактически выполненное обучение</h2><p>{training["train_rows"]:,} обучающих строк; {training["positive_rows"]:,} положительных. Время этого запуска: {runtime["elapsed_seconds_this_invocation"] / 3600:.2f} ч. Пик резидентной памяти процесса: {peak_text}. Аппаратная и программная среда зафиксированы в реестре.</p><div class="table-wrap">{search_table}</div><p class="note">Попытки с ранней остановкой Optuna показаны отдельно. Победитель выбран до доступа к контрольным годам.</p></section>"""
+    fitting_html = f"""<section><h2>Фактически выполненное обучение</h2><p>{training["train_rows"]:,} обучающих строк; {training["positive_rows"]:,} положительных. Прошедшее время запуска, включая приостановки компьютера: {runtime["elapsed_seconds_this_invocation"] / 3600:.2f} ч. Пик резидентной памяти процесса: {peak_text}. Аппаратная и программная среда зафиксированы в реестре.</p><div class="table-wrap">{search_table}</div><p class="note">Попытки с ранней остановкой Optuna показаны отдельно. Победитель выбран до доступа к контрольным годам.</p></section>"""
     destination = RUN / "report"
     destination.mkdir(parents=True, exist_ok=True)
     from wildfire_kz.public_provenance import register_final_sources
