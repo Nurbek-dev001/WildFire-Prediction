@@ -16,14 +16,16 @@ does not support fetching the map assets.
 ## What works
 
 - Pan and zoom the actual national map; select cells by click or keyboard.
-- Change the illustrative scenario date, filter probabilities at 5%, inspect
-  cell details, search/select historical reporting regions, and export CSV.
+- Change dates, inspect cell details, search/select historical reporting
+  regions, and export the displayed probabilities to CSV.
 - View actual nominal/high-confidence S-NPP VIIRS detections for 2015–2022.
   These are observations before event linking and industrial-source filtering.
 - Inspect source readiness and the temporal study protocol.
-- Switch to the real model layer. It is currently unavailable because the real
-  training pipeline has not completed. No synthetic smoke model is reused as
-  a real geographic model.
+- Load the real model layer when `assets/forecast-manifest.json` records a
+  completed frozen evaluation. Otherwise the layer reports that it is unavailable.
+  Its alert threshold comes from 2022 calibration; missing cells remain missing.
+- Inspect actual model comparisons and follow links to the evaluated report,
+  calibration figures, paired bootstrap intervals, and source inventory.
 
 The DEMO layer is a deterministic spatial/seasonal formula for demonstrating
 the product. Its probabilities, 5% filter, and factor indices are illustrative.
@@ -52,7 +54,36 @@ the cell, uint16 region index, eight uint16 annual observation counts (2015–22
 Order matches the registered grid. Native lattice centers are reconstructed from
 row/column; clipped cell area is retained.
 
-## Connect a completed real pipeline
+## Connect the public-data model
+
+The public-data runner chooses models using rolling 2019–2021 validation,
+trains on 2015–2021, calibrates on 2022, and freezes all models and thresholds
+before evaluating 2023–2024. After those stages complete:
+
+```powershell
+.venv\Scripts\python.exe scripts\run_public_hindcast.py export
+```
+
+This exports 731 daily maps and verifies all browser payloads against their
+two-band GeoTIFFs. The public model uses ERA5, NOAA VIIRS NDVI, MODIS land cover,
+SRTM terrain, WorldPop, and dated settlements. Source substitutions and archive
+limitations are documented in `docs/public-hindcast-method.md`. These outputs
+are retrospective estimates, with no claim of operational validation.
+
+`assets/predictions/YYYY-MM-DD.f32.gz` contains little-endian float32
+probabilities in `cells.bin` order. NaN means missing. The manifest contains
+the selected model, frozen release hash, actual test metrics, thresholds,
+daily coverage and payload SHA-256. The browser verifies provenance, checksum,
+coverage, and probability range before drawing a date. It discards stale
+requests and reports failures without substituting demonstration values.
+The default evaluated date is 2024-07-15, predefined before final evaluation.
+
+The exported report is under `dist/results/`; CSV metrics are under
+`dist/evaluate/`. `assets/export-verification.json` records the full calendar
+check, and `assets/full_grid_top_capture.csv` records exact alert burden on
+the full eligible grid. Publish only after that verification completes.
+
+## Connect the strict primary pipeline
 
 After a real, completed final evaluation and map stage, register a daily raster:
 
@@ -60,13 +91,12 @@ After a real, completed final evaluation and map stage, register a daily raster:
 .venv\Scripts\python.exe scripts\export_platform_forecast.py --run runs\primary --day 2023-07-15
 ```
 
-This command currently fails closed because the real model does not exist. It
-requires completed non-synthetic stage manifests, matching final-release hashes,
+This separate adapter requires completed non-synthetic stage manifests, matching final-release hashes,
 real raster provenance, the full actual national grid, and valid probabilities.
 It samples the existing 5 km raster directly without interpolation. Missing
 cells remain null; no labels or sealed raw archives are opened by this command.
 
-`assets/forecast-manifest.json` lists available dates and the real model status;
+For this primary adapter, `assets/forecast-manifest.json` lists available dates and the real model status;
 `assets/predictions/YYYY-MM-DD.json` contains probabilities in the same order as
 `cells.bin`, `target_day`, and `synthetic:false`. Browser date changes reload
 that date's output and stale requests are discarded. Feature explanations are
