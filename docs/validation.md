@@ -11,3 +11,26 @@ Local verification on 16 October 2026 completed 17 focused tests plus the indepe
 The demonstration was also run separately with primary and sensitivity spatial block designs. Its artifacts retain timings and peak process RSS in each stage manifest. The dashboard was visually inspected in the browser, and the daily control was observed changing the target date. `requirements-tested-windows-py312.txt` records observed dependency versions for this Windows/Python environment; CI has been configured but has not been executed on a remote runner.
 
 The subsequent real-data acquisition changes passed 21 focused tests plus the complete offline smoke test (22 tests total), along with Ruff and mypy. Added checks reject NRT archives, preserve observed version fields, enforce the holdout check before CSV opening, reject incomplete real registrations, and verify that ingestion hashes opaque held-out bytes without parsing them. The actual national grid was also checked for valid geometry, unique IDs, complete/unique fixed-region assignment, and area agreement with the projected boundary. The real pipeline attempt stopped at missing-source validation before training; this is recorded separately from the successful synthetic smoke test.
+
+On 19–20 October the expanded suite completed **33 tests** in 811.68 seconds
+while real-data training competed for CPU time. After additional boundary/seal
+guards and the CatBoost explanation fix, the public-data and explanation subset
+completed **14 tests** in 23.90 seconds. These are two separately executed checks,
+not a claim that a later full suite was run. Ruff lint/format checks and mypy
+passed for the modified explanation/report code. The remaining warning is the
+dependency WebOb's deprecation of Python's `cgi` module.
+
+A separate small synthetic compatibility fixture exercised actual installed
+scikit-learn, XGBoost 3.4.1, CatBoost 1.2.10 and SHAP 0.54.1 across all six
+families. All corrected explanation outputs passed raw-output reconstruction.
+The [CatBoost decision](explanation-compatibility.md) was made before access to
+2023–2024; the explanation implementation is included in the release seal.
+This software check used no real trained study model or held-out observation.
+
+The national development audit independently checked all 11 actual permitted
+feature tables, source/value ranges, temporal availability, unique keys,
+inclusion probabilities, design weights, optional missingness and mandatory
+source exclusions. Its actual results and hashes are retained in
+`runs/public_hindcast/development_quality.json`. Model fitting was still in
+progress when these verification notes were updated; no final-test metric or
+completed map verification is claimed here.
