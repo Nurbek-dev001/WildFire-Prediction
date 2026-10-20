@@ -68,7 +68,7 @@ def acquire_final() -> None:
 
 
 def seal_evaluation_protocol() -> None:
-    """Add the final metric implementation to the release before test materialisation."""
+    """Seal final metrics and explanation code before test materialisation."""
     release = RUN / "release.json"
     permitted([2023, 2024], release)
     path = RUN / "source_registry.json"
@@ -88,6 +88,7 @@ def seal_evaluation_protocol() -> None:
     for file in [
         ROOT / "src/wildfire_kz/public_evaluation.py",
         ROOT / "src/wildfire_kz/evaluation/__init__.py",
+        ROOT / "src/wildfire_kz/public_explanation.py",
     ]:
         registry["code_sha256"][str(file.relative_to(ROOT))] = checksum(file)
     registry["evaluation_code_sealed_utc"] = datetime.now(UTC).isoformat()

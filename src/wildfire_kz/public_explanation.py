@@ -27,9 +27,13 @@ GROUPS = {
     "human": ["population_density", "settlement_distance"],
     "season": ["month_sin", "month_cos"],
 }
+BACKGROUND_ROWS = 128
+PERMUTATIONS = 10
 
 
-def contributions(model: Any, frame: pd.DataFrame) -> tuple[list[str], np.ndarray, np.ndarray, str]:
+def contributions(
+    model: Any, frame: pd.DataFrame, background: pd.DataFrame | None = None
+) -> tuple[list[str], np.ndarray, np.ndarray, str]:
     """Return additive contributions in an explicit, estimator-correct output unit."""
     if model.name == "seasonal":
         margin = logit(model.predict(frame))
@@ -41,6 +45,29 @@ def contributions(model: Any, frame: pd.DataFrame) -> tuple[list[str], np.ndarra
         values = x * estimator.coef_[0]
         base = np.full(len(x), estimator.intercept_[0])
         margin = estimator.decision_function(x)
+        unit = "uncalibrated log-odds"
+    elif model.name == "catboost":
+        # Native Regular SHAP for the installed non-symmetric Lossguide trees
+        # failed additivity on a pre-test software check. Exact/Independent
+        # native modes support symmetric trees only. Use a stated Monte Carlo
+        # Shapley estimator, without changing the trained estimator.
+        import shap
+
+        if background is None:
+            raise ValueError("CatBoost permutation SHAP requires a training-only background")
+        reference = model.pipeline.named_steps["preprocess"].transform(background[model.features])
+        masker = shap.maskers.Independent(reference, max_samples=BACKGROUND_ROWS)
+        explainer = shap.PermutationExplainer(
+            lambda z: estimator.predict(z, prediction_type="RawFormulaVal", thread_count=1),
+            masker,
+            feature_names=model.features,
+            seed=42,
+        )
+        explanation = explainer(
+            x, max_evals=(2 * len(model.features) + 1) * PERMUTATIONS, batch_size=256, silent=True
+        )
+        values, base = np.asarray(explanation.values), np.asarray(explanation.base_values)
+        margin = estimator.predict(x, prediction_type="RawFormulaVal")
         unit = "uncalibrated log-odds"
     else:
         import shap
@@ -57,9 +84,6 @@ def contributions(model: Any, frame: pd.DataFrame) -> tuple[list[str], np.ndarra
             unit = "uncalibrated probability"
         elif model.name == "xgboost":
             margin = estimator.predict(x, output_margin=True)
-            unit = "uncalibrated log-odds"
-        else:
-            margin = estimator.predict(x, prediction_type="RawFormulaVal")
             unit = "uncalibrated log-odds"
     np.testing.assert_allclose(base + values.sum(axis=1), margin, atol=1e-3, rtol=1e-5)
     return model.features, values, base, unit
@@ -96,7 +120,18 @@ def explain() -> None:
     ]
     error_ids = errors.head(50).index.tolist()
     chosen = frame.loc[list(dict.fromkeys(global_ids + high_ids + error_ids))].copy()
-    features, values, base, unit = contributions(model, chosen)
+    background = None
+    if selected == "catboost":
+        training = pd.concat(
+            [pd.read_parquet(table(y, training=True)) for y in range(2015, 2022)],
+            ignore_index=True,
+        )
+        training = training.loc[~training.cell_id.isin(industrial_cells())]
+        background = training.sample(
+            n=BACKGROUND_ROWS, weights="weight", replace=True, random_state=42
+        ).copy()
+        del training
+    features, values, base, unit = contributions(model, chosen, background)
     global_mask = chosen.index.isin(global_ids)
     global_weights = chosen.loc[global_mask, "weight"].to_numpy()
     importance = pd.DataFrame(
@@ -109,6 +144,10 @@ def explain() -> None:
     ).sort_values("weighted_mean_abs_contribution")
     destination = RUN / "explain"
     destination.mkdir(parents=True, exist_ok=True)
+    if background is not None:
+        background[["cell_id", "day", "weight", *model.features]].to_parquet(
+            destination / "training_background.parquet", index=False
+        )
     importance.to_csv(destination / "global.csv", index=False)
     local = chosen[
         ["cell_id", "day", "label", "weight", "region", "landcover", "calibrated_probability"]
@@ -199,9 +238,24 @@ def explain() -> None:
             "synthetic": False,
             "release_sha256": checksum(release),
             "model": selected,
-            "method": "TreeSHAP"
-            if selected in ["random_forest", "xgboost", "catboost"]
-            else "exact additive estimator output",
+            "method": (
+                "Permutation SHAP (Monte Carlo, 10 antithetic permutations, training-only background)"
+                if selected == "catboost"
+                else "TreeSHAP"
+                if selected in ["random_forest", "xgboost"]
+                else "exact additive estimator output"
+            ),
+            "approximate_shapley_values": selected == "catboost",
+            "background": {
+                "rows": BACKGROUND_ROWS,
+                "years": [2015, 2021],
+                "sampling": "replacement, proportional to training design weights, seed 42",
+                "permutations": PERMUTATIONS,
+                "seed": 42,
+                "reason": "Native CatBoost Lossguide Regular SHAP failed pre-test additivity check",
+            }
+            if selected == "catboost"
+            else None,
             "unit": unit,
             "calibration_inside_explanation": False,
             "additivity_verified": True,

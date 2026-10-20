@@ -68,7 +68,10 @@ are sealed before final-year materialisation.
 Final evaluation checks 2023–2024 after that release. It records design-weighted
 metrics, year/month/region/cover strata, 1,000 paired cluster resamples and
 calibration uncertainty. Explanations use the estimator's correct uncalibrated
-output unit: boosted-tree/linear log-odds, RF probability. They are predictive
+output unit: boosted-tree/linear log-odds, RF probability. RF/XGBoost use
+TreeSHAP; CatBoost uses explicitly approximate permutation SHAP with a
+training-only background because native Lossguide SHAP failed a pre-test
+[compatibility check](docs/explanation-compatibility.md). These are predictive
 associations. The map export verifies all 731 dates, exact browser/GeoTIFF
 probability agreement, frozen class bands and full-grid alert burden.
 

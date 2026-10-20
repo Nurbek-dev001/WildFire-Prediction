@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 from wildfire_kz.data import checksum, dump_json
-from wildfire_kz.data.public_predictors import permitted
+from wildfire_kz.data.public_predictors import ROOT, permitted
 from wildfire_kz.data.public_study import RUN
 
 LABELS = {
@@ -61,6 +61,9 @@ def report() -> Path:
 
     register_final_sources()
     shutil.copyfile(RUN / "acquisition_manifest.json", destination / "acquisition_manifest.json")
+    shutil.copyfile(
+        ROOT / "docs/explanation-compatibility.md", destination / "explanation-method.txt"
+    )
     explanation_html = ""
     explanation_directory = RUN / "explain"
     if (explanation_directory / "complete.json").is_file():
