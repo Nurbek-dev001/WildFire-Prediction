@@ -1,4 +1,51 @@
-# Real Kazakhstan acquisition status — 16 October 2026
+# Real Kazakhstan acquisition status — 20 October 2026
+
+## Current public-data experiment
+
+The user authorised documented free alternatives after the initial access audit.
+Development/calibration acquisition and feature preparation are now complete.
+The separate practical model comparison is running; no winner has been frozen
+and no 2023–2024 observation has been materialised for modelling or evaluation.
+There are no final real-data performance metrics yet.
+
+| Group | Actual prepared inputs |
+| --- | --- |
+| Weather | Anonymous Open-Meteo AWS ERA5, 0.25°, hourly temperature, dewpoint, wind components, precipitation and surface soil moisture; 2014 prehistory and 2015–2022 annual arrays. |
+| Vegetation | 425 verified weekly NOAA VIIRS NDVI snapshots across the permitted interval, native quality flags and missing-data handling. Two unavailable provider dates in July/August 2022 are recorded as gaps. |
+| Land cover | ORNL anonymous MCD12Q1 v061 subset responses, 2014–2021 annual cover, used only for the following year's targets. |
+| Terrain | 29 CGIAR SRTM v4.1 tiles; native-centre aggregation, slope before averaging, 99.9737% national finite coverage. |
+| Human factors | WorldPop 2010 population and Natural Earth settlements pinned to a 2013 revision. No present-day road layer or EVI was fabricated. |
+
+The development audit records **11** feature tables, **1,250,992** training
+rows and **113,442** positive rows before the final development industrial
+filter. Required-source, calendar, key, inclusion-probability, weight and range
+checks passed. NDVI is missing in 32.1–49.0% of sampled rows, and population
+in 0.7–2.0%; preprocessing learns optional-feature medians on training rows only.
+Missing mandatory weather, cover or terrain excludes a row. See the actual
+`runs/public_hindcast/development_quality.json` and immutable source/table hashes
+in `training_sources.json`.
+
+The comparison retains 50 Optuna attempts per ensemble, rolling 2019–2021
+validation, training through 2021, and separate 2022 calibration. Six model
+families are compared. After release, the coordinator may acquire 2023–2024
+predictors and open the opaque detection archives for the single final
+evaluation. Model selection, parameters, preprocessing, calibration and thresholds
+must be fixed first. All 731 map dates will be independently verified against
+their GeoTIFFs before publication.
+
+The [public method](public-hindcast-method.md),
+[source checks](source-quality-verification.md), and
+[pre-test explanation compatibility decision](explanation-compatibility.md)
+document this retrospective experiment. It does not fulfil the strict primary
+study's original ERA5-Land/MOD13A2 source contracts or claim its full nested
+spatial/sensitivity/ablation analyses. No synthetic software-check result is
+being presented as measured model performance.
+
+## Historical initial access audit — 16 October 2026
+
+The remainder records the original access attempt before the user authorised
+the public alternative. Its missing-input statements refer to that initial
+strict-source attempt, not the prepared public-data experiment above.
 
 **The full real-data study has not run.** Under the user's public-access-only constraint, acquisition and registration are partial. The attempted pipeline stopped before ingestion completed because required predictor tables were missing. No real-data performance results, selected model, calibration, threshold or test evaluation exist.
 

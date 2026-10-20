@@ -30,7 +30,12 @@ Open `runs/synthetic/report/index.html` in a browser. It is self-contained and w
 
 The demonstration covers the same calendar years, model families, nested temporal validation and buffered spatial folds as the primary protocol. Its configuration explicitly reduces tuning trials, tree counts and bootstrap repetitions to exercise the full workflow quickly. `configs/primary.yaml` retains the requested research budgets. Do not use demonstration uncertainty estimates for scientific inference.
 
-Real Kazakhstan acquisition has begun separately. See [the actual acquisition status](docs/real_data_status.md) and `configs/real_public.yaml`: public boundary and VIIRS assets are registered, 2023–2024 detection archives remain opaque, and required predictor tables are still missing. This configuration deliberately fails preflight/ingest until those inputs exist. The synthetic report above remains a demonstration.
+The separate public-data hindcast has completed development/calibration data
+acquisition and feature preparation and is comparing real models. See the
+[actual acquisition status](docs/real_data_status.md). The 2023–2024 archives
+remain opaque until release. The primary pipeline's original source contracts
+remain separate; its preflight still requires its own compatible input tables.
+The synthetic report above remains a demonstration.
 
 ## Public-data hindcast runner
 
