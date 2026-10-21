@@ -45,3 +45,15 @@ the process's full lifetime. The completed record is matched to the actual
 model artifact SHA-256 before inclusion in the report. CPU time sums all process
 threads and is reported separately from elapsed time that includes Windows
 sleep/hibernation. The observer changes no model, data or power setting.
+
+The separate optional `govern_public_training.py` helper selects Windows
+[process-scoped HighQoS](https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-setprocessinformation)
+for the owned comparison while connected to AC. It restores the process's
+original QoS on battery or helper exit, preserves priority and affinity, and
+stops controlling the policy if a manual policy change is detected. It respects
+an existing explicit EcoQoS preference. It changes no global power plan or
+sleep/lid behaviour. The event journal records the target PID, creation time,
+source hash and actual transitions. The report includes it only when its target
+matches the verified CPU observation for the completed model artifact. Training
+data, partitions, model parameters and the 50-attempt budgets retain their
+original definitions.

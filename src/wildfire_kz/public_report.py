@@ -67,6 +67,17 @@ def report() -> Path:
                 raise ValueError("CPU observation belongs to another model or observer")
             shutil.copyfile(cpu_path, destination / "training_cpu.json")
             fitting_html += f'<p>Процессорное время процесса, суммарно по всем его потокам: {cpu["total_cpu_seconds"] / 3600:.2f} CPU·ч. Это отдельное измерение Windows GetProcessTimes за весь срок жизни процесса; оно не равно календарному времени запуска. <a href="training_cpu.json">Исходная запись времени</a>.</p>'
+            policy_path = RUN / "training_execution_policy.json"
+            if policy_path.is_file():
+                policy = json.loads(policy_path.read_text())
+                if (
+                    policy["pid"] == cpu["pid"]
+                    and policy["created_utc"] == cpu["created_utc"]
+                    and policy["helper_code_sha256"]
+                    == checksum(ROOT / "scripts/govern_public_training.py")
+                ):
+                    shutil.copyfile(policy_path, destination / "training_execution_policy.json")
+                    fitting_html += '<p class="note">На питании от сети для процесса сравнения использовался HighQoS Windows; исходный режим восстанавливался при работе от батареи. <a href="training_execution_policy.json">Журнал параметров выполнения</a>.</p>'
     from wildfire_kz.public_provenance import register_final_sources
 
     register_final_sources()
