@@ -57,6 +57,16 @@ def report() -> Path:
     fitting_html = f"""<section><h2>Фактически выполненное обучение</h2><p>{training["train_rows"]:,} обучающих строк; {training["positive_rows"]:,} положительных. Прошедшее время запуска, включая приостановки компьютера: {runtime["elapsed_seconds_this_invocation"] / 3600:.2f} ч. Пик резидентной памяти процесса: {peak_text}. Аппаратная и программная среда зафиксированы в реестре.</p><div class="table-wrap">{search_table}</div><p class="note">Попытки с ранней остановкой Optuna показаны отдельно. Победитель выбран до доступа к контрольным годам.</p></section>"""
     destination = RUN / "report"
     destination.mkdir(parents=True, exist_ok=True)
+    cpu_path = RUN / "training_cpu.json"
+    if cpu_path.is_file():
+        cpu = json.loads(cpu_path.read_text())
+        if cpu.get("training_complete") and cpu.get("process_exited"):
+            if cpu["models_sha256"] != training["models_sha256"] or cpu[
+                "observer_code_sha256"
+            ] != checksum(ROOT / "scripts/monitor_public_training.py"):
+                raise ValueError("CPU observation belongs to another model or observer")
+            shutil.copyfile(cpu_path, destination / "training_cpu.json")
+            fitting_html += f'<p>Процессорное время процесса, суммарно по всем его потокам: {cpu["total_cpu_seconds"] / 3600:.2f} CPU·ч. Это отдельное измерение Windows GetProcessTimes за весь срок жизни процесса; оно не равно календарному времени запуска. <a href="training_cpu.json">Исходная запись времени</a>.</p>'
     from wildfire_kz.public_provenance import register_final_sources
 
     register_final_sources()

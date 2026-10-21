@@ -35,3 +35,13 @@ contains the actual prepared arrays, compressed source responses, native source
 metadata and normalized detection partitions. Historical publication times are
 not reconstructed from later archive creation dates. See the public method for
 the retrospective interpretation and the differences from the primary protocol.
+
+An optional Windows observer records the owned comparison worker's lifetime
+user/kernel CPU times using
+[GetProcessTimes](https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-getprocesstimes).
+It keeps a read-only process handle through exit and checks creation time to
+avoid a reused PID. Although attached after training began, the counters cover
+the process's full lifetime. The completed record is matched to the actual
+model artifact SHA-256 before inclusion in the report. CPU time sums all process
+threads and is reported separately from elapsed time that includes Windows
+sleep/hibernation. The observer changes no model, data or power setting.
