@@ -55,3 +55,9 @@ label access. Actual API daily features also matched the existing archive exactl
 at 200 native points on each of two development days. This is source validation,
 not final model performance. Another public copy failed a development comparison
 and was not used.
+
+After the recovery transport was integrated, the complete offline suite passed
+**48 tests** in 246.58 seconds. Ruff checks/format and mypy passed (34 source
+modules including the new transport scripts). The integration fixture used
+generated observations and actual estimators/raster writers; it remains a
+software regression check, not evidence of real-data predictive performance.
