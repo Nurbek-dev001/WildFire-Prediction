@@ -55,7 +55,7 @@ python scripts/acquire_public_predictors.py terrain --workers 2 --attempts 6
 python scripts/acquire_public_predictors.py human
 python scripts/run_public_hindcast.py prepare
 python scripts/audit_public_development.py
-python scripts/run_public_hindcast.py compare --trials 50
+python scripts/run_public_hindcast.py compare --trials 5
 python scripts/run_public_hindcast.py freeze
 python scripts/run_public_hindcast.py acquire-final
 python scripts/run_public_hindcast.py evaluate
@@ -69,6 +69,12 @@ an existing comparison with `--wait-training-pid PID`. Use one coordinator per
 experiment. SQLite retains tuning attempts; a released experiment refuses new
 tuning. Calibration, thresholds, model artifacts and the evaluation implementation
 are sealed before final-year materialisation.
+
+On 22 October the user reduced the search budget to five attempts. The existing
+random-forest trial history is retained rather than discarded. The pre-test
+amendment checks unchanged scientific inputs and fitting code; it is recorded
+in `runs/public_hindcast/budget_amendment.json` with the original protocol archived
+alongside it. Different search effort is disclosed in the final report.
 
 Final evaluation checks 2023–2024 after that release. It records design-weighted
 metrics, year/month/region/cover strata, 1,000 paired cluster resamples and

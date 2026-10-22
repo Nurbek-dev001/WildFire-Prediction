@@ -145,6 +145,7 @@ def acquire_final() -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--wait-training-pid", type=int)
+    parser.add_argument("--trials", type=int, default=5)
     args = parser.parse_args()
     if args.wait_training_pid:
         wait_training(args.wait_training_pid)
@@ -155,7 +156,7 @@ def main() -> None:
             cwd=ROOT,
             check=True,
         )
-        stage("compare", "--trials", "50")
+        stage("compare", "--trials", str(args.trials))
     verify_training_sources()
     stage("freeze")
     acquire_final()

@@ -77,9 +77,22 @@ the winning model. The strict primary nested spatial/time validation, event/grid
 sensitivity and ablation protocol remain a separate study; completion of this
 practical run does not claim completion of those primary analyses.
 
-Each ensemble has 50 Optuna attempts. A median pruner can stop an unpromising
-attempt after a rolling fold; completed/pruned/failed counts and every parameter
-set are retained. Industrial masks for rolling validation use only that fold's
+The original search budget was 50 Optuna attempts per ensemble. On 2026-10-22,
+before model selection, calibration or test access, the user explicitly removed
+that requirement. The practical comparison now targets five attempts per ensemble.
+The already computed random-forest history is retained: 14 complete and eight
+pruned trials; one interrupted trial is recorded as failed on normal resumption.
+No further random-forest tuning is required. XGBoost and CatBoost each receive five
+attempts. This unequal search effort is disclosed and does not establish a globally
+optimal model. The winner is the best of the evaluated candidates on development
+validation. The original protocol, SQLite trials and process accounting are archived
+in `runs/public_hindcast/protocol_before_budget_amendment/`; the verified change of
+budget is recorded in `budget_amendment.json`. Every scientific input, feature
+definition, preprocessing rule and model-fitting implementation remains unchanged.
+
+A median pruner can stop an unpromising attempt after a rolling fold;
+completed/pruned/failed counts and every parameter set are retained. Industrial
+masks for rolling validation use only that fold's
 earlier training years. The final industrial mask uses development through 2021.
 Mandatory weather, cover and terrain gaps are excluded and counted; map gaps remain
 missing. NDVI and population gaps can be median-imputed by preprocessing fitted

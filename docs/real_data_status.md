@@ -1,4 +1,4 @@
-# Real Kazakhstan acquisition status — 20 October 2026
+# Real Kazakhstan acquisition status — 22 October 2026
 
 ## Current public-data experiment
 
@@ -25,7 +25,11 @@ Missing mandatory weather, cover or terrain excludes a row. See the actual
 `runs/public_hindcast/development_quality.json` and immutable source/table hashes
 in `training_sources.json`.
 
-The comparison retains 50 Optuna attempts per ensemble, rolling 2019–2021
+The user waived the original 50-attempt requirement on 22 October, before test
+access. Existing random-forest results are retained (14 complete, eight pruned,
+one interrupted); XGBoost and CatBoost each target five attempts. The archived
+original protocol and `budget_amendment.json` record the change. Scientific inputs
+and model-fitting code are unchanged. The comparison retains rolling 2019–2021
 validation, training through 2021, and separate 2022 calibration. Six model
 families are compared. After release, the coordinator may acquire 2023–2024
 predictors and open the opaque detection archives for the single final

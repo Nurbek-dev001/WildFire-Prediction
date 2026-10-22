@@ -57,6 +57,11 @@ def report() -> Path:
     fitting_html = f"""<section><h2>Фактически выполненное обучение</h2><p>{training["train_rows"]:,} обучающих строк; {training["positive_rows"]:,} положительных. Прошедшее время запуска, включая приостановки компьютера: {runtime["elapsed_seconds_this_invocation"] / 3600:.2f} ч. Пик резидентной памяти процесса: {peak_text}. Аппаратная и программная среда зафиксированы в реестре.</p><div class="table-wrap">{search_table}</div><p class="note">Попытки с ранней остановкой Optuna показаны отдельно. Победитель выбран до доступа к контрольным годам.</p></section>"""
     destination = RUN / "report"
     destination.mkdir(parents=True, exist_ok=True)
+    amendment_path = RUN / "budget_amendment.json"
+    if amendment_path.is_file():
+        amendment = json.loads(amendment_path.read_text())
+        shutil.copyfile(amendment_path, destination / amendment_path.name)
+        fitting_html += f'<p class="note">До финальной оценки пользователь сократил бюджет поиска с {amendment["old_budget"]} до {amendment["new_budget"]} попыток на ансамбль. Уже рассчитанные варианты Random Forest сохранены; поиску моделей выделено разное число попыток. Результат относится к проверенным кандидатам. <a href="budget_amendment.json">Запись изменения протокола</a>.</p>'
     cpu_path = RUN / "training_cpu.json"
     if cpu_path.is_file():
         cpu = json.loads(cpu_path.read_text())

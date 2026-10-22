@@ -95,6 +95,9 @@ def seal_evaluation_protocol() -> None:
     dump_json(path, registry)
     record = json.loads(release.read_text())
     record["artifact_hashes"]["source_registry.json"] = checksum(path)
+    amendment = RUN / "budget_amendment.json"
+    if amendment.is_file():
+        record["artifact_hashes"][amendment.name] = checksum(amendment)
     record["evaluation_code_sealed_utc"] = registry["evaluation_code_sealed_utc"]
     dump_json(release, record)
     permitted([2023, 2024], release)

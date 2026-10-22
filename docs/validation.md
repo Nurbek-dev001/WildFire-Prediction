@@ -34,3 +34,10 @@ source exclusions. Its actual results and hashes are retained in
 `runs/public_hindcast/development_quality.json`. Model fitting was still in
 progress when these verification notes were updated; no final-test metric or
 completed map verification is claimed here.
+
+On 22 October the user removed the 50-attempt search requirement. The unchanged
+comparison worker was resumed with a five-attempt budget after checking identical
+scientific source/table/model-code hashes and archiving the original SQLite
+history and protocol. The budget change and public holdout guards passed **19
+tests** in 44.17 seconds; Ruff checks/format and mypy passed for the changed
+scripts/report module. These checks are not final-test performance measurements.
