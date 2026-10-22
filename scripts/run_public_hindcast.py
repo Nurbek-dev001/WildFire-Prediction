@@ -119,7 +119,7 @@ def main() -> None:
         ],
     )
     parser.add_argument("--wait", action="store_true")
-    parser.add_argument("--trials", type=int, default=50)
+    parser.add_argument("--trials", type=int, default=5)
     parser.add_argument("--destination", type=Path, default=ROOT / "platform/dist/assets")
     parser.add_argument("--day", action="append")
     args = parser.parse_args()

@@ -59,8 +59,8 @@ data, partitions and model parameters retain their original definitions. The
 user reduced the search budget on 22 October before test access; the separate
 verified `budget_amendment.json` preserves the original protocol and trial history.
 
-Before the final metric implementation was sealed, a constant-score software
-fixture exposed an assumption of four distinct map classes. Frozen calibration
+Before the final metric implementation was sealed, a code audit identified
+an assumption of four distinct map classes. A constant-score fixture checks the repair. Frozen calibration
 quantiles can coincide and are deliberately deduplicated. Class-frequency
 tabulation now iterates the actual frozen intervals; tests verify that equality
 belongs to the upper interval and that sample counts, design-weight mass and
