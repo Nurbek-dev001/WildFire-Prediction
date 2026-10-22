@@ -7,21 +7,25 @@ Development/calibration acquisition and feature preparation are complete.
 The practical comparison selected XGBoost using rolling development validation.
 All six final models were fitted on 2015–2021: 1,250,660 rows and 113,134 positives
 after industrial filtering. Models, 2022 calibration and thresholds, and metric
-code were frozen on 22 October at 13:28 UTC. Final-year predictors are being
-acquired; final fire labels have not yet been opened. There are no final real-data
-performance metrics yet.
+code were frozen on 22 October at 13:28 UTC. Final predictors are now registered;
+fire labels were opened only by the final evaluation after that freeze. Final
+evaluation completed at 15:21 UTC, with the original model and thresholds intact.
+The final sample has 345,954 rows, 15,704 positives and design weights representing
+80,081,865 eligible cell-days. All six models completed 1,000 paired space-time
+cluster bootstrap draws. Full daily-map export and verification are in progress.
 
-Four absent S3 soil-water containers for autumn 2023 are being recovered from the
+Four absent S3 soil-water containers for autumn 2023 were recovered from the
 same provider's public ERA5 API. Development-only checks reproduced the training
 archive exactly at 200 native locations on each of two days. Recovery honours
-the free hourly quota and retains each response and checksum. See the documented
+the free hourly quota and retains each response and checksum. All 5,579 required
+native locations were acquired. See the documented
 [source recovery](source-quality-verification.md#final-year-supplier-gap-and-original-provider-recovery).
 
 | Group | Actual prepared inputs |
 | --- | --- |
-| Weather | Anonymous Open-Meteo AWS ERA5, 0.25°, hourly temperature, dewpoint, wind components, precipitation and surface soil moisture; 2014 prehistory and 2015–2022 annual arrays. |
-| Vegetation | 425 verified weekly NOAA VIIRS NDVI snapshots across the permitted interval, native quality flags and missing-data handling. Two unavailable provider dates in July/August 2022 are recorded as gaps. |
-| Land cover | ORNL anonymous MCD12Q1 v061 subset responses, 2014–2021 annual cover, used only for the following year's targets. |
+| Weather | Anonymous Open-Meteo ERA5, 0.25°, hourly temperature, dewpoint, wind components, precipitation and surface soil moisture; 2014 prehistory and complete 2015–2024 annual arrays. Four missing 2023 soil containers were recovered through the original provider API. |
+| Vegetation | 425 verified weekly NOAA VIIRS NDVI snapshots through 2022 plus 103 final-year snapshots, native quality flags and missing-data handling. Two July/August 2022 dates and 30 September 2023 are recorded as provider gaps. |
+| Land cover | ORNL anonymous MCD12Q1 v061 subset responses, 2014–2023 annual cover, used only for the following year's targets. |
 | Terrain | 29 CGIAR SRTM v4.1 tiles; native-centre aggregation, slope before averaging, 99.9737% national finite coverage. |
 | Human factors | WorldPop 2010 population and Natural Earth settlements pinned to a 2013 revision. No present-day road layer or EVI was fabricated. |
 
@@ -36,15 +40,31 @@ in `training_sources.json`.
 
 The user waived the original 50-attempt requirement on 22 October, before test
 access. Existing random-forest results are retained (14 complete, eight pruned,
-one interrupted); XGBoost and CatBoost each target five attempts. The archived
+one interrupted); XGBoost and CatBoost each completed five attempts. The archived
 original protocol and `budget_amendment.json` record the change. Scientific inputs
 and model-fitting code are unchanged. The comparison retains rolling 2019–2021
 validation, training through 2021, and separate 2022 calibration. Six model
-families are compared. After release, the coordinator may acquire 2023–2024
-predictors and open the opaque detection archives for the single final
-evaluation. Model selection, parameters, preprocessing, calibration and thresholds
-must be fixed first. All 731 map dates will be independently verified against
-their GeoTIFFs before publication.
+families were compared. Only after release did the coordinator acquire 2023–2024
+predictors and open the opaque detection archives for final evaluation. Model
+selection, parameters, preprocessing, calibration and thresholds remained fixed.
+All 731 map dates must pass independent checks against their GeoTIFFs before
+publication.
+
+| Frozen model | Final weighted AP | Final ROC-AUC |
+| --- | ---: | ---: |
+| XGBoost, selected before test | 0.0204455 | 0.9236848 |
+| CatBoost | 0.0174830 | 0.9080219 |
+| Random forest | 0.0069715 | 0.8794009 |
+| Logistic regression | 0.0010413 | 0.7928770 |
+| Seasonal baseline | 0.0005752 | 0.7310362 |
+| Weather-only logistic | 0.0004250 | 0.6615972 |
+
+XGBoost's AP 95% cluster interval is 0.0166236–0.0311414; its paired difference
+from CatBoost spans zero. At the unchanged 2022 threshold 0.0472837, precision
+is 0.0976085, recall 0.0516429 and F1 0.0675476. Brier is 0.000196064, compared
+with 0.000196103 for the seasonal baseline. Strong ranking does not establish
+well-calibrated operational alerts; the threshold misses most events. The report
+includes yearly results, strata, reliability and TreeSHAP with verified additivity.
 
 The [public method](public-hindcast-method.md),
 [source checks](source-quality-verification.md), and

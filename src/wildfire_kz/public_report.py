@@ -12,6 +12,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import pandas as pd
+from matplotlib.ticker import MaxNLocator, PercentFormatter
 
 from wildfire_kz.data import checksum, dump_json
 from wildfire_kz.data.public_predictors import ROOT, permitted
@@ -198,6 +199,10 @@ def report() -> Path:
         ylim=(0, upper_limit),
     )
     axis.spines[["top", "right"]].set_visible(False)
+    axis.xaxis.set_major_locator(MaxNLocator(nbins=5))
+    axis.yaxis.set_major_locator(MaxNLocator(nbins=5))
+    axis.xaxis.set_major_formatter(PercentFormatter(xmax=1, decimals=2))
+    axis.yaxis.set_major_formatter(PercentFormatter(xmax=1, decimals=2))
     axis.legend(frameon=False, fontsize=8)
     figure.savefig(destination / "reliability.png", dpi=180)
     figure.savefig(destination / "reliability.pdf")

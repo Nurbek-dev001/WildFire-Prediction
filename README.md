@@ -8,7 +8,7 @@ A reproducible Python research pipeline for **next-day new vegetation-fire occur
 \hat p(i,t)=P(\text{first detection of a new connected event in cell }i\text{ on }t\mid x(i,<t)).
 ```
 
-The local report combines an interactive daily cell atlas, measured model comparisons, reliability diagrams, TreeSHAP figures and an auditable experiment record. **Synthetic output verifies software behavior and is not evidence about Kazakhstan. No real-data model has been evaluated.**
+The local report combines an interactive daily cell atlas, measured model comparisons, reliability diagrams, TreeSHAP figures and an auditable experiment record. The public-data experiment has completed real final evaluation on 2023–2024. Synthetic output remains a separate software demonstration.
 
 ## Start locally
 
@@ -30,10 +30,10 @@ Open `runs/synthetic/report/index.html` in a browser. It is self-contained and w
 
 The demonstration covers the same calendar years, model families, nested temporal validation and buffered spatial folds as the primary protocol. Its configuration explicitly reduces tuning trials, tree counts and bootstrap repetitions to exercise the full workflow quickly. `configs/primary.yaml` retains the requested research budgets. Do not use demonstration uncertainty estimates for scientific inference.
 
-The separate public-data hindcast has completed development/calibration data
-acquisition and feature preparation and is comparing real models. See the
-[actual acquisition status](docs/real_data_status.md). The 2023–2024 archives
-remain opaque until release. The primary pipeline's original source contracts
+The separate public-data hindcast trained six model families, selected XGBoost
+on rolling 2019–2021 validation, calibrated on 2022, and froze the release before
+opening 2023–2024 for final evaluation. See the
+[actual acquisition status](docs/real_data_status.md). The primary pipeline's original source contracts
 remain separate; its preflight still requires its own compatible input tables.
 The synthetic report above remains a demonstration.
 
@@ -105,6 +105,16 @@ float32 probability assets and the actual evaluation JSON. [Source-quality
 evidence](docs/source-quality-verification.md) documents native QA metadata,
 storage compaction and final-only year-boundary completion. This practical run
 does not claim the primary study's full nested spatial/sensitivity/ablation suite.
+
+The real final sample contains 345,954 rows and 15,704 positive cell-days,
+representing 80,081,865 eligible cell-days through design weights. XGBoost's
+weighted AP is **0.0204455** (95% cluster interval 0.0166236–0.0311414),
+ROC-AUC **0.9236848**, and Brier **0.000196064**. At its unchanged 2022 threshold
+0.0472837, precision is 0.0976085 and recall 0.0516429. The positive prevalence
+is 0.000196099. These are retrospective results, not operational validation;
+the fixed threshold misses most events. XGBoost's paired AP difference from
+CatBoost has an interval spanning zero. Exact six-model metrics and intervals
+remain in `runs/public_hindcast/evaluate/` and the generated report.
 
 ## Run the research protocol
 

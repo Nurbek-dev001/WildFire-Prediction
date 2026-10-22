@@ -65,3 +65,24 @@ software regression check, not evidence of real-data predictive performance.
 One subsequent sparse-time transport fixture checked native chunk offsets and
 preserved missing hours. The focused transport subset then passed **5 tests** in
 2.91 seconds; the complete suite was not rerun after this test-only addition.
+
+The real public-data final evaluation completed on 22 October at 15:21 UTC.
+The six model families, calibrators, thresholds, feature rules and metric code
+had been sealed at 13:28 UTC. It used 345,954 actual final rows, including
+15,704 positives, and 1,000 paired 100 km × 30 day bootstrap resamples per model.
+The model SHA-256 remained
+`31728c7fccf7d2af3098691373e38350972f975ac9b9d780c2c9398333c6aea7`.
+Actual performance is recorded in `runs/public_hindcast/evaluate/complete.json`;
+these real results are separate from the offline regression checks above.
+
+Browser QA on the predefined 2024-07-15 map showed XGBoost probabilities,
+110,071 finite cells and seven cells above the frozen threshold. An independent
+single-cell re-inference matched the served float32 value exactly, including its
+displayed rounded percentage. The actual browser CSV contained all seven
+threshold cells with `synthetic=false`, matching every float32 probability.
+The metric dialog showed the actual six-model results; no console warning/error
+was observed. Search and region selection worked. The calibration figure's
+overlapping decimal tick labels were repaired with percentage formatting and
+visually rechecked; this changed presentation only. Ruff and mypy passed for that
+report-only change. Full-calendar verification and published-host checks are
+recorded separately when complete.
