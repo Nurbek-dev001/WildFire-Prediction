@@ -1,5 +1,6 @@
 """Offline checks for the post-freeze original-provider input transport."""
 
+import asyncio
 import importlib
 from pathlib import Path
 
@@ -81,6 +82,22 @@ def test_api_quota_wait_respects_hourly_weight_and_server_cooldown(transport_mod
         )
         == 70
     )
+
+
+def test_sparse_native_chunks_preserve_utc_offsets_and_missing_hours(transport_modules):
+    _, module = transport_modules
+
+    class Reader:
+        def __init__(self, values):
+            self.values = np.array(values, dtype="float32")
+            self.shape = (1, 1, len(values))
+
+        async def read_array(self, selection):
+            return self.values[None, selection[-1]]
+
+    source = module.IncompleteSoil([(-1, Reader([9, 0, 1])), (4, Reader([4, 5, 6]))])
+    actual = asyncio.run(source.read_array((0, slice(0, 1), slice(0, 6))))
+    np.testing.assert_allclose(actual, [[0, 1, np.nan, np.nan, 4, 5]], equal_nan=True)
 
 
 def test_recovery_refuses_a_new_source_after_final_labels_opened(

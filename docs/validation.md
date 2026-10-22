@@ -61,3 +61,7 @@ After the recovery transport was integrated, the complete offline suite passed
 modules including the new transport scripts). The integration fixture used
 generated observations and actual estimators/raster writers; it remains a
 software regression check, not evidence of real-data predictive performance.
+
+One subsequent sparse-time transport fixture checked native chunk offsets and
+preserved missing hours. The focused transport subset then passed **5 tests** in
+2.91 seconds; the complete suite was not rerun after this test-only addition.
