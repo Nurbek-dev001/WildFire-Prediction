@@ -47,3 +47,11 @@ The subsequent pre-test constant-quantile repair passed the public-data subset:
 checks actual weighted frequencies and conserved mass when calibration quantiles
 coincide, as well as the ordinary four-class case. Model fitting and holdout
 access rules were not changed.
+
+The original-provider recovery transport passed **4 offline checks** in 3.80
+seconds: UTC rainfall intervals and native units; coordinate/time/unit rejection
+and preserved nodata; quota waiting; and refusal of source recovery after final
+label access. Actual API daily features also matched the existing archive exactly
+at 200 native points on each of two development days. This is source validation,
+not final model performance. Another public copy failed a development comparison
+and was not used.

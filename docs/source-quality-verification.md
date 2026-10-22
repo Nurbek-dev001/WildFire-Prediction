@@ -66,3 +66,44 @@ tabulation now iterates the actual frozen intervals; tests verify that equality
 belongs to the upper interval and that sample counts, design-weight mass and
 area-days are conserved. Calibration boundaries, AP and model selection are
 unchanged. This pre-test repair is included in the sealed evaluation-code hash.
+
+## Final-year supplier gap and original-provider recovery
+
+The models, 2022 calibrators, thresholds and metric code were frozen on
+22 October 2026 at 13:28 UTC before final-year input retrieval. The public S3
+catalogue lacks four `soil_moisture_0_to_7cm` objects: chunks 934–937, covering
+14 September through 6 December 2023. Other weather fields and 2024 weather
+remain available. No missing soil observations are fabricated.
+
+The original provider's [historical API](https://open-meteo.com/en/docs/historical-weather-api)
+exposes the same ERA5 parameter. Recovery requests `models=era5`, the original
+quarter-degree native coordinates, `cell_selection=nearest`, UTC and hourly
+0–7 cm volumetric soil water in m³/m³. No spatial interpolation or model refitting
+is added. The 24-hour mean and frozen physical bounds are unchanged. Comparison
+of 200 native locations on each of 1 October and 1 December 2021 measured **zero
+difference** against the existing training archive after that same daily feature
+rule. No final labels were opened to choose the input transport.
+
+`scripts/openmeteo_soil_api.py` saves losslessly compressed original responses,
+request URLs, byte checksums, a code-bound acquisition plan and the development
+comparison. `scripts/acquire_2023_weather_recovery.py` stages native fields and
+registers the complete annual input only after the missing observations arrive.
+The source plan and annual provenance bind the frozen model release. A guard
+rejects a new source recovery after final labels have been normalised. The
+original frozen models and preprocessing remain unchanged.
+
+The [published quota](https://open-meteo.com/en/terms) is 600 equivalent calls per
+minute, 5,000 per hour and 10,000 per day. The public pricing calculator reports
+100 equivalent calls for 100 locations, one variable and three months. The local
+downloader conservatively accounts for one equivalent call per location, using
+500/minute, 4,500/hour and 9,000/day, including diagnostic requests and failed
+attempts. It persists the budget journal and honours server rejections. No key,
+subscription or paid request is used.
+
+Google's [ARCO-ERA5](https://github.com/google-research/arco-era5) was considered
+as another public copy. Two development-day comparisons measured maximum
+differences of 0.000125 and 0.179917 m³/m³. It was rejected as a drop-in replacement
+and contributes no values to the 2023 model input. Compatibility evidence and its
+code snapshot are retained in `runs/public_hindcast/source_checks/rejected_arco/`.
+The broad acquisition inventory includes unused compatibility evidence; the
+annual weather provenance identifies the actual model inputs.

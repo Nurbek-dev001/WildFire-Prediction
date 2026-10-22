@@ -165,6 +165,9 @@ def main() -> None:
         shutil.copyfile(
             ROOT / "docs/public-hindcast-method.md", args.destination / "model-method.txt"
         )
+        shutil.copyfile(
+            ROOT / "docs/source-quality-verification.md", args.destination / "source-quality.txt"
+        )
         shutil.copyfile(RUN / "evaluate/complete.json", args.destination / "model-evaluation.json")
         shutil.copyfile(
             RUN / "evaluate/cluster_intervals.csv", args.destination / "cluster_intervals.csv"

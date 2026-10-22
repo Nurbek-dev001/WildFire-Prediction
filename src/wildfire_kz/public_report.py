@@ -57,6 +57,31 @@ def report() -> Path:
     fitting_html = f"""<section><h2>Фактически выполненное обучение</h2><p>{training["train_rows"]:,} обучающих строк; {training["positive_rows"]:,} положительных. Прошедшее время запуска, включая приостановки компьютера: {runtime["elapsed_seconds_this_invocation"] / 3600:.2f} ч. Пик резидентной памяти процесса: {peak_text}. Аппаратная и программная среда зафиксированы в реестре.</p><div class="table-wrap">{search_table}</div><p class="note">Попытки с ранней остановкой Optuna показаны отдельно. Победитель выбран до доступа к контрольным годам.</p></section>"""
     destination = RUN / "report"
     destination.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(
+        ROOT / "docs/source-quality-verification.md", destination / "source-quality.txt"
+    )
+    weather_provenance = json.loads(
+        (ROOT / "data/real/public_predictors/weather/2023.provenance.json").read_text()
+    )
+    api_source = next(
+        (
+            record
+            for record in weather_provenance["sources"]
+            if record.get("source") == "https://archive-api.open-meteo.com/v1/archive"
+        ),
+        None,
+    )
+    if api_source is not None:
+        source_directory = ROOT / "data/real/public_predictors/source_adapters/openmeteo_soil_api"
+        validation = json.loads((source_directory / "development_validation.json").read_text())
+        if not validation["passed"] or validation != api_source["development_validation"]:
+            raise ValueError("Source recovery comparison differs from the evaluated input")
+        for filename in ["development_validation.json", "acquisition_plan.json"]:
+            shutil.copyfile(
+                source_directory / filename, destination / ("source-recovery-" + filename)
+            )
+        difference = max(row["maximum_absolute_difference"] for row in validation["days"])
+        fitting_html += f'<section><h2>Восстановление отсутствующих файлов поставщика</h2><p>Четыре отсутствующих S3-файла почвенной влажности за 14 сентября — 6 декабря 2023 получены через официальный API того же поставщика ERA5. Запрошены реальные почасовые наблюдения в исходных узлах сетки. На 200 узлах в каждый из двух обучающих дней максимальное расхождение суточного признака составило {difference:.6g} м³/м³.</p><p>Модель, калибровка, пороги и правила признаков не менялись. Все ответы и контрольные суммы сохранены; загрузка соблюдала бесплатные лимиты. <a href="source-recovery-development_validation.json">Результаты проверки</a> · <a href="source-quality.txt">Полный аудит источников</a>.</p></section>'
     amendment_path = RUN / "budget_amendment.json"
     if amendment_path.is_file():
         amendment = json.loads(amendment_path.read_text())

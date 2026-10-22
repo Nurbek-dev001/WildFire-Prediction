@@ -3,11 +3,19 @@
 ## Current public-data experiment
 
 The user authorised documented free alternatives after the initial access audit.
-Development/calibration acquisition and feature preparation are now complete.
-The separate practical model comparison selected XGBoost using rolling
-development validation. Final development fitting is running; no winner has been frozen
-and no 2023–2024 observation has been materialised for modelling or evaluation.
-There are no final real-data performance metrics yet.
+Development/calibration acquisition and feature preparation are complete.
+The practical comparison selected XGBoost using rolling development validation.
+All six final models were fitted on 2015–2021: 1,250,660 rows and 113,134 positives
+after industrial filtering. Models, 2022 calibration and thresholds, and metric
+code were frozen on 22 October at 13:28 UTC. Final-year predictors are being
+acquired; final fire labels have not yet been opened. There are no final real-data
+performance metrics yet.
+
+Four absent S3 soil-water containers for autumn 2023 are being recovered from the
+same provider's public ERA5 API. Development-only checks reproduced the training
+archive exactly at 200 native locations on each of two days. Recovery honours
+the free hourly quota and retains each response and checksum. See the documented
+[source recovery](source-quality-verification.md#final-year-supplier-gap-and-original-provider-recovery).
 
 | Group | Actual prepared inputs |
 | --- | --- |

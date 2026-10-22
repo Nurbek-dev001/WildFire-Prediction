@@ -76,6 +76,19 @@ amendment checks unchanged scientific inputs and fitting code; it is recorded
 in `runs/public_hindcast/budget_amendment.json` with the original protocol archived
 alongside it. Different search effort is disclosed in the final report.
 
+If the provider's autumn-2023 soil containers are absent, retain the frozen release
+and recover the same ERA5 observations through its official free API:
+
+```sh
+python scripts/openmeteo_soil_api.py
+```
+
+In another terminal, `python scripts/acquire_2023_weather_recovery.py` prefetches
+the other native fields and waits for verified soil observations. Use one API
+downloader; it persists the quota budget and resumes saved responses. After both
+commands succeed, resume `python scripts/complete_public_hindcast.py`. No
+retraining is involved. See the documented [source recovery](docs/source-quality-verification.md#final-year-supplier-gap-and-original-provider-recovery).
+
 Final evaluation checks 2023–2024 after that release. It records design-weighted
 metrics, year/month/region/cover strata, 1,000 paired cluster resamples and
 calibration uncertainty. Explanations use the estimator's correct uncalibrated
