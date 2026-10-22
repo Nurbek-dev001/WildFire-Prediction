@@ -41,3 +41,9 @@ scientific source/table/model-code hashes and archiving the original SQLite
 history and protocol. The budget change and public holdout guards passed **19
 tests** in 44.17 seconds; Ruff checks/format and mypy passed for the changed
 scripts/report module. These checks are not final-test performance measurements.
+
+The subsequent pre-test constant-quantile repair passed the public-data subset:
+**15 tests** in 38.02 seconds, plus Ruff checks/format and mypy. The added fixture
+checks actual weighted frequencies and conserved mass when calibration quantiles
+coincide, as well as the ordinary four-class case. Model fitting and holdout
+access rules were not changed.

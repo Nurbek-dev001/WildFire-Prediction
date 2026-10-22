@@ -14,7 +14,22 @@ from sklearn.metrics import average_precision_score
 from wildfire_kz.data import checksum, dump_json, public_study
 from wildfire_kz.data.public_predictors import WeatherSeries, complete, permitted
 from wildfire_kz.data.range_cache import RangeCachedS3
-from wildfire_kz.public_evaluation import bootstrap, weighted_ap_sorted
+from wildfire_kz.public_evaluation import bootstrap, map_frequencies, weighted_ap_sorted
+
+
+@pytest.mark.parametrize("boundaries", [[0.001], [0.001, 0.003, 0.008]])
+def test_frozen_class_frequencies_conserve_mass_when_quantiles_coincide(boundaries):
+    frame = pd.DataFrame({"label": [0, 1], "weight": [2.0, 5.0], "area_km2": [20.0, 25.0]})
+    result = map_frequencies(frame, np.array([0.001, 0.001]), boundaries, "seasonal")
+    assert len(result) == len(boundaries) + 1
+    assert sum(row["sample_rows"] for row in result) == 2
+    assert sum(row["weighted_cell_days"] for row in result) == 7
+    assert sum(row["area_km2_days"] for row in result) == 165
+    occupied = next(row for row in result if row["sample_rows"])
+    assert occupied["class"] == 2  # equality belongs to the upper interval
+    assert occupied["observed_frequency"] == pytest.approx(5 / 7)
+    assert result[-1]["upper_bound_inclusive"] is True
+    assert result[0]["observed_frequency"] is None
 
 
 @pytest.mark.parametrize("name", ["public_explanation", "public_provenance", "public_verification"])

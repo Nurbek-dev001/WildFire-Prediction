@@ -55,5 +55,14 @@ an existing explicit EcoQoS preference. It changes no global power plan or
 sleep/lid behaviour. The event journal records the target PID, creation time,
 source hash and actual transitions. The report includes it only when its target
 matches the verified CPU observation for the completed model artifact. Training
-data, partitions, model parameters and the 50-attempt budgets retain their
-original definitions.
+data, partitions and model parameters retain their original definitions. The
+user reduced the search budget on 22 October before test access; the separate
+verified `budget_amendment.json` preserves the original protocol and trial history.
+
+Before the final metric implementation was sealed, a constant-score software
+fixture exposed an assumption of four distinct map classes. Frozen calibration
+quantiles can coincide and are deliberately deduplicated. Class-frequency
+tabulation now iterates the actual frozen intervals; tests verify that equality
+belongs to the upper interval and that sample counts, design-weight mass and
+area-days are conserved. Calibration boundaries, AP and model selection are
+unchanged. This pre-test repair is included in the sealed evaluation-code hash.

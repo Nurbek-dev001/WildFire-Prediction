@@ -4,7 +4,8 @@
 
 The user authorised documented free alternatives after the initial access audit.
 Development/calibration acquisition and feature preparation are now complete.
-The separate practical model comparison is running; no winner has been frozen
+The separate practical model comparison selected XGBoost using rolling
+development validation. Final development fitting is running; no winner has been frozen
 and no 2023–2024 observation has been materialised for modelling or evaluation.
 There are no final real-data performance metrics yet.
 

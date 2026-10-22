@@ -127,6 +127,37 @@ def bootstrap(
     pd.DataFrame(rows).to_csv(destination / "cluster_intervals.csv", index=False)
 
 
+def map_frequencies(
+    frame: pd.DataFrame, p: np.ndarray, boundaries: list[float], name: str
+) -> list[dict[str, Any]]:
+    """Respect deduplicated frozen quantiles, including constant-score baselines."""
+    classes = np.searchsorted(boundaries, p, side="right")
+    records = []
+    for code in range(len(boundaries) + 1):
+        mask = classes == code
+        weights = frame.weight.to_numpy()[mask]
+        mass = float(weights.sum())
+        records.append(
+            {
+                "model": name,
+                "class": code + 1,
+                "lower_inclusive": [0.0, *boundaries][code],
+                "upper_bound": [*boundaries, 1.0][code],
+                "upper_bound_inclusive": code == len(boundaries),
+                "sample_rows": int(mask.sum()),
+                "weighted_cell_days": mass,
+                "mean_prediction": float(np.average(p[mask], weights=weights)) if mass else None,
+                "observed_frequency": float(
+                    np.average(frame.label.to_numpy()[mask], weights=weights)
+                )
+                if mass
+                else None,
+                "area_km2_days": float(np.sum(frame.area_km2.to_numpy()[mask] * weights)),
+            }
+        )
+    return records
+
+
 def evaluate(*, resamples: int = 1000) -> None:
     release = RUN / "release.json"
     permitted([2023, 2024], release)
@@ -198,31 +229,7 @@ def evaluate(*, resamples: int = 1000) -> None:
         summary = metrics(frame.label.to_numpy(), p, frame.weight.to_numpy(), threshold, reference)
         combined[name] = summary
         boundaries = frozen["map_boundaries"][name]
-        classes = np.searchsorted(boundaries, p, side="right")
-        for code in range(4):
-            mask = classes == code
-            weights = frame.weight.to_numpy()[mask]
-            mass = float(weights.sum())
-            map_classes.append(
-                {
-                    "model": name,
-                    "class": code + 1,
-                    "lower_inclusive": [0.0, *boundaries][code],
-                    "upper_bound": [*boundaries, 1.0][code],
-                    "upper_bound_inclusive": code == 3,
-                    "sample_rows": int(mask.sum()),
-                    "weighted_cell_days": mass,
-                    "mean_prediction": float(np.average(p[mask], weights=weights))
-                    if mass
-                    else None,
-                    "observed_frequency": float(
-                        np.average(frame.label.to_numpy()[mask], weights=weights)
-                    )
-                    if mass
-                    else None,
-                    "area_km2_days": float(np.sum(frame.area_km2.to_numpy()[mask] * weights)),
-                }
-            )
+        map_classes.extend(map_frequencies(frame, p, boundaries, name))
         rows.append({"model": name, "period": "2023–2024", "threshold": threshold, **summary})
         for year in [2023, 2024]:
             mask = frame.day.dt.year.to_numpy() == year
