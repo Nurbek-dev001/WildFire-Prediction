@@ -86,3 +86,15 @@ overlapping decimal tick labels were repaired with percentage formatting and
 visually rechecked; this changed presentation only. Ruff and mypy passed for that
 report-only change. Full-calendar verification and published-host checks are
 recorded separately when complete.
+
+During full-calendar export, three country-days had zero eligible rows because
+the archived daily soil-moisture field is unavailable. The estimator correctly
+rejects zero-row inference; the map adapter now emits nodata without calling it.
+The public-data subset passed **17 tests** in 5.05 seconds, including the new
+empty-grid and corrupted-cache regression checks. Ruff, mypy and JavaScript
+syntax checks passed. The initial restricted test invocation stalled in an
+asyncio check and was stopped; the reported passing run used the ordinary
+approved runtime permissions. The previous 261 nonempty map payloads and rasters
+were checksum-verified and retain their original exporter provenance. Frozen
+model, source-array and final-evaluation hashes were unchanged. This adapter/UI
+correction does not rerun model selection or change final evaluation coverage.

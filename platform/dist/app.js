@@ -52,8 +52,8 @@ function makeRaster(){
     $('stat-three-label').textContent='Максимум в ячейке';$('stat-max').textContent=nf.format(max);$('stat-max-unit').textContent='детекций за год';
   }else{
     $('stat-one-label').textContent=state.mode==='real'?'Ячеек с прогнозом':'Ячеек на карте';$('stat-cells').textContent=nf.format(state.mode==='real'?finite:cells.length);$('stat-cells-unit').textContent=state.mode==='real'?'из '+nf.format(cells.length):'5 × 5 км';
-    $('stat-two-label').textContent='Вероятность ≥ '+pf(riskThreshold());$('stat-high').textContent=state.mode==='real'&&!state.realValues?'—':nf.format(high);$('stat-high-unit').textContent=state.mode==='demo'?'демо-ячейки':'ячейки';
-    $('stat-three-label').textContent='Максимум на карте';$('stat-max').textContent=state.mode==='real'&&!state.realValues?'—':pf(max);$('stat-max-unit').textContent=state.mode==='demo'?'условная вероятность':'вероятность';
+    $('stat-two-label').textContent='Вероятность ≥ '+pf(riskThreshold());$('stat-high').textContent=state.mode==='real'&&(!state.realValues||finite===0)?'—':nf.format(high);$('stat-high-unit').textContent=state.mode==='demo'?'демо-ячейки':'ячейки';
+    $('stat-three-label').textContent='Максимум на карте';$('stat-max').textContent=state.mode==='real'&&(!state.realValues||finite===0)?'—':pf(max);$('stat-max-unit').textContent=state.mode==='demo'?'условная вероятность':'вероятность';
   }
   state.regionStats=totals.map((v,i)=>state.layer==='history'?v:sizes[i]?v/sizes[i]:NaN);
   renderRegions();updateCell();scheduleDraw();
@@ -89,7 +89,7 @@ function renderRegions(){const query=$('region-search').value.toLowerCase(),list
 function selectRegion(index){state.region=index;state.selected=-1;let best=-1;for(let i=0;i<cells.length;i++)if(cells[i].region===index&&Number.isFinite(values[i])&&(best<0||values[i]>values[best]))best=i;if(best>=0){const c=cells[best];state.zoom=2;const s=baseScale*state.zoom;state.panX=-( (c.col+.5)*5-centerX)*s-width*.12;state.panY=-(-(c.row+.5)*5-centerY)*s;selectCell(best)}makeRaster()}
 function selectCell(index){state.selected=index;updateCell();scheduleDraw()}
 function updateCell(){
-  if(state.selected<0||state.mode==='real'&&state.layer==='forecast'&&!state.realValues){$('cell-card').hidden=true;return}
+  if(state.selected<0||state.mode==='real'&&state.layer==='forecast'&&(!state.realValues||state.noEligibleForecast)){$('cell-card').hidden=true;return}
   const c=cells[state.selected],p=values[state.selected];$('cell-card').hidden=false;$('cell-region').textContent=geo.regions[c.region].label+(c.region===13||c.region===15?'':' область');$('cell-coordinates').textContent=c.lat.toFixed(3)+'° N, '+c.lon.toFixed(3)+'° E';$('cell-area').textContent=c.area.toLocaleString('ru',{maximumFractionDigits:2})+' км²';$('cell-id').textContent=`g5000_${c.row}_${c.col}`;
   const hist=state.layer==='history',real=state.mode==='real'&&!hist;$('cell-probability').textContent=hist?nf.format(p):Number.isFinite(p)?pf(p):'—';$('cell-category').textContent=hist?'Детекций VIIRS\nза '+state.year+' год':real?(Number.isFinite(p)?'Калиброванная\nвероятность':'Нет прогноза'):p>=.05?'Высокая\nв демо-сценарии':p>=.02?'Повышенная\nв демо-сценарии':p>=.005?'Умеренная\nв демо-сценарии':'Низкая\nв демо-сценарии';$('cell-category').style.whiteSpace='pre-line';$('probability-meter').style.width=(hist?Math.min(100,Math.log2(p+1)*12):Number.isFinite(p)?Math.min(100,p/(state.mode==='real'&&manifest.ready?scale(manifest).at(-1):.08)*100):0)+'%';$('cell-context').textContent=hist?'Номинальная и высокая уверенность; до объединения в события':real?'Вероятность нового очага за сутки; нет данных = пропуск':'Условная вероятность нового очага за сутки';$('factor-title').textContent=hist?'НАБЛЮДЕНИЯ ПО ГОДАМ':real?'ИСТОЧНИК ПРОГНОЗА':'ФАКТОРЫ ДЕМО-СЦЕНАРИЯ';$('card-disclaimer').textContent=hist?'Спутниковые детекции не равны числу отдельных пожаров.':real?'Ретроспективный результат модели. Пустые ячейки исключены или не имеют обязательных данных.':'Иллюстрация интерфейса. Значения не рассчитаны обученной моделью.';
   const wrap=$('cell-factors');wrap.replaceChildren();
@@ -102,7 +102,7 @@ let forecastRequest=0;
 async function setMode(mode){
   if(!geo)return;
   const request=++forecastRequest;
-  state.mode=mode;state.realValues=null;
+  state.mode=mode;state.realValues=null;state.noEligibleForecast=false;
   const days=manifest.available_days||[],ready=mode==='real'&&manifest.ready;
   state.loadingForecast=ready;
   if(!allowedDate(state.day))state.day=ready?days[0]:'2022-07-15';
@@ -120,7 +120,7 @@ async function setMode(mode){
   try{
     const probabilities=await loadForecast(day,manifest,cells.length);
     if(request!==forecastRequest)return;
-    state.realValues=probabilities;state.loadingForecast=false;
+    state.realValues=probabilities;state.noEligibleForecast=!probabilities.some(Number.isFinite);state.loadingForecast=false;
     syncLayer();makeRaster();
   }catch(error){
     if(request!==forecastRequest)return;
@@ -130,7 +130,7 @@ async function setMode(mode){
   }
 }
 function syncLayer(){
-  const hist=state.layer==='history',unavailable=state.mode==='real'&&!state.realValues&&!hist;
+  const hist=state.layer==='history',empty=state.mode==='real'&&state.noEligibleForecast&&!hist,unavailable=state.mode==='real'&&(!state.realValues||empty)&&!hist;
   const loading=unavailable&&state.loadingForecast;
   $('forecast-layer').classList.toggle('selected',!hist);
   $('history-layer').classList.toggle('selected',hist);
@@ -139,11 +139,11 @@ function syncLayer(){
   $('history-options').hidden=!hist;$('high-only-row').hidden=hist;$('timeline').hidden=hist;
   $('map-empty').hidden=!unavailable||loading;$('loading').hidden=!loading;
   if(loading)$('loading').textContent='Загружаем проверенные вероятности…';
-  $('map-empty').querySelector('strong').textContent=manifest.ready?'Не удалось загрузить прогноз':'Реальный прогноз пока недоступен';
-  $('map-empty').querySelector('p').textContent=manifest.ready?'Повторите выбор даты или проверьте подключение.':'Обучение и финальная оценка ещё не завершены.';
+  $('map-empty').querySelector('strong').textContent=empty?'На эту дату нет допустимых ячеек':manifest.ready?'Не удалось загрузить прогноз':'Реальный прогноз пока недоступен';
+  $('map-empty').querySelector('p').textContent=empty?'В исходном архиве отсутствуют обязательные метеоданные. Пропуск не означает нулевую вероятность. Выберите другую дату.':manifest.ready?'Повторите выбор даты или проверьте подключение.':'Обучение и финальная оценка ещё не завершены.';
   $('map-title').innerHTML=hist?`Спутниковые наблюдения <span>${state.year}</span>`:`Прогноз на <span id="title-date">${df.format(new Date(state.day+'T00:00:00Z')).replace(' г.','')}</span>`;
-  $('map-badge').textContent=hist?'АРХИВ NASA VIIRS':state.mode==='demo'?'ДЕМО-СЦЕНАРИЙ':state.realValues?modelLabel(manifest.model).toUpperCase()+' · РЕТРОСПЕКТИВА':loading?'МОДЕЛЬ · ЗАГРУЗКА':'МОДЕЛЬ · НЕТ ПРОГНОЗА';
-  $('stat-source').textContent=hist?'Реальные наблюдения · номинальная / высокая уверенность':state.mode==='demo'?'Сценарий · не оперативный прогноз':state.realValues?'Реальная модель · не оперативное предупреждение':loading?'Загрузка вероятностей…':manifest.ready?'Прогноз недоступен':'Обучение ещё не завершено';
+  $('map-badge').textContent=hist?'АРХИВ NASA VIIRS':state.mode==='demo'?'ДЕМО-СЦЕНАРИЙ':empty?'МОДЕЛЬ · НЕТ ДАННЫХ':state.realValues?modelLabel(manifest.model).toUpperCase()+' · РЕТРОСПЕКТИВА':loading?'МОДЕЛЬ · ЗАГРУЗКА':'МОДЕЛЬ · НЕТ ПРОГНОЗА';
+  $('stat-source').textContent=hist?'Реальные наблюдения · номинальная / высокая уверенность':state.mode==='demo'?'Сценарий · не оперативный прогноз':empty?'Нет обязательных данных на эту дату':state.realValues?'Реальная модель · не оперативное предупреждение':loading?'Загрузка вероятностей…':manifest.ready?'Прогноз недоступен':'Обучение ещё не завершено';
   $('legend-title').textContent=hist?'Детекции VIIRS на ячейку · за год':'Вероятность нового пожара · '+(state.mode==='demo'?'демо':'модель');
   $('legend-ticks').innerHTML=hist?'<span>1</span><span>4</span><span>16</span><span>64</span><span>≥ 128</span>':'<span>0%</span><span>2%</span><span>4%</span><span>6%</span><span>≥ 8%</span>';
   if(!hist&&state.mode==='real'&&manifest.ready){const ticks=scale(manifest);$('legend-ticks').innerHTML=ticks.map((v,i)=>'<span>'+(i===ticks.length-1?'≥ ':'')+probability(v)+'</span>').join('')}

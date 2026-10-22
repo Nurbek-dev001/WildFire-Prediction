@@ -107,3 +107,22 @@ and contributes no values to the 2023 model input. Compatibility evidence and it
 code snapshot are retained in `runs/public_hindcast/source_checks/rejected_arco/`.
 The broad acquisition inventory includes unused compatibility evidence; the
 annual weather provenance identifies the actual model inputs.
+
+## Complete-day gaps and map export correction
+
+The annual 2023 input retains unavailable daily soil moisture on 11–12 September
+and 7 December within the provider's otherwise present native objects. Under the
+unchanged seven-day lag, target days **18–19 September and 14 December 2023** have
+no eligible cells. The frozen required-feature rule already excluded these days
+from final evaluation. No new source is selected after final labels were opened,
+and no observations or model probabilities are filled in for these gaps.
+
+Full-calendar export exposed an estimator error when asked to predict zero rows.
+The exporter now writes an all-nodata map without invoking the estimator, and the
+browser displays an explicit missing-data state instead of a zero maximum.
+Models, preprocessing, inputs, calibration, thresholds and final metrics remain
+unchanged. The pre-correction exporter is archived with its SHA-256. Previously
+produced nonempty maps retain their original code provenance; reuse requires that
+exact known exporter hash, the same frozen release, and both payload and raster
+checksums. Unknown producers and corrupted files are rejected. Every calendar
+date still passes the independent raster/browser verification before publication.

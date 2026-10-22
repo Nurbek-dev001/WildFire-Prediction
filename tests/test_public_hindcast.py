@@ -15,6 +15,43 @@ from wildfire_kz.data import checksum, dump_json, public_study
 from wildfire_kz.data.public_predictors import WeatherSeries, complete, permitted
 from wildfire_kz.data.range_cache import RangeCachedS3
 from wildfire_kz.public_evaluation import bootstrap, map_frequencies, weighted_ap_sorted
+from wildfire_kz.public_maps import NONEMPTY_LEGACY_EXPORTER, calibrated_grid, reusable_map
+
+
+def test_empty_country_day_remains_nodata_without_estimator_call():
+    class Model:
+        def predict(self, frame):
+            assert len(frame) > 0
+            return frame.value.to_numpy()
+
+    class Calibration:
+        def predict(self, values):
+            return values / 2
+
+    frame = pd.DataFrame({"value": [0.2, 0.8, 0.6]})
+    actual = calibrated_grid(frame, np.zeros(3, dtype=bool), Model(), Calibration())
+    assert actual.dtype == np.float32 and np.isnan(actual).all()
+    actual = calibrated_grid(frame, np.array([True, False, True]), Model(), Calibration())
+    np.testing.assert_allclose(actual, [0.1, np.nan, 0.3], equal_nan=True)
+
+
+def test_export_resume_preserves_legacy_provenance_and_rejects_corruption(tmp_path: Path):
+    payload, raster = tmp_path / "day.f32.gz", tmp_path / "day.tif"
+    payload.write_bytes(b"immutable probabilities")
+    raster.write_bytes(b"immutable raster")
+    proof = {
+        "exporter_code_sha256": NONEMPTY_LEGACY_EXPORTER,
+        "finite_cells": 3,
+        "release_sha256": "release",
+        "payload_sha256": checksum(payload),
+        "raster_sha256": checksum(raster),
+    }
+    assert reusable_map(proof, payload, raster, "release", "new_exporter")
+    assert proof["exporter_code_sha256"] == NONEMPTY_LEGACY_EXPORTER
+    assert not reusable_map({**proof, "finite_cells": 0}, payload, raster, "release", "new")
+    assert not reusable_map(proof, payload, raster, "other_release", "new")
+    raster.write_bytes(b"changed")
+    assert not reusable_map(proof, payload, raster, "release", "new_exporter")
 
 
 @pytest.mark.parametrize("boundaries", [[0.001], [0.001, 0.003, 0.008]])

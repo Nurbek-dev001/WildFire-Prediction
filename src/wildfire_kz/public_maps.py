@@ -27,6 +27,41 @@ from wildfire_kz.data.public_study import (
     outcomes,
 )
 
+# This exact previous exporter has identical predictions for nonempty grids.
+# Its original per-day code hash is retained, and both files are verified when
+# resuming. Remove this compatibility entry if valid-cell computation changes.
+NONEMPTY_LEGACY_EXPORTER = "a334906a291ffc60c45c2102e1c901be3363b57693221f8ba744cf04fe8b584c"
+
+
+def calibrated_grid(
+    frame: pd.DataFrame, eligible: np.ndarray, model: Any, calibration: Any
+) -> np.ndarray:
+    """An unavailable country-day stays entirely nodata; never infer on zero rows."""
+    probabilities = np.full(len(frame), np.nan, dtype="float32")
+    if eligible.any():
+        probabilities[eligible] = calibration.predict(model.predict(frame.loc[eligible])).astype(
+            "float32"
+        )
+    return probabilities
+
+
+def reusable_map(
+    proof: dict[str, Any], payload: Path, raster: Path, release_digest: str, exporter_digest: str
+) -> bool:
+    """Preserve transparent provenance for unchanged, checksum-verified old maps."""
+    producer = proof.get("exporter_code_sha256")
+    compatible = producer == exporter_digest or (
+        producer == NONEMPTY_LEGACY_EXPORTER and proof.get("finite_cells", 0) > 0
+    )
+    return bool(
+        compatible
+        and proof.get("release_sha256") == release_digest
+        and payload.is_file()
+        and raster.is_file()
+        and checksum(payload) == proof.get("payload_sha256")
+        and checksum(raster) == proof.get("raster_sha256")
+    )
+
 
 def export(destination: Path, *, dates: list[str] | None = None) -> None:
     """All dates are evaluated hindcasts; no synthetic probabilities or filled map cells."""
@@ -70,10 +105,12 @@ def export(destination: Path, *, dates: list[str] | None = None) -> None:
         proof_path = raster_directory / f"{iso}.json"
         if payload_path.is_file() and proof_path.is_file():
             proof = json.loads(proof_path.read_text())
-            if (
-                proof["payload_sha256"] == checksum(payload_path)
-                and proof["release_sha256"] == checksum(release)
-                and proof.get("exporter_code_sha256") == exporter_digest
+            if reusable_map(
+                proof,
+                payload_path,
+                raster_directory / f"probability_{iso}.tif",
+                checksum(release),
+                exporter_digest,
             ):
                 assets[iso] = proof
                 continue
@@ -84,10 +121,7 @@ def export(destination: Path, *, dates: list[str] | None = None) -> None:
             raw_events.loc[(previous >= day - pd.Timedelta(hours=48)) & (previous < day), "cell_id"]
         )
         eligible = finite & ~industrial & ~ids.isin(recent)
-        probabilities = np.full(len(ids), np.nan, dtype="float32")
-        probabilities[eligible] = calibration.predict(model.predict(frame.loc[eligible])).astype(
-            "float32"
-        )
+        probabilities = calibrated_grid(frame, eligible, model, calibration)
         if ((probabilities[eligible] < 0) | (probabilities[eligible] > 1)).any():
             raise ValueError("Invalid model probability")
         raster_path = raster_directory / f"probability_{iso}.tif"

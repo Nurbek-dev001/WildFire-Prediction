@@ -50,6 +50,12 @@ selection, parameters, preprocessing, calibration and thresholds remained fixed.
 All 731 map dates must pass independent checks against their GeoTIFFs before
 publication.
 
+Three target dates, 18–19 September and 14 December 2023, have no eligible cells
+because their lagged daily soil-moisture input is unavailable in the native
+archive. They remain nodata and were already excluded by the frozen final-sample
+rules. Export handles these empty grids explicitly; no source, model or metric
+was changed in response to final results.
+
 | Frozen model | Final weighted AP | Final ROC-AUC |
 | --- | ---: | ---: |
 | XGBoost, selected before test | 0.0204455 | 0.9236848 |
