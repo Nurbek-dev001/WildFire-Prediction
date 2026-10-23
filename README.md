@@ -179,10 +179,12 @@ and genuine 2015–2022 VIIRS observation layers. Run:
 .venv\Scripts\python.exe -m http.server 8770 --bind 127.0.0.1 --directory platform\dist
 ```
 
-Open http://127.0.0.1:8770/. The default probability layer is explicitly an
-illustrative scenario; the real model layer remains unavailable until actual
-training and evaluation complete. The 2023–2024 observation archives remain
-sealed. Verified pipeline rasters can later be connected with
+Open http://127.0.0.1:8770/. The default layer now loads the frozen, evaluated
+XGBoost probabilities for 2024-07-15. All 731 dates in 2023–2024 passed the
+independent browser/GeoTIFF check; three dates correctly contain only nodata.
+The date control, cell cards, calibration threshold, CSV and results dialog use
+actual model outputs. The explicitly labelled demonstration remains an optional
+separate mode. The original strict-pipeline raster adapter remains available as
 `scripts/export_platform_forecast.py`.
 
 ![Reviewed synthetic research report](docs/dashboard-preview.jpg)

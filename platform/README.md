@@ -30,8 +30,16 @@ does not support fetching the map assets.
 The DEMO layer is a deterministic spatial/seasonal formula for demonstrating
 the product. Its probabilities, 5% filter, and factor indices are illustrative.
 They are not calibrated ML results, measured weather, SHAP, or operational
-forecasts. Statistics and CSV exports preserve this distinction. The default
-date is a historical demonstration date, not today's operational forecast.
+forecasts. Statistics and CSV exports preserve this distinction. The current
+default is the evaluated XGBoost map for 2024-07-15. Its retrospective status is
+shown throughout the interface.
+
+The actual release passed all 731 daily raster/browser checks. Three dates
+(2023-09-18, 2023-09-19 and 2023-12-14) have no eligible cells because mandatory
+soil-moisture observations are missing. They show an explicit unavailable-data
+message and no numeric maximum; CSV is disabled for those dates. The remaining
+728 dates contain actual calibrated probabilities. Model selection and 2022
+calibration were frozen before final evaluation; no refit used 2023–2024.
 
 ## Rebuild the public display assets
 

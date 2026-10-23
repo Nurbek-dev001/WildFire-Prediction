@@ -98,3 +98,14 @@ approved runtime permissions. The previous 261 nonempty map payloads and rasters
 were checksum-verified and retain their original exporter provenance. Frozen
 model, source-array and final-evaluation hashes were unchanged. This adapter/UI
 correction does not rerun model selection or change final evaluation coverage.
+
+The full export completed on 22 October at 18:05 UTC. The independent verifier
+checked all **731** payload/raster SHA-256 pairs, exact float32 agreement, grid
+identity, CRS, 5 km resolution, nodata, frozen class bands and calendar coverage.
+It retained three all-nodata days and calculated exact full-grid alert burden.
+Browser payloads total 290,118,619 bytes; local GeoTIFFs total 404,403,422 bytes.
+On 23 October, local browser QA verified the missing-data message, disabled CSV
+and absent numeric maximum on 2023-09-18; normal forecasts returned for
+2023-09-20. The final date 2024-12-31 loaded successfully and disabled the next
+day control. Restoring the predefined date worked without console warnings or
+errors. The frozen model and final-evaluation SHA-256 were verified unchanged.

@@ -12,7 +12,9 @@ fire labels were opened only by the final evaluation after that freeze. Final
 evaluation completed at 15:21 UTC, with the original model and thresholds intact.
 The final sample has 345,954 rows, 15,704 positives and design weights representing
 80,081,865 eligible cell-days. All six models completed 1,000 paired space-time
-cluster bootstrap draws. Full daily-map export and verification are in progress.
+cluster bootstrap draws. Full daily-map export and independent verification
+completed at 18:05 UTC on 22 October: 731 daily files, including three all-nodata
+days. Every payload matches its two-band GeoTIFF exactly in float32.
 
 Four absent S3 soil-water containers for autumn 2023 were recovered from the
 same provider's public ERA5 API. Development-only checks reproduced the training
@@ -47,8 +49,11 @@ validation, training through 2021, and separate 2022 calibration. Six model
 families were compared. Only after release did the coordinator acquire 2023–2024
 predictors and open the opaque detection archives for final evaluation. Model
 selection, parameters, preprocessing, calibration and thresholds remained fixed.
-All 731 map dates must pass independent checks against their GeoTIFFs before
-publication.
+All 731 map dates passed independent checks against their GeoTIFFs before
+publication. On the full eligible grid, daily top 10% area captures 10,651 of
+15,704 positive cell-days (67.8235%), with 8,034,343 false-alert cell-days. The
+exact daily and aggregate alert burden are exported separately from sampled
+evaluation estimates.
 
 Three target dates, 18–19 September and 14 December 2023, have no eligible cells
 because their lagged daily soil-moisture input is unavailable in the native
