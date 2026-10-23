@@ -126,3 +126,14 @@ of all 731 preserved original uncompressed payloads. GeoTIFFs, final metrics,
 frozen release and exact full-grid alert-burden SHA-256 remained unchanged.
 Local browser QA restored the same selected-cell probability and national counts
 with the new encoding and produced no console warnings/errors.
+
+Site version **2** was successfully deployed on 23 October at 05:44 UTC from
+commit `39dea522d351f53e38433e4616922e27f49d9f82`. The existing custom audience
+and its two authorized accounts were preserved. Hosted-browser QA loaded actual
+XGBoost probabilities (110,071 finite cells, seven threshold cells on the
+predefined date), verified the all-nodata state and disabled CSV, restored the
+default date, and inspected the published six-model metric dialog and full
+report. No forecast-application console warnings/errors were observed; login
+provider diagnostics are separate. The published map screenshot is retained as
+`docs/steppe-real-platform.png`. Deployment and saved-version IDs are recorded
+locally under `runs/public_hindcast/site_*.json`.

@@ -187,4 +187,4 @@ actual model outputs. The explicitly labelled demonstration remains an optional
 separate mode. The original strict-pipeline raster adapter remains available as
 `scripts/export_platform_forecast.py`.
 
-![Reviewed synthetic research report](docs/dashboard-preview.jpg)
+![Published real-model map](docs/steppe-real-platform.png)
