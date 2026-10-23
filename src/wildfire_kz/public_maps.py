@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import gzip
 import json
 import struct
 from pathlib import Path
@@ -13,6 +12,7 @@ import numpy as np
 import pandas as pd
 import rasterio
 
+from wildfire_kz import public_payloads
 from wildfire_kz.data import checksum, dump_json
 from wildfire_kz.data.public_predictors import (
     geography,
@@ -31,6 +31,7 @@ from wildfire_kz.data.public_study import (
 # Its original per-day code hash is retained, and both files are verified when
 # resuming. Remove this compatibility entry if valid-cell computation changes.
 NONEMPTY_LEGACY_EXPORTER = "a334906a291ffc60c45c2102e1c901be3363b57693221f8ba744cf04fe8b584c"
+NODATA_LEGACY_EXPORTER = "7a2e07854ce2561b729d4f43b01854eda18f2e549451d6728d735e00498df711"
 
 
 def calibrated_grid(
@@ -50,7 +51,7 @@ def reusable_map(
 ) -> bool:
     """Preserve transparent provenance for unchanged, checksum-verified old maps."""
     producer = proof.get("exporter_code_sha256")
-    compatible = producer == exporter_digest or (
+    compatible = producer in {exporter_digest, NODATA_LEGACY_EXPORTER} or (
         producer == NONEMPTY_LEGACY_EXPORTER and proof.get("finite_cells", 0) > 0
     )
     return bool(
@@ -67,6 +68,7 @@ def export(destination: Path, *, dates: list[str] | None = None) -> None:
     """All dates are evaluated hindcasts; no synthetic probabilities or filled map cells."""
     release = RUN / "release.json"
     exporter_digest = checksum(Path(__file__))
+    transport_digest = checksum(Path(public_payloads.__file__))
     permitted([2023, 2024], release)
     evaluation = json.loads((RUN / "evaluate/complete.json").read_text())
     if evaluation["synthetic"] is not False or evaluation["release_sha256"] != checksum(release):
@@ -112,6 +114,32 @@ def export(destination: Path, *, dates: list[str] | None = None) -> None:
                 checksum(release),
                 exporter_digest,
             ):
+                if proof["format"] != public_payloads.FORMAT:
+                    original = payload_path.read_bytes()
+                    values = public_payloads.decode(original, proof["format"])
+                    packed = public_payloads.encode(values)
+                    if (
+                        public_payloads.decode(packed, public_payloads.FORMAT).tobytes()
+                        != values.tobytes()
+                    ):
+                        raise ValueError("Lossless probability transport changed bits")
+                    backup = RUN / "source_checks/payloads_before_shuffle" / payload_path.name
+                    backup.parent.mkdir(parents=True, exist_ok=True)
+                    if backup.is_file() and checksum(backup) != proof["payload_sha256"]:
+                        raise ValueError("Original payload backup differs")
+                    if not backup.is_file():
+                        backup.write_bytes(original)
+                    temporary = payload_path.with_suffix(".working")
+                    temporary.write_bytes(packed)
+                    temporary.replace(payload_path)
+                    proof.update(
+                        format=public_payloads.FORMAT,
+                        lossless_source_payload_sha256=proof["payload_sha256"],
+                        payload_sha256=checksum(payload_path),
+                        payload_transport_code_sha256=transport_digest,
+                    )
+                    dump_json(proof_path, proof)
+                    log(f"lossless map transport {iso}: {len(original):,} -> {len(packed):,} bytes")
                 assets[iso] = proof
                 continue
         keys = pd.DataFrame({"cell_index": np.arange(len(ids), dtype="int32"), "day": day})
@@ -160,14 +188,12 @@ def export(destination: Path, *, dates: list[str] | None = None) -> None:
                 outcome="first satellite detection of a new connected event; occurrence hazard",
             )
         # IEEE float32 preserves calibrated values; NaN is missing, never a zero-risk claim.
-        payload_path.write_bytes(
-            gzip.compress(probabilities[order].astype("<f4").tobytes(), mtime=0)
-        )
+        payload_path.write_bytes(public_payloads.encode(probabilities[order]))
         proof = {
             "target_day": iso,
             "synthetic": False,
             "model": selected,
-            "format": "little_endian_float32_gzip",
+            "format": public_payloads.FORMAT,
             "count": len(ids),
             "finite_cells": int(eligible.sum()),
             "retrospective": True,
@@ -175,6 +201,7 @@ def export(destination: Path, *, dates: list[str] | None = None) -> None:
             "raster_sha256": checksum(raster_path),
             "release_sha256": checksum(release),
             "exporter_code_sha256": exporter_digest,
+            "payload_transport_code_sha256": transport_digest,
         }
         dump_json(proof_path, proof)
         assets[iso] = proof
@@ -187,7 +214,7 @@ def export(destination: Path, *, dates: list[str] | None = None) -> None:
         "model": selected,
         "available_days": sorted(assets),
         "input_features": getattr(model, "features", ["landcover", "calendar_month"]),
-        "format": "little_endian_float32_gzip",
+        "format": public_payloads.FORMAT,
         "retrospective": True,
         "missing_sources": [],
         "holdout_sealed": False,

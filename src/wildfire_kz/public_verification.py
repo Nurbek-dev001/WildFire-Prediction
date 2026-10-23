@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import gzip
 import json
 import struct
 from pathlib import Path
@@ -15,6 +14,7 @@ from rasterio.transform import rowcol
 from wildfire_kz.data import checksum, dump_json
 from wildfire_kz.data.public_predictors import ROOT, geography, permitted
 from wildfire_kz.data.public_study import RUN, outcomes
+from wildfire_kz.public_payloads import decode
 
 
 def verify(destination: Path) -> None:
@@ -57,7 +57,9 @@ def verify(destination: Path) -> None:
             or checksum(raster_path) != proof["raster_sha256"]
         ):
             raise ValueError(f"Map checksum mismatch: {day}")
-        values = np.frombuffer(gzip.decompress(payload.read_bytes()), dtype="<f4")
+        if proof["format"] != manifest["format"]:
+            raise ValueError(f"Map payload encoding differs: {day}")
+        values = decode(payload.read_bytes(), proof["format"])
         finite = np.isfinite(values)
         if len(values) != len(grid) or int(finite.sum()) != proof["finite_cells"]:
             raise ValueError(f"Map coverage differs: {day}")

@@ -126,3 +126,21 @@ produced nonempty maps retain their original code provenance; reuse requires tha
 exact known exporter hash, the same frozen release, and both payload and raster
 checksums. Unknown producers and corrupted files are rejected. Every calendar
 date still passes the independent raster/browser verification before publication.
+
+## Lossless publication transport
+
+Sites accepts deployment archives up to 256 MiB. The initial complete float32
+gzip archive exceeded that bound. Browser probabilities now use a lossless byte
+shuffle before gzip: the four byte positions of each little-endian float32 are
+stored as four contiguous planes. The browser restores the original interleaved
+bytes before interpreting probabilities. NaN masks, signed zero, subnormal values
+and all probability bits are preserved. Model inference and GeoTIFFs are unchanged.
+
+The original payloads, manifest and verification record are retained locally.
+Each converted daily proof keeps its original prediction-producer hash and
+records the transport-code hash, previous payload hash and new payload hash.
+Round-trip equality is checked before writing each converted payload. All 731
+browser/GeoTIFF checks are then rerun, including unchanged full-grid alert burden.
+The committed Site manifest and packaging verifier bind the derived payloads
+without storing the large generated files in source Git. The deployment archive
+includes every daily payload.

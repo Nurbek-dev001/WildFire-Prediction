@@ -109,3 +109,20 @@ and absent numeric maximum on 2023-09-18; normal forecasts returned for
 2023-09-20. The final date 2024-12-31 loaded successfully and disabled the next
 day control. Restoring the predefined date worked without console warnings or
 errors. The frozen model and final-evaluation SHA-256 were verified unchanged.
+
+Publication exposed source-Git and 256 MiB archive input limits. Generated daily
+payloads are now excluded from Site source Git while their SHA-256 manifest and
+build verifier remain tracked; the deployment archive contains every payload.
+A lossless float32 byte shuffle reduced daily payloads to **258,241,316 bytes**.
+The actual archive was verified at **260,887,504 bytes (248.8 MiB)** with all
+731 payload hashes matching the committed manifest.
+
+The public-data subset passed **19 tests** in 21.00 seconds, including bitwise
+codec round trips for signed zero, subnormal values, distinct NaNs and 110,129
+random float32 values. Ruff, formatter checks, mypy and JavaScript syntax checks
+passed for the transport changes. The complete raster/browser verifier was rerun
+on all 731 dates. A separate JavaScript decoder also reconstructed **every byte**
+of all 731 preserved original uncompressed payloads. GeoTIFFs, final metrics,
+frozen release and exact full-grid alert-burden SHA-256 remained unchanged.
+Local browser QA restored the same selected-cell probability and national counts
+with the new encoding and produced no console warnings/errors.

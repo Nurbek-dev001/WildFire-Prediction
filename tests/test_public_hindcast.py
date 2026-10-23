@@ -1,6 +1,7 @@
 """Guard boundaries and source-time logic for the separately documented variant."""
 
 import asyncio
+import gzip
 import importlib
 import importlib.util
 from pathlib import Path
@@ -16,6 +17,27 @@ from wildfire_kz.data.public_predictors import WeatherSeries, complete, permitte
 from wildfire_kz.data.range_cache import RangeCachedS3
 from wildfire_kz.public_evaluation import bootstrap, map_frequencies, weighted_ap_sorted
 from wildfire_kz.public_maps import NONEMPTY_LEGACY_EXPORTER, calibrated_grid, reusable_map
+from wildfire_kz.public_payloads import FORMAT, LEGACY_FORMAT, decode, encode
+
+
+def test_lossless_map_codec_preserves_float32_bits_and_nodata():
+    bits = np.array([0, 0x80000000, 1, 0x3F800000, 0x7FC00001, 0x7FC00000], dtype="<u4")
+    values = bits.view("<f4")
+    for encoding, payload in [
+        (FORMAT, encode(values)),
+        (LEGACY_FORMAT, gzip.compress(values.tobytes(), mtime=0)),
+    ]:
+        np.testing.assert_array_equal(decode(payload, encoding).view("<u4"), bits)
+    random = np.random.default_rng(42).random(110129, dtype=np.float32)
+    assert decode(encode(random), FORMAT).tobytes() == random.tobytes()
+    assert encode(random) == encode(random)
+
+
+def test_map_codec_rejects_unknown_format_and_truncated_float():
+    with pytest.raises(ValueError, match="Unknown"):
+        decode(gzip.compress(bytes(4)), "unknown")
+    with pytest.raises(ValueError, match="multiple of four"):
+        decode(gzip.compress(bytes(3)), FORMAT)
 
 
 def test_empty_country_day_remains_nodata_without_estimator_call():

@@ -6,7 +6,7 @@ export function scale(m){const b=m.boundaries||[];return [0,...b,Math.min(1,Math
 export function validateManifest(m){
   if(!m.ready)return;
   if(m.synthetic!==false||!m.evaluation_released||!Array.isArray(m.available_days)||!m.available_days.length)throw Error('Evaluated forecast dates absent');
-  if(m.format!=='little_endian_float32_gzip')return;
+  if(!['little_endian_float32_gzip','little_endian_float32_byte_shuffle_gzip'].includes(m.format))return;
   if(!Number.isFinite(m.threshold)||m.threshold<0||m.threshold>1||!Array.isArray(m.boundaries)||m.boundaries.length<1||m.boundaries.length>3||m.boundaries.some((p,i,a)=>!Number.isFinite(p)||p<0||p>1||i>0&&p<a[i-1]))throw Error('Frozen thresholds invalid');
   if(m.retrospective!==true||m.operational_validation!==false||!m.test_metrics?.[m.model]||!/^([a-f0-9]{64})$/.test(m.release_sha256))throw Error('Frozen evaluation provenance absent');
   if(new Set(m.available_days).size!==m.available_days.length||m.available_days.some(d=>!/^202[34]-\d{2}-\d{2}$/.test(d)||new Date(d+'T00:00:00Z').toISOString().slice(0,10)!==d))throw Error('Forecast dates invalid');
@@ -14,14 +14,15 @@ export function validateManifest(m){
 export function colorIndex(p,m){const b=scale(m);let i=0;while(i<b.length-2&&p>b[i+1])i++;return Math.min(13,Math.max(0,Math.floor((i+Math.min(1,(p-b[i])/Math.max(1e-12,b[i+1]-b[i])))/(b.length-1)*14)))}
 export async function loadForecast(day,m,count){
   if(m.synthetic!==false||!m.evaluation_released)throw Error('Evaluation provenance absent');
-  if(m.format==='little_endian_float32_gzip'){
-    const proof=m.prediction_assets?.[day];if(proof?.synthetic!==false||proof.target_day!==day||proof.count!==count||proof.model!==m.model||proof.release_sha256!==m.release_sha256)throw Error('Forecast provenance differs');
+  if(['little_endian_float32_gzip','little_endian_float32_byte_shuffle_gzip'].includes(m.format)){
+    const proof=m.prediction_assets?.[day];if(proof?.synthetic!==false||proof.target_day!==day||proof.count!==count||proof.model!==m.model||proof.release_sha256!==m.release_sha256||proof.format!==m.format)throw Error('Forecast provenance differs');
     const response=await fetch(`./assets/predictions/${day}.f32.gz`);if(!response.ok)throw Error('Forecast unavailable');
     const compressed=await response.arrayBuffer();
     const digest=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',compressed)),v=>v.toString(16).padStart(2,'0')).join('');
     if(digest!==proof.payload_sha256)throw Error('Forecast checksum differs');
-    const raw=await new Response(new Blob([compressed]).stream().pipeThrough(new DecompressionStream('gzip'))).arrayBuffer();
+    let raw=await new Response(new Blob([compressed]).stream().pipeThrough(new DecompressionStream('gzip'))).arrayBuffer();
     if(raw.byteLength!==count*4)throw Error('Grid size differs');
+    if(m.format==='little_endian_float32_byte_shuffle_gzip'){const shuffled=new Uint8Array(raw),interleaved=new Uint8Array(raw.byteLength);for(let i=0;i<count;i++)for(let b=0;b<4;b++)interleaved[i*4+b]=shuffled[b*count+i];raw=interleaved.buffer}
     const view=new DataView(raw),values=new Float32Array(count);let finite=0;for(let i=0;i<count;i++){const p=view.getFloat32(i*4,true);if(!Number.isNaN(p)&&(!Number.isFinite(p)||p<0||p>1))throw Error('Invalid probability');if(Number.isFinite(p))finite++;values[i]=p}if(finite!==proof.finite_cells)throw Error('Forecast coverage differs');return values;
   }
   const response=await fetch(`./assets/predictions/${day}.json`);if(!response.ok)throw Error('Forecast unavailable');const data=await response.json();

@@ -3,3 +3,6 @@ node_modules/
 .sites-checkout/
 *.tar.gz
 *.zip
+# Derived ML payloads are packaged for deployment and bound by the tracked
+# forecast manifest, without exceeding the source Git receive size limit.
+/dist/assets/predictions/

@@ -41,6 +41,15 @@ message and no numeric maximum; CSV is disabled for those dates. The remaining
 728 dates contain actual calibrated probabilities. Model selection and 2022
 calibration were frozen before final evaluation; no refit used 2023–2024.
 
+Daily probability payloads are generated build artifacts. They remain on disk
+and in the deployment archive, but are excluded from source Git because of its
+receive-size limit. The tracked forecast manifest binds every byte by SHA-256.
+Before packaging, `node scripts/verify-model-assets.mjs` verifies all 731 files,
+coverage, evaluation/report hashes and exact full-grid alert-burden metadata.
+A fresh source checkout needs the payloads from the verified research export
+above before this check and local packaging can succeed. The Site archive
+contains these checked artifacts; raw datasets and model weights stay local.
+
 ## Rebuild the public display assets
 
 After the public data registration has completed:
@@ -79,7 +88,10 @@ limitations are documented in `docs/public-hindcast-method.md`. These outputs
 are retrospective estimates, with no claim of operational validation.
 
 `assets/predictions/YYYY-MM-DD.f32.gz` contains little-endian float32
-probabilities in `cells.bin` order. NaN means missing. The manifest contains
+probabilities in `cells.bin` order. The current lossless transport byte-shuffles
+the four byte positions into four contiguous planes before gzip; the browser
+restores the exact original float32 bits. The manifest format identifies this
+encoding. NaN means missing. The manifest contains
 the selected model, frozen release hash, actual test metrics, thresholds,
 daily coverage and payload SHA-256. The browser verifies provenance, checksum,
 coverage, and probability range before drawing a date. It discards stale
