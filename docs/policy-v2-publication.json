@@ -1,0 +1,20 @@
+{
+  "project_id": "appgprj_6ad21a692aa88191a5dfa69a5464309d",
+  "version_id": "appgprj_6ad21a692aa88191a5dfa69a5464309d~appgver_93eb077bea20819191b0fb7c8c976c42",
+  "version_number": 3,
+  "source_commit": "88d6e1f6e943db00daf2eb8d333a0e4161f479a6",
+  "deployment_id": "appgdep_6adafbd56a588191aa8b66da1736c13b",
+  "status": "succeeded",
+  "url": "https://steppe-kazakhstan-fire-map.peppy-horse-5926.chatgpt.site",
+  "updated_at": "2026-10-23T06:17:13.188080+00:00",
+  "audience": "custom: unchanged owner and previously authorised viewer",
+  "policy_sha256": "77328706da088f98aec98a38710a4396c7bb3a7ed5bd2aff94097f5098a395eb",
+  "model_changed": false,
+  "probabilities_changed": false,
+  "selection_max_year": 2022,
+  "evaluation_previously_reported": true,
+  "validation": "25 Python tests passed; both browser policy checksum tamper guards passed; all 731 probability payloads unchanged",
+  "hosted_browser_verification": "Default F2 loaded; restored user date 2023-06-08: 109931 eligible cells and 6 alerts; comparison table visible",
+  "local_browser_verification": "Profile switching: original 7, F2 18, coverage 104 alerts on 2024-07-15; F2 filtered export 18 rows; 2023-09-18 remains all-nodata with export disabled",
+  "screenshot": "docs/steppe-alert-policy-v2.png"
+}

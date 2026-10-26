@@ -43,10 +43,17 @@
         </div>
         <div class="demo-note" id="mode-note"><span class="tiny-dot"></span><div><strong>Демонстрация прогноза</strong><p>Условные вероятности на реальной карте. Модель ещё не обучена.</p></div></div>
         <div class="sidebar-label">СЛОИ КАРТЫ <svg><use href="#i-layers"/></svg></div>
-        <button class="layer-option selected" id="forecast-layer" aria-pressed="true"><span class="layer-symbol heat-symbol"></span><span><strong>Вероятность пожара</strong><small>Новый очаг · следующие сутки</small></span><span class="radio-dot"></span></button>
+        <button class="layer-option selected" id="forecast-layer" aria-pressed="true"><span class="layer-symbol heat-symbol"></span><span><strong>Спутниковое событие</strong><small>Первое обнаружение · за сутки</small></span><span class="radio-dot"></span></button>
         <button class="layer-option" id="history-layer" aria-pressed="false"><span class="layer-symbol fire-symbol">✦</span><span><strong>Наблюдения VIIRS</strong><small>Реальные детекции · 2015–2022</small></span><span class="radio-dot"></span></button>
         <div class="history-options" id="history-options" hidden><label for="history-year">Год наблюдений</label><select id="history-year"><option>2022</option><option>2021</option><option>2020</option><option>2019</option><option>2018</option><option>2017</option><option>2016</option><option>2015</option></select></div>
         <label class="toggle-row"><span>Границы областей</span><input id="region-lines" type="checkbox" checked><span class="toggle"></span></label>
+        <div class="alert-profile" id="alert-profile-panel" hidden>
+          <label for="alert-profile">РЕЖИМ ПРЕДУПРЕЖДЕНИЙ</label>
+          <select id="alert-profile" aria-describedby="alert-profile-help alert-profile-metrics"></select>
+          <p id="alert-profile-metrics" aria-live="polite"></p>
+          <p id="alert-profile-help">Порог выбран по 2022. Метрики — за 2023–2024, не гарантия для выбранной даты.</p>
+          <a href="./alerts/" target="_blank" rel="noopener">Сравнить режимы ↗</a>
+        </div>
         <label class="toggle-row" id="high-only-row"><span id="threshold-label">Только вероятность ≥ 5%</span><input id="high-only" type="checkbox"><span class="toggle"></span></label>
         <div class="sidebar-label regions-heading">ОБЛАСТИ <span id="region-count">16</span></div>
         <div class="search-wrap"><svg><use href="#i-search"/></svg><input id="region-search" placeholder="Найти область" aria-label="Найти область"></div>
@@ -58,7 +65,7 @@
         <div class="stats-row" aria-live="polite"><div class="stat"><span id="stat-one-label">Ячеек на карте</span><strong id="stat-cells">—</strong><small id="stat-cells-unit">5 × 5 км</small></div><div class="stat"><span id="stat-two-label">Вероятность ≥ 5%</span><strong id="stat-high">—</strong><small id="stat-high-unit">демо-ячейки</small></div><div class="stat"><span id="stat-three-label">Максимум на карте</span><strong class="accent-number" id="stat-max">—</strong><small id="stat-max-unit">условная вероятность</small></div><div class="stat-source"><span class="tiny-dot"></span><span id="stat-source">Сценарий · не оперативный прогноз</span></div></div>
         <div class="map-shell" id="map-shell">
           <canvas id="map" aria-label="Карта Казахстана. Нажмите на ячейку, чтобы увидеть вероятность пожара." tabindex="0"></canvas>
-          <div class="map-top-label"><span class="map-status-dot"></span><span id="map-badge">ДЕМО-СЦЕНАРИЙ</span><span class="map-label-divider"></span><span>5 КМ</span></div>
+          <div class="map-top-label"><span class="map-status-dot"></span><span id="map-badge">ДЕМО-СЦЕНАРИЙ</span><span class="map-label-divider"></span><span title="Шаг сетки не равен точности источников: метеоданные имеют разрешение 0,25 градуса">СЕТКА 5 КМ · ПОГОДА 0,25°</span></div>
           <div class="map-compass"><span>N</span><i></i></div>
           <div class="map-tools"><button id="zoom-in" aria-label="Увеличить масштаб">+</button><button id="zoom-out" aria-label="Уменьшить масштаб">−</button><button id="reset-map" aria-label="Показать весь Казахстан" title="Весь Казахстан"><svg><use href="#i-cross"/></svg></button></div>
           <div class="map-loading" id="loading"><span class="loading-ring"></span>Загружаем карту Казахстана…</div>
@@ -80,12 +87,12 @@
           <div class="attribution"><a href="https://www.geoboundaries.org/" target="_blank" rel="noopener">geoBoundaries / OSM · ODbL</a><span>Границы областей: 2017</span></div>
         </div>
         <div class="timeline" id="timeline"><div class="timeline-title"><svg><use href="#i-map"/></svg><div><strong>Дата сценария</strong><span>Горизонт: 24 часа</span></div></div><button class="day-arrow" id="previous-day" aria-label="Предыдущий день">‹</button><label class="date-input-wrap"><input id="forecast-date" type="date" value="2022-07-15" min="2015-01-01" max="2022-12-31" aria-label="Дата демо-сценария"></label><button class="day-arrow" id="next-day" aria-label="Следующий день">›</button><div class="timeline-days" id="timeline-days"></div><span class="utc-label">UTC</span></div>
-        <footer class="workspace-footer"><span><i></i> Вероятность возникновения, без оценки ущерба</span><button id="holdout-button"><span>⌑</span> 2023–2024 закрыты для финальной оценки</button></footer>
+        <footer class="workspace-footer"><span><i></i> Первое спутниковое обнаружение</span><button id="today-button">Сегодня · готовность</button><button id="quality-button">Аудит · тест 2025</button><button id="holdout-button">Метрики</button></footer>
       </section>
     </main>
   </div>
   <dialog id="info-dialog"><div class="dialog-heading"><span class="section-eyebrow" id="dialog-eyebrow">STEPPE OBSERVATORY</span><button id="close-dialog" aria-label="Закрыть"><svg><use href="#i-close"/></svg></button></div><div id="dialog-content"></div></dialog>
   <div class="toast" id="toast" role="status" hidden></div>
-  <script type="module" src="./app.js"></script>
+  <script type="module" src="./app.js?v=20261025-final"></script>
 </body>
 </html>

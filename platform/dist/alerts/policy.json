@@ -1,0 +1,94 @@
+{
+  "schema_version": 1,
+  "policy_id": "xgboost_alerts_2022_v2",
+  "synthetic": false,
+  "frozen_utc": "2026-10-23T06:05:15.946461+00:00",
+  "model": "xgboost",
+  "default_profile": "balanced",
+  "profiles": {
+    "precision": {
+      "label": "\u041f\u0440\u0435\u0436\u043d\u0438\u0439 \u00b7 F1",
+      "objective": "original_2022_maximum_weighted_F1",
+      "threshold": 0.04728369414806366,
+      "calibration_metrics": {
+        "precision": 0.05948629009987054,
+        "recall": 0.04735541275333663,
+        "f1": 0.052732177522749606,
+        "f2": 0.04936894780325576,
+        "tp": 479.0,
+        "fp": 7573.275561239655,
+        "fn": 9636.0,
+        "alert_fraction": 0.0002006031980250308,
+        "weighted_alert_cell_days": 8052.275561239655
+      }
+    },
+    "balanced": {
+      "label": "\u0411\u0430\u043b\u0430\u043d\u0441 \u00b7 F2",
+      "objective": "maximum_2022_design_weighted_F2",
+      "threshold": 0.022486481815576553,
+      "calibration_metrics": {
+        "precision": 0.0350842396135446,
+        "recall": 0.08433020266930301,
+        "f1": 0.04955281757462229,
+        "f2": 0.06584542712680799,
+        "tp": 853.0,
+        "fp": 23459.91113605014,
+        "fn": 9262.0,
+        "alert_fraction": 0.0006056980651118187,
+        "weighted_alert_cell_days": 24312.91113605014
+      }
+    },
+    "coverage": {
+      "label": "\u041e\u0445\u0432\u0430\u0442 \u226530%",
+      "objective": "maximum_2022_weighted_F2_subject_to_recall_at_least_0.30",
+      "minimum_calibration_recall": 0.3,
+      "threshold": 0.004977398086339235,
+      "calibration_metrics": {
+        "precision": 0.009086868776991802,
+        "recall": 0.3001482946119624,
+        "f1": 0.017639702657917075,
+        "f2": 0.040526633797608215,
+        "tp": 3036.0,
+        "fp": 331072.48934973445,
+        "fn": 7079.0,
+        "alert_fraction": 0.008323514383125556,
+        "weighted_alert_cell_days": 334108.48934973445
+      }
+    }
+  },
+  "selection_year": 2022,
+  "selection_max_year": 2022,
+  "calibration_rows": 197096,
+  "calibration_positive_rows": 10115,
+  "calibration_prevalence": 0.0002519910468278615,
+  "model_retrained": false,
+  "probabilities_changed": false,
+  "test_used_to_select_threshold": false,
+  "test_previously_reported": true,
+  "revision_reason": "User requested greater recall after first evaluation; all new thresholds selected only on 2022",
+  "evaluation_caveat": "Reassessment on the previously reported 2023-2024 benchmark, not a new independent holdout",
+  "model_release_sha256": "0b5ccd072c5f17df17144cde70fc71e46a52cfe8af628387cba66183b80b087a",
+  "original_artifacts": {
+    "models.joblib": "31728c7fccf7d2af3098691373e38350972f975ac9b9d780c2c9398333c6aea7",
+    "calibrators.joblib": "cf2e79c1411a3d15de2847552220d91ef92fbb3f67d116969b83061b75c94710",
+    "frozen.json": "adc3a3544834753a7ec84bd57464f85b386f60b1c7e245957f0a7c8b760c9edf",
+    "selection.json": "8cc092b8ac8cbe38988da34e44c8695dd94196d450a6f60d48aa7bf957f9ac73",
+    "design.json": "01ec3d26e30162d5fe48433ae750cf140e8dbd509b86f568b15d5c43d03a3c67",
+    "source_registry.json": "baaf4611c757a5885b63626f3fa74f86a1dfc1c397413e7d7ca6f14928953f3c",
+    "training_sources.json": "d9c8127c244bc9a59c95e1026ea4f1fb29e72d80e7a8e64b42e82a8f964eca4c",
+    "training_complete.json": "a94f81da04d18fcac3fb80fe402307845eedaa6e6c35002d3919a1af85258e3c",
+    "tuning.json": "078bc974a707a90ffc093149f1630153d46ca553ae059cab5003cc0cdb15ffa1",
+    "comparison.csv": "073f383779604725e85b20fbfc6294e1c0698d8d14f9fd82153ff78bcf81aaba",
+    "industrial_cells.json": "d87280cd864f41421027050ab72d1d89a1ff6294306afc459ed9998bc8e25290",
+    "budget_amendment.json": "7bd33331a190575e6840e7378c7581caadc8a03464b4bb5fa3a4e1919c036d92"
+  },
+  "selection_inputs": {
+    "features/2022_evaluation.parquet": "24a6a3a4c9744f510e4af895dbcff5d265db365ded760a9d445be4fb3cd32837",
+    "industrial_cells.json": "d87280cd864f41421027050ab72d1d89a1ff6294306afc459ed9998bc8e25290"
+  },
+  "selection_code_sha256": "d4b6401f009b7f22b17d8194195599e9bc75364b8bdb11f3dba2dbe0c2265e53",
+  "runner_code_sha256": "03cb918bb25c04fccc6586edaa990ad3d169a9465e7a52bf4568e0bde80d529b",
+  "calibration_curve_sha256": "c514f68a636ba53b05a5be50fac72368ad0993696a5dd7c986a6b6b09594cfd5",
+  "tie_break": "exact_equal_objective_highest_threshold",
+  "score_comparison": "probability_greater_than_or_equal_to_threshold"
+}

@@ -1,0 +1,25 @@
+{
+  "plan_sha256": "799f3477d0309bc8e441c279df905e3091a2e0f1ed3871e387342f34520b3bff",
+  "excluded_rows": 8514,
+  "primary_unchanged": true,
+  "metrics": {
+    "precision": 0.07653172786775317,
+    "recall": 0.04333598655700009,
+    "f1": 0.05533730155742506,
+    "fpr": 0.0001485679703623914,
+    "false_discovery_proportion": 0.9234682721322468,
+    "accuracy": 0.9995797476579481,
+    "average_precision": 0.017854461445985438,
+    "roc_auc": 0.9388103524319222,
+    "prevalence": 0.00028403553018960823,
+    "brier": 0.00028149802157750945,
+    "bss": 0.008652200284819944,
+    "ece": 2.032214593746767e-05,
+    "tp": 490.0,
+    "fp": 5912.573333333334,
+    "fn": 10817.0,
+    "tn": 39791180.42666666,
+    "weighted_rows": 39808400.0
+  },
+  "not_verified_ground_fire_absence": true
+}

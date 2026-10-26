@@ -1,0 +1,4 @@
+# Preserve the exact bytes bound by the alert-policy/report SHA-256 manifest.
+dist/alerts/** -text
+dist/upgrade/** -text
+dist/quality/** -text

@@ -1,0 +1,72 @@
+{
+  "synthetic": false,
+  "completed_utc": "2026-10-23T06:05:47.787512+00:00",
+  "policy_sha256": "77328706da088f98aec98a38710a4396c7bb3a7ed5bd2aff94097f5098a395eb",
+  "model_release_sha256": "0b5ccd072c5f17df17144cde70fc71e46a52cfe8af628387cba66183b80b087a",
+  "evaluation_previously_reported": true,
+  "policy_fixed_before_reassessment": true,
+  "rows": 345954,
+  "positive_rows": 15704,
+  "weighted_cell_days": 80081864.95715061,
+  "metrics": {
+    "precision": {
+      "profile": "precision",
+      "period": "2023\u20132024",
+      "threshold": 0.04728369414806366,
+      "precision": 0.09760850240645387,
+      "recall": 0.05164289353031075,
+      "f1": 0.06754758259769009,
+      "f2": 0.0570125408208597,
+      "tp": 811.0,
+      "fp": 7497.702418390724,
+      "fn": 14893.0,
+      "alert_fraction": 0.00010375260894381592,
+      "weighted_alert_cell_days": 8308.702418390723
+    },
+    "balanced": {
+      "profile": "balanced",
+      "period": "2023\u20132024",
+      "threshold": 0.022486481815576553,
+      "precision": 0.0493829759028169,
+      "recall": 0.1098446255731024,
+      "f1": 0.0681346003764407,
+      "f2": 0.08823794243699029,
+      "tp": 1725.0,
+      "fp": 33206.06619161043,
+      "fn": 13979.0,
+      "alert_fraction": 0.00043619196693659655,
+      "weighted_alert_cell_days": 34931.06619161043
+    },
+    "coverage": {
+      "profile": "coverage",
+      "period": "2023\u20132024",
+      "threshold": 0.004977398086339235,
+      "precision": 0.008113454169620407,
+      "recall": 0.35901681100356597,
+      "f1": 0.015868299176188143,
+      "f2": 0.03720415065937634,
+      "tp": 5638.0,
+      "fp": 689257.1558894154,
+      "fn": 10066.0,
+      "alert_fraction": 0.008677309853625822,
+      "weighted_alert_cell_days": 694895.1558894154
+    }
+  },
+  "prediction_table_sha256": "2327e32c453640b7976ba91d5e2ba1649bc2badb33c95439d6a8aa16ab941e6c",
+  "original_evaluation_sha256": "4b2ad981ea07db1671960b215f29b66a3a40698673d942eb57ae68dd44ef2f69",
+  "unchanged_discrimination": {
+    "average_precision": 0.020445529876935833,
+    "roc_auc": 0.9236848066296763,
+    "brier": 0.0001960637520103758
+  },
+  "bootstrap": {
+    "resamples": 1000,
+    "spatial_block_m": 100000,
+    "temporal_block_days": 30,
+    "seed": 42
+  },
+  "outputs": {
+    "metrics.csv": "dc00d4ac749f788d66633e40ede95b2307f001c0bb89d56ecdcc968f3622fcb4",
+    "cluster_intervals.csv": "6afcad87b0d909840474023188c08733bc59bf08e8a26d3883e243a1082e0925"
+  }
+}

@@ -2,6 +2,13 @@
 
 ## Current public-data experiment
 
+Alert-policy revision v2 (23 October): the map now defaults to a maximum-F2
+threshold selected exclusively on 2022. On the previously reported 2023–2024
+benchmark, recall is 10.9845% and precision 4.9383% (original: 5.1643% / 9.7609%).
+An optional coverage profile yields 35.9017% recall / 0.8113% precision. Model,
+calibration and probability maps remain unchanged. This is a disclosed repeat
+assessment, not a new independent holdout. See [policy v2](operating-policy-v2.md).
+
 The user authorised documented free alternatives after the initial access audit.
 Development/calibration acquisition and feature preparation are complete.
 The practical comparison selected XGBoost using rolling development validation.

@@ -1,0 +1,26 @@
+{
+  "claim": "Recall increased and precision decreased on the previously evaluated test",
+  "visual_form": "two dot-and-interval panels",
+  "metrics": [
+    "precision",
+    "recall"
+  ],
+  "unit": "percent of eligible cell-days",
+  "direction": "higher is better",
+  "order": [
+    "Original XGBoost",
+    "XGBoost + learned stack"
+  ],
+  "uncertainty": "95% percentile intervals; 1000 paired 100 km by 30 day cluster resamples; seed 42",
+  "evidence": [
+    "metrics.csv",
+    "cluster_intervals.csv"
+  ],
+  "width_px": 1000,
+  "height_px": 400,
+  "output_formats": [
+    "png",
+    "svg"
+  ],
+  "ap_uncertainty": "not estimated; AP retained in exact-value table"
+}

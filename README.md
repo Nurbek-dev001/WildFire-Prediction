@@ -10,6 +10,12 @@ A reproducible Python research pipeline for **next-day new vegetation-fire occur
 
 The local report combines an interactive daily cell atlas, measured model comparisons, reliability diagrams, TreeSHAP figures and an auditable experiment record. The public-data experiment has completed real final evaluation on 2023–2024. Synthetic output remains a separate software demonstration.
 
+The trained-model revision adds a chronological logistic stack and six causal
+fire-history features. On the previously reported 2023–2024 benchmark, recall
+rises from 5.1643% to 7.3421% and AP from 0.02045 to 0.02392, while precision
+falls from 9.7609% to 7.3608%. All training/selection is pre-2023. See the exact
+process and limitations in [model-upgrade-v3.md](docs/model-upgrade-v3.md).
+
 ## Start locally
 
 Python 3.11 or newer is required. These commands work in PowerShell, bash and CI after activating the virtual environment:

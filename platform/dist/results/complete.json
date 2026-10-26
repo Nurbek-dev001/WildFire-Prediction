@@ -1,0 +1,30 @@
+{
+  "synthetic": false,
+  "release_sha256": "0b5ccd072c5f17df17144cde70fc71e46a52cfe8af628387cba66183b80b087a",
+  "outputs": {
+    "acquisition_manifest.json": "62244f48526681630061bf2c464e19391f869e2b1d7dcda49ccbfbbddadb4cf9",
+    "budget_amendment.json": "7bd33331a190575e6840e7378c7581caadc8a03464b4bb5fa3a4e1919c036d92",
+    "calibration_bins.csv": "66e76a0dcf64f3a94fdcb57a6fb1cef59b707efe8fb5e61d771c1876282beb7f",
+    "development_data_quality.csv": "1de7f895837c6d3d87a4c2f66e453f41fe3c741421a7b02d753206b7929cbaa0",
+    "explanation-method.txt": "00e7e00a8d0f557f0c19d1a7e2028e778ce19c300f65256102908542b5609c57",
+    "index.html": "47d0e63fd6fa1219342ca9a85955faf530a4d087fde68adaadfd47b18824454f",
+    "model_comparison.pdf": "4a482ccdea60fcf5e04416864715bcc0b118868660efe964e2c2599e0ebe40d7",
+    "model_comparison.png": "9bc8a71c477f29ab9f80e74f136280dbf1e54398ebe2e4154d50087eadad695a",
+    "reliability.pdf": "bee288297fecc578cf8d9c0e116c1cc34d16fb3a3a2a3428037a659793ff098b",
+    "reliability.png": "5461503bab7d844b972a9f588d0ae943a619d388226466e6ef3d4501f2616672",
+    "source-quality.txt": "88034c668403e26e8b079bfecdb19afbd04b8feb60205ec0ccbf728799887447",
+    "source-recovery-acquisition_plan.json": "64b3b446dd106869c11190d3be0233fc23bb07944b369ad100e62d617c41ee38",
+    "source-recovery-development_validation.json": "3cf664314b2ccf8f8b08020bf93cba16af31e5621966d767256cd0d0339add19",
+    "training_cpu.json": "27d48a8c42290df72fdeb8f657cb3bc618368d5d7c964544bf0dd335d5f791d3",
+    "training_execution_policy.json": "0f049e0de319b3c2b2a78eee82f8c47c952ea0131c911ce6ad2b0f2b26af0484",
+    "explain/complete.json": "afa48cd501988815a9d1717526706789690b837ba794b1fef00e7291924aebaf",
+    "explain/dependence_month_cos.png": "24a99f01bfae2ff5c75d3d2c6337df26c7d6787940ab9ced8a9550138399c665",
+    "explain/dependence_population_density.png": "f47d9ad44900daf7b2fcd8abbfd98a84a9d8d25dad471e0d670f60b2bc7f72c9",
+    "explain/dependence_temperature_14d.png": "0018a933a26d7d3ed5d8f8e60110092762a5098d72416881572584e393d553c5",
+    "explain/global.csv": "cc5c23fb98fefbc709c90836d78430a296f6d4260b7942ae472017fe8018e897",
+    "explain/global.pdf": "a8f1996a27f90229f01d38d16dcf43000a0950314400d56d17e2825adfba53fc",
+    "explain/global.png": "17b62c3b78751dcf4054bd1ae8321883a97653655414592eeb195027ac21b89a",
+    "explain/grouped.csv": "4c8fc127851cc2e64e94031df8cc65205f9f75ed3a9d7a64e717e51fe0d068d5",
+    "explain/local.parquet": "8ce0d73b20b9ada40706a3e364f902825b262241f29108d687f8004bcc025398"
+  }
+}

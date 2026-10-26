@@ -1,0 +1,22 @@
+{
+  "synthetic": false,
+  "outputs": {
+    "daily_burden.csv": "d5941866f8d99f720efa54388bfa6d7d4542135411bf69da359165360c5bb8a9",
+    "events.json": "9286e3cf901a7fe270e9b350c3588cff9dea280ca92ac86e7af812b4907670f0",
+    "independent_adapter_gate.json": "64615e183dc759132d087cc29412e2489b65b1b4a0d004a35ff0bd8d7ff1e125",
+    "independent_evaluation.json": "221b780393786fe4b13dc1cdb243d85a7520abf781c2f8084c1cbc7c428d070d",
+    "independent_event_metrics.json": "5cd6b0a258bc7143309c86286dbe481fbf97fce3db6e4a67101042c0f4e17343",
+    "independent_implementation_frozen_v3.json": "10e2cc89d50269ba8359a3670a313ed3d139323cc00c092d0f37160ced28d219",
+    "independent_label_access.json": "c89620ed0c59f8d6e7644ce2cbbec698638479e56712b6633042cf11a8904ab0",
+    "independent_outage_sensitivity.json": "de85f1787eece440526aebf4f3503283b500ab7fa1a624e270fd54b67f476c96",
+    "independent_outage_sensitivity_plan.json": "799f3477d0309bc8e441c279df905e3091a2e0f1ed3871e387342f34520b3bff",
+    "independent_protocol.json": "680ab35c84625d33bdcc8fbe2001060309f9e2b2799b17e07c1dc99942cd640c",
+    "independent_sampling.csv": "b3cd6519d64952cc9843ed99132fbc7aa140aea12a66e78b38c7ab810fc78a23",
+    "independent_subgroups.csv": "435b8f5d8be040cc2c7da9003036289449bad8ff176f7bf694596fdc6acab037",
+    "index.html": "1683afd295ae112c207700c8f8dfc33d070956240a1786e627f5f07d8c65cc45",
+    "spatial_metrics.csv": "048639c0b43f36aba31eb812877baf1bfdbf50a472cae2eb5c6d0f4cdaa9c2fb",
+    "spatial_plan.json": "7ab2dc2ae8202dbdafcc3764816995f9edc62eb048cf0520b6701b82a4a2dfd2",
+    "subgroups.csv": "ef734466884dcd5a2732b6ac02b50fd31c14a8f675256e51571d1ad7b1376f42",
+    "summary.json": "55e82af87742c1a8fbe211c5df0d67d21681244f8a8765ac72f337dbeabd5f74"
+  }
+}

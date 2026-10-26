@@ -1,0 +1,37 @@
+{
+  "synthetic": false,
+  "selection_max_year": 2022,
+  "frozen_utc": "2026-10-23T10:37:04.561019+00:00",
+  "test_previously_reported": true,
+  "artifacts": {
+    "model.joblib": "5a8b7196a9bf8a40371666ee718ab674dafba79af17a3ed52fe565b63e713643",
+    "calibrator.joblib": "fb25fd9292201ae7d8319aaf8f93a1fa73d026627a501a4a2ede6e86db177a71",
+    "frozen.json": "c3f6bd2082f3ad3f8a9d959185004518035bb0faac9cb6beaa6f2e6dda8e045a",
+    "selection.json": "1c75d7f33c3bb853d6d1815e39f8e2b5563e6a74e6f2a3d3c9a460664acbcd1c",
+    "training.json": "6a6dbf0114052e0c759a9ab82ecaebb994a80e2af1e889676db391d0aa0340b4",
+    "plan.json": "f829d9a91f184f3d00f82df5ba6f463a26a32668c429e6a42ad434b43cc313cf",
+    "comparison.csv": "add1d996bcbe1fe039e5eb11a597fcf0ff69d0d171217e8318fffe46003bd9b3",
+    "joint_comparison.csv": "d9ddd1f34edac3a105b2f1badab0c985163aa0bb0a3325b6c4ea5fa0cebe7880"
+  },
+  "feature_code_sha256": "19f8c73129ab432b0d2bc7470139584ceee8d0b6b073b64bd19e5a67ee2f239a",
+  "model_code_sha256": "21d84297c7dc74311a68c6a2e2c836fc45a306055fb139e864f3f450317c1e33",
+  "runner_code_sha256": "50e73a50345abb2a4cac03c805c62d4201daa79c2b078cbbd99eda896e5270fe",
+  "feature_table_hashes": {
+    "2015_train.parquet": "4db1021390cfc86db8881d1711fc0924e6e3726b0a58159a81a312500b42633f",
+    "2016_train.parquet": "9b3886f29b1199f287eb4e4a794e21aa1ec63f2851fecacbddd588c59deb9659",
+    "2017_train.parquet": "352425b42475160022060e4b7a8d057a8201da0da5510b4c200616230f4d5ce8",
+    "2018_train.parquet": "b37dc08b85e7f13e70bc19a7418ea0f5f84e889233e0bca95e0899737609a3af",
+    "2019_evaluation.parquet": "ffa7d407c31e172f037b1ab0091f23123b2f6f34fdfc45f1e729c0729ccb66ef",
+    "2019_train.parquet": "62bb8142e7a5a5ccdbc4420a152612d4216f68215acbb734b27d793b7e0e025a",
+    "2020_evaluation.parquet": "db9ab2bd64114e3e696e439cb7f9325f81ff94e9f9598aa2a60814bedeb1f715",
+    "2020_train.parquet": "979a63cc1c9370d178d42332e48bdc362ced0e06231f16b269ab3509b33434ff",
+    "2021_evaluation.parquet": "4990ad5afe20bb004f0cef1e104cc8c361da6410fb68f108d3f3c03a9878d987",
+    "2021_train.parquet": "95068664350f1c6856b595b00dd17e52d869f617e765c6d3e34bfe0ddc2ea93a",
+    "2022_evaluation.parquet": "1df58863334749f1a0fe6c8a41cbb17b589cbf89ede2692cef2494b6e7e32fac"
+  },
+  "oof_hashes": {
+    "xgboost_2019.parquet": "d6db52817a8b8c924e67bf3851b1a4af078dd8f6438a4aa1c6c80bfc65536348",
+    "xgboost_2020.parquet": "60f6eb7b54105c6c50ce105a6105b2d5d76268436f167d40be97c341311e328e",
+    "xgboost_2021.parquet": "a4f69be83148666a5f05c6f158db3ac550c1548f88a5f36c899b2923042c48e7"
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "created_utc": "2026-10-25T16:44:13.372950+00:00",
+  "labels_accessed": false,
+  "previous_version_sha256": "7b1629c01b7a9f68be7a36243007ffc1963ece3e7b1f23795d96abc4ddc32d86",
+  "code_sha256": {
+    "src/wildfire_kz/independent.py": "33feed5f81293aae5bd800082467ec41bb8203864e67d173f0b116d7a30e757a",
+    "scripts/evaluate_independent_2025.py": "14bc7437785582da4921e615bf8927968428690b3da69ca06d13ff4c0254ed5b",
+    "src/wildfire_kz/data/http_range.py": "0e5712c4717297da8381054f49ea022a888c6893a52cdc318c5971efff447da0",
+    "scripts/acquire_ndvi_2025_direct.py": "9a864e7420161d24216511fcb089cc93c63de0e220cfaf40291cbb8a14ef4437"
+  },
+  "change": "Preserve frozen distinction: raw all-confidence fire history versus nominal/high event labels; no model or tuning changes"
+}

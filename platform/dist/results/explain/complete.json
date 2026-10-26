@@ -1,0 +1,25 @@
+{
+  "synthetic": false,
+  "release_sha256": "0b5ccd072c5f17df17144cde70fc71e46a52cfe8af628387cba66183b80b087a",
+  "model": "xgboost",
+  "method": "TreeSHAP",
+  "approximate_shapley_values": false,
+  "background": null,
+  "unit": "uncalibrated log-odds",
+  "calibration_inside_explanation": false,
+  "additivity_verified": true,
+  "global_uniform_sample_rows": 400,
+  "total_explained_rows": 498,
+  "global_sampling": "uniform sample of final probability-sampled rows, original design weights retained",
+  "interpretation": "predictive association, not causal; no spatial generalisation claim",
+  "outputs": {
+    "dependence_month_cos.png": "24a99f01bfae2ff5c75d3d2c6337df26c7d6787940ab9ced8a9550138399c665",
+    "dependence_population_density.png": "f47d9ad44900daf7b2fcd8abbfd98a84a9d8d25dad471e0d670f60b2bc7f72c9",
+    "dependence_temperature_14d.png": "0018a933a26d7d3ed5d8f8e60110092762a5098d72416881572584e393d553c5",
+    "global.csv": "cc5c23fb98fefbc709c90836d78430a296f6d4260b7942ae472017fe8018e897",
+    "global.pdf": "a8f1996a27f90229f01d38d16dcf43000a0950314400d56d17e2825adfba53fc",
+    "global.png": "17b62c3b78751dcf4054bd1ae8321883a97653655414592eeb195027ac21b89a",
+    "grouped.csv": "4c8fc127851cc2e64e94031df8cc65205f9f75ed3a9d7a64e717e51fe0d068d5",
+    "local.parquet": "8ce0d73b20b9ada40706a3e364f902825b262241f29108d687f8004bcc025398"
+  }
+}

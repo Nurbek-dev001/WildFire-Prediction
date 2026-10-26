@@ -1,0 +1,15 @@
+{
+  "pid": 19552,
+  "created_utc": "2026-10-22T10:17:38.980051+00:00",
+  "exit_utc": "2026-10-22T13:28:28.404352+00:00",
+  "observer_attached_utc": "2026-10-22T10:18:35.784495+00:00",
+  "recorded_utc": "2026-10-22T13:28:28.634378+00:00",
+  "observer_code_sha256": "a97a3041db86de300ded48ee9e36017b0b311401274437fae03bf35adc062a38",
+  "measurement": "Windows GetProcessTimes; lifetime sum over all process threads",
+  "user_cpu_seconds": 13677.28125,
+  "kernel_cpu_seconds": 624.6875,
+  "total_cpu_seconds": 14301.96875,
+  "process_exited": true,
+  "training_complete": true,
+  "models_sha256": "31728c7fccf7d2af3098691373e38350972f975ac9b9d780c2c9398333c6aea7"
+}

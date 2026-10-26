@@ -1,0 +1,16 @@
+{
+  "synthetic": false,
+  "year": 2025,
+  "release_sha256": "eee99c1a8db0012ca27e43d3216f1494cd38405fe3f40d26cead1b5370319523",
+  "protocol_sha256": "680ab35c84625d33bdcc8fbe2001060309f9e2b2799b17e07c1dc99942cd640c",
+  "events": 12416,
+  "covered_first_day_events": 11542,
+  "uncovered_first_day_events": 874,
+  "same_day_event_recall_all": 0.04099548969072165,
+  "same_day_event_recall_covered": 0.04409980939178652,
+  "prior_day_event_recall_all": 0.03350515463917526,
+  "day_or_prior_event_recall_all": 0.0469555412371134,
+  "uncertainty": "Not estimated for event diagnostics",
+  "interpretation": "Same-cell matching to first satellite event; retrospective features; not verified ignition or actual warning lead time",
+  "model_or_threshold_changed": false
+}

@@ -10,6 +10,7 @@ const read=name=>readFileSync(path.join(dist,name));
 const json=name=>JSON.parse(read(name));
 const digest=bytes=>createHash('sha256').update(bytes).digest('hex');
 const manifest=json('assets/forecast-manifest.json');
+if(manifest.upgrade){await import('./verify-upgraded-assets.mjs');process.exit(0)}
 const verification=json('assets/export-verification.json');
 const evaluation=json('assets/model-evaluation.json');
 assert.equal(manifest.ready,true);
@@ -71,5 +72,27 @@ const report=json('results/complete.json');
 assert.equal(report.release_sha256,manifest.release_sha256);
 for(const [name,hash] of Object.entries(report.outputs))
   assert.equal(digest(read(`results/${name}`)),hash,`Report: ${name}`);
+if(manifest.operating_policy){
+  const ref=manifest.operating_policy;
+  assert.equal(digest(read('alerts/policy.json')),ref.policy_sha256);
+  assert.equal(digest(read('alerts/evaluation.json')),ref.evaluation_sha256);
+  const policy=json('alerts/policy.json'),result=json('alerts/evaluation.json');
+  assert.equal(policy.selection_max_year,2022);
+  assert.equal(policy.test_used_to_select_threshold,false);
+  assert.equal(policy.test_previously_reported,true);
+  assert.equal(policy.model_retrained,false);
+  assert.equal(policy.probabilities_changed,false);
+  assert.equal(policy.model_release_sha256,manifest.release_sha256);
+  assert.equal(policy.default_profile,'balanced');
+  assert.equal(result.policy_sha256,ref.policy_sha256);
+  assert.equal(result.policy_fixed_before_reassessment,true);
+  assert.equal(result.evaluation_previously_reported,true);
+  assert.equal(policy.profiles.precision.threshold,manifest.threshold);
+  for(const [key,profile] of Object.entries(policy.profiles))
+    assert.equal(profile.threshold,result.metrics[key].threshold);
+  const alerts=json('alerts/complete.json');
+  for(const [name,hash] of Object.entries(alerts.outputs))
+    assert.equal(digest(read(`alerts/${name}`)),hash,`Alert report: ${name}`);
+}
 console.log(JSON.stringify({verified_dates:days.length,grid_cells:verification.grid_cells,
   payload_bytes:totalBytes,missing_days:missingDays,release_sha256:manifest.release_sha256}));

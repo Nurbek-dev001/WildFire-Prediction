@@ -1,0 +1,39 @@
+{
+  "target_day": "2026-10-25",
+  "checked_utc": "2026-10-25T16:41:21.581328+00:00",
+  "synthetic": false,
+  "status": "unavailable",
+  "forecast_available": false,
+  "operationally_validated": false,
+  "model_release_sha256": "eee99c1a8db0012ca27e43d3216f1494cd38405fe3f40d26cead1b5370319523",
+  "nrt_source": "https://firms.modaps.eosdis.nasa.gov/data/active_fire/suomi-npp-viirs-c2/csv/SUOMI_VIIRS_C2_Russia_Asia_7d.csv",
+  "nrt_sha256": "9e09adec6d8afc35d71749fe403197bf2f66550e38187467c97a7e690b249bd9",
+  "nrt_first_observation": "2026-10-18T00:07:00+00:00",
+  "nrt_last_observation": "2026-10-25T12:42:00+00:00",
+  "bbox_observations": 4223,
+  "bbox_is_not_national_boundary_clip": true,
+  "history_required_through": "2026-10-23",
+  "gaps": [
+    {
+      "source": "365-day fire history",
+      "from": "2026-01-01",
+      "to": "2026-10-17",
+      "reason": "No verified daily country archive; recent NRT feed alone is insufficient"
+    },
+    {
+      "source": "meteorology",
+      "reason": "Current-year verified ERA5 arrays not acquired"
+    },
+    {
+      "source": "landcover",
+      "reason": "Prior-year MODIS 2025 not acquired"
+    },
+    {
+      "source": "vegetation",
+      "reason": "No verified NDVI snapshot within the frozen availability and age window"
+    }
+  ],
+  "reason": "Current forecast pipeline is not commissioned; missing inputs are not imputed as zero activity.",
+  "schedule_enabled": false,
+  "nrt_used_as_test_labels": false
+}

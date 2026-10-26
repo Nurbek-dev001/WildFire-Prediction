@@ -1,0 +1,15 @@
+{
+  "synthetic": false,
+  "release_sha256": "0b5ccd072c5f17df17144cde70fc71e46a52cfe8af628387cba66183b80b087a",
+  "model": "xgboost",
+  "days": 731,
+  "grid_cells": 110129,
+  "minimum_finite_cells": 0,
+  "maximum_finite_cells": 110071,
+  "browser_payload_bytes": 258241316,
+  "geotiff_bytes": 404403422,
+  "raster_bands": 2,
+  "checks": "all payload/raster SHA-256, exact float32 round trip, grid/CRS/nodata, frozen classes, calendar completeness",
+  "exact_alert_burden_sha256": "8cb9272459ccb0d65a3caa7e9a227790b42b85b32b497c7858b3888c27012a89",
+  "grid_sha256": "8cf6b070d17053654cc182b5b93d9472118f41041258c908e129b8cfd2182ae6"
+}

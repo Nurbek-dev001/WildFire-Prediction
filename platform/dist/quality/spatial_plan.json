@@ -1,0 +1,13 @@
+{
+  "created_utc": "2026-10-25T16:16:05.055544+00:00",
+  "synthetic": false,
+  "training_max_year": 2021,
+  "calibration_and_evaluation_year": 2022,
+  "folds": 5,
+  "block_m": 100000,
+  "buffer_m": 25000,
+  "selection": "no search; frozen original XGBoost parameters, C=1, blend=0.5",
+  "limitation": "Historical hyperparameters selected globally through 2021; conditional development transfer audit, not fully nested independent spatial test.",
+  "history": "Past-only detections may be observed in held regions, as at deployment; no held-region outcomes enter estimator fitting.",
+  "test_2023_2025_used": false
+}

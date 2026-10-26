@@ -1,0 +1,23 @@
+{
+  "protocol_sha256": "680ab35c84625d33bdcc8fbe2001060309f9e2b2799b17e07c1dc99942cd640c",
+  "adapter_sha256": "33feed5f81293aae5bd800082467ec41bb8203864e67d173f0b116d7a30e757a",
+  "checks": [
+    {
+      "date": "2022-01-16",
+      "rows": 359,
+      "all_columns_exact": true
+    },
+    {
+      "date": "2022-06-16",
+      "rows": 359,
+      "all_columns_exact": true
+    },
+    {
+      "date": "2022-12-16",
+      "rows": 359,
+      "all_columns_exact": true
+    }
+  ],
+  "passed": true,
+  "labels_2025_accessed": false
+}

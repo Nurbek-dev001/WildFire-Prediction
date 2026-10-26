@@ -1,0 +1,13 @@
+{
+  "registered_utc": "2026-10-25T16:45:57.657281+00:00",
+  "labels_accessed": false,
+  "source": "https://landweb.modaps.eosdis.nasa.gov/knownissue?sensor=VIIRS",
+  "source_issue": "TM_NPP_L1B_25315, November 11 2025 SNPP outage; some lost data unrecoverable",
+  "exclude_utc_dates": [
+    "2025-11-11",
+    "2025-11-12"
+  ],
+  "interpretation": "Conservative whole-day secondary sensitivity. Primary all-year detection-target results remain unchanged; missing satellite observations do not establish absence of fire.",
+  "threshold_selection_performed": false,
+  "code_sha256": "e13d5c78bd9793a95304cb160a4225c8e018ad69ff0ba47c345aeb597ff41ac0"
+}

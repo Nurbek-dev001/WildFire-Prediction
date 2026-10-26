@@ -1,0 +1,7 @@
+{
+  "first_access_utc": "2026-10-25T16:48:03.110546+00:00",
+  "url": "https://firms.modaps.eosdis.nasa.gov/data/country/viirs-snpp_2025_Kazakhstan.csv",
+  "raw_sha256": "40898ffdfb4ae4a4e27463748c712d57f60dc9d75e950d0424f82e4ea6518126",
+  "protocol_sha256": "680ab35c84625d33bdcc8fbe2001060309f9e2b2799b17e07c1dc99942cd640c",
+  "adapter_gate_sha256": "64615e183dc759132d087cc29412e2489b65b1b4a0d004a35ff0bd8d7ff1e125"
+}

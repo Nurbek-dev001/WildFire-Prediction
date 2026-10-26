@@ -1,5 +1,33 @@
 # Steppe map platform
 
+## Current trained model revision
+
+The current map uses XGBoost plus a trained chronological logistic stack, with
+32 inputs including six lagged fire-history features. Training ends in 2021;
+selection/calibration end in 2022. On the previously reported 2023–2024 benchmark,
+recall is 7.3421%, precision 7.3608%, AP 0.02392 and ROC-AUC 0.94211. Precision
+is lower than the original model; it was not fully preserved. See
+[`docs/model-upgrade-v3.md`](../docs/model-upgrade-v3.md) and `/upgrade/`.
+
+The float16 transport was declared before final evaluation. All metrics use
+the exact same rounded probabilities as the map. Browser code verifies the
+model release, evaluation, frozen threshold and all probability-file hashes.
+Checks: `node scripts/verify-model-assets.mjs` and
+`node scripts/test-upgraded-model.mjs`.
+
+## Previous alert-policy revision v2
+
+The preceding publication defaulted to the maximum-F2 threshold selected only on 2022. Its selector
+also offers the original F1 threshold and a lower-precision coverage profile
+(selected with recall at least 30% on 2022). See
+[`docs/operating-policy-v2.md`](../docs/operating-policy-v2.md).
+The `/alerts/` report discloses the precision/recall tradeoff and reuse of an
+already reported final benchmark. The model and probability maps are unchanged.
+CSV exports include the active alert, threshold, profile and policy SHA-256.
+
+Validate with `node scripts/test-operating-policy.mjs` and
+`node scripts/verify-model-assets.mjs` before Site packaging.
+
 A Russian-language map application built around the actual Kazakhstan 5 km
 equal-area grid. Buildless HTML, CSS, and JavaScript; no API key, tile service,
 server-side dependency, paid service, or heavyweight frontend build required.

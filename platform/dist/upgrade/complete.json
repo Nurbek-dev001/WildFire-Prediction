@@ -1,0 +1,22 @@
+{
+  "synthetic": false,
+  "release_sha256": "eee99c1a8db0012ca27e43d3216f1494cd38405fe3f40d26cead1b5370319523",
+  "verified_dates": 731,
+  "outputs": {
+    "cluster_intervals.csv": "24fab0f64718f8a6715dac400632ff06cf47c268f246631d6999e982c4f14677",
+    "comparison.csv": "add1d996bcbe1fe039e5eb11a597fcf0ff69d0d171217e8318fffe46003bd9b3",
+    "comparison.png": "011993b09147cfcaa47c06eefd5023ef3ae6687c62d7428290fe83c7e1739be4",
+    "comparison.svg": "70f052090ffa23bc299388319fe26b0212c37bae8ed76c1f85f760f6110ab03a",
+    "comparison_spec.json": "083b328d9647733d3cdc13425e68e55ddc498a10a54481962e048b20bb508c27",
+    "daily_alert_counts.csv": "3a3c2173a4e5b399790ce547e14501cff64d05108fc3e8b497d6c169b3f76350",
+    "evaluation.json": "b6e4cfd419eb12b01b180318a9c35917404a149d7db50490c466c7e42b4f5b0a",
+    "frozen.json": "c3f6bd2082f3ad3f8a9d959185004518035bb0faac9cb6beaa6f2e6dda8e045a",
+    "index.html": "56877ecf404eada76456af2d82b32eff563de9d12fadcaaa15c42e20c7a6637d",
+    "joint_comparison.csv": "d9ddd1f34edac3a105b2f1badab0c985163aa0bb0a3325b6c4ea5fa0cebe7880",
+    "metrics.csv": "39a0120d6da3b55f5455e94253c16edbf55c2afa8bcdf5b9e976ac56118917ea",
+    "plan.json": "f829d9a91f184f3d00f82df5ba6f463a26a32668c429e6a42ad434b43cc313cf",
+    "release.json": "eee99c1a8db0012ca27e43d3216f1494cd38405fe3f40d26cead1b5370319523",
+    "selection.json": "1c75d7f33c3bb853d6d1815e39f8e2b5563e6a74e6f2a3d3c9a460664acbcd1c",
+    "training.json": "6a6dbf0114052e0c759a9ab82ecaebb994a80e2af1e889676db391d0aa0340b4"
+  }
+}

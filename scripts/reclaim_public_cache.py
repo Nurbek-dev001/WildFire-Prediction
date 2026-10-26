@@ -80,9 +80,10 @@ def archive(path: Path) -> int:
 
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument("--include-final", action="store_true")
+parser.add_argument("--through-year", type=int, choices=[2024,2025], help="Include newly acquired predictor caches after frozen-model checks")
 args = parser.parse_args()
 maximum = 2022
-if args.include_final:
+if args.include_final or args.through_year:
     subprocess.run(
         [
             sys.executable,
@@ -94,6 +95,8 @@ if args.include_final:
         check=True,
     )
     maximum = 2024
+    if args.through_year:
+        maximum = args.through_year
 saved, archives, checkpoints = 0, 0, 0
 for path in sorted((PUBLIC / "vegetation/subsets").glob("????-??-??.dods")):
     if int(path.name[:4]) <= maximum and verified(PUBLIC / f"vegetation/{path.stem}.npz"):

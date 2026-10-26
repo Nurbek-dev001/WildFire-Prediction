@@ -1,0 +1,59 @@
+{
+  "synthetic": false,
+  "release_sha256": "eee99c1a8db0012ca27e43d3216f1494cd38405fe3f40d26cead1b5370319523",
+  "interpretation": "Retrospective satellite event audit. No verified ignition time, damage, or prospective operational validity.",
+  "event_definition": "SNPP nominal/high, connected 2 km within 48 hours; first observation per component",
+  "alert_cluster_definition": "8-neighbour grid cells connected on same/adjacent UTC day",
+  "match_rule": "same 5 km cell on first detection day or previous UTC day; fixed threshold, no tuning",
+  "all_events": {
+    "events": 17139,
+    "covered_events": 15950,
+    "uncovered_events": 1189,
+    "same_day_event_recall_all": 0.06966567477682478,
+    "same_day_event_recall_covered": 0.074858934169279,
+    "prior_day_event_recall_all": 0.0557208705292024,
+    "day_or_prior_event_recall_all": 0.07730906120543789
+  },
+  "by_year": {
+    "2023": {
+      "events": 10406,
+      "covered_events": 9703,
+      "uncovered_events": 703,
+      "same_day_event_recall_all": 0.06890255621756679,
+      "same_day_event_recall_covered": 0.07389467175100485,
+      "prior_day_event_recall_all": 0.05371900826446281,
+      "day_or_prior_event_recall_all": 0.07659042859888526
+    },
+    "2024": {
+      "events": 6733,
+      "covered_events": 6247,
+      "uncovered_events": 486,
+      "same_day_event_recall_all": 0.0708450913411555,
+      "same_day_event_recall_covered": 0.07635665119257243,
+      "prior_day_event_recall_all": 0.058814792811525324,
+      "day_or_prior_event_recall_all": 0.07841972374870043
+    }
+  },
+  "cell_day_exact": {
+    "unit": "unique eligible cell-day; exhaustive 731 national maps; no negative subsampling",
+    "rows": 80077108,
+    "positive_cell_days": 15704,
+    "tp": 1153,
+    "fp": 13504,
+    "fn": 14551,
+    "tn": 80047900,
+    "precision": 0.07866548406904551,
+    "recall": 0.07342078451349975,
+    "f1": 0.07595270248015547,
+    "average_precision": 0.021693737624987133,
+    "sampling_weights": false,
+    "uncertainty": "Fixed-period census; generalization uncertainty not estimated by this calculation"
+  },
+  "alert_cell_days": 14657,
+  "alert_components": 939,
+  "matched_alert_components": 543,
+  "alert_component_match_fraction": 0.5782747603833865,
+  "false_alert_components": 396,
+  "ci": "Not estimated for this descriptive event audit; cell-day CIs are in cluster_intervals.csv",
+  "not_spatial_holdout": true
+}
