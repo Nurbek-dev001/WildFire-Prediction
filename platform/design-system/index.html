@@ -121,7 +121,7 @@ a { color: var(--ink); text-underline-offset: 3px; }
 .legend .bins i:last-child { border-radius: 0 2px 2px 0; }
 .legend .ticks { display: grid; grid-template-columns: repeat(7, 1fr); font-size: var(--text-xs); line-height: var(--lh-xs); color: var(--muted); }
 .legend .ticks span { white-space: nowrap; }
-.legend .threshold { position: absolute; top: -4px; bottom: -4px; width: 2px; background: var(--ink); left: calc(400% / 7 - 1px); }
+.legend .threshold { position: absolute; top: -4px; bottom: -4px; width: 2px; background: var(--ink); left: calc(600% / 7 - 1px); }
 .legend .row { display: flex; justify-content: space-between; gap: var(--s3); align-items: center; }
 .legend .missing { display: inline-flex; gap: var(--s2); align-items: center; font-size: var(--text-xs); color: var(--muted); }
 .legend .missing i { width: 14px; height: 10px; background: var(--p-missing); box-shadow: inset 0 0 0 1px var(--line-strong); }
@@ -281,14 +281,14 @@ a { color: var(--ink); text-underline-offset: 3px; }
         <div class="legend" style="box-shadow:none;padding:0;width:auto">
           <div class="row"><b class="t-sm" style="font-weight:600">Вероятность нового очага за сутки</b></div>
           <div class="bins"><i style="background:var(--p1)"></i><i style="background:var(--p2)"></i><i style="background:var(--p3)"></i><i style="background:var(--p4)"></i><i style="background:var(--p5)"></i><i style="background:var(--p6)"></i><i style="background:var(--p7)"></i><span class="threshold" title="Порог тревоги"></span></div>
-          <div class="ticks"><span>0</span><span>0,5</span><span>1</span><span>2</span><span>3,56</span><span>5</span><span>8%+</span></div>
+          <div class="ticks"><span>0</span><span>0,01</span><span>0,03</span><span>0,1</span><span>0,3</span><span>1</span><span>3,56</span></div>
           <div class="row"><span class="t-xs"><b style="font-weight:600">|</b> порог тревоги 3,5645%, выбран на 2022 году</span><span class="missing"><i></i>нет данных</span></div>
         </div>
       </div>
       <div class="card">
         <span class="label">Почему такие границы</span>
-        <p class="t-sm">Порог тревоги совпадает с границей класса, поэтому три тёмных класса — это ровно ячейки с предупреждением. Нижние классы разделяют фон, где сейчас вся карта одного светло-зелёного цвета.</p>
-        <p class="t-xs muted">Границы 0,5 / 1 / 2 / 5 / 8% — черновик. Перед внедрением проверю их по распределению вероятностей в 731 суточной карте: в клоне этих файлов нет.</p>
+        <p class="t-sm">Классы логарифмические: по всем 731 картам медиана вероятности 0,0065%, у 99% ячеек-дней она ниже 0,33%, а порог превышают 0,018%. Линейные границы окрасили бы почти всю страну одним цветом. Верхняя граница — порог тревоги, поэтому самый тёмный класс — ровно ячейки с предупреждением.</p>
+        <p class="t-xs muted">Демо-сценарий — формула со значениями 0,1–12%, у него свои границы 0,5 / 1 / 2 / 3 / 4 / 5%.</p>
       </div>
     </div>
   </section>

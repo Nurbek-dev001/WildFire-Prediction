@@ -65,6 +65,12 @@ does not support fetching the map assets.
   formula uses its own edges ending at its 5% filter.
 - Without the daily payloads (a fresh Git checkout), the map opens the demo
   with an explicit note instead of an error.
+- `reports/` holds the readable report pages (model, previous model, alert
+  thresholds, data quality) in the shared design. Each page reads only release
+  files and checks every one against its `complete.json` (or
+  `assets/model-evaluation.json`) SHA-256 before showing a number. The pages
+  under `upgrade/`, `results/`, `alerts/` and `quality/` stay byte-for-byte as
+  published: they are hash-locked release records, linked as archives.
 
 The DEMO layer is a deterministic spatial/seasonal formula for demonstrating
 the product. Its probabilities, 5% filter, and factor indices are illustrative.
