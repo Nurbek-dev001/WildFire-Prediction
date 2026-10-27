@@ -54,6 +54,17 @@ does not support fetching the map assets.
   Its alert threshold comes from 2022 calibration; missing cells remain missing.
 - Inspect actual model comparisons and follow links to the evaluated report,
   calibration figures, paired bootstrap intervals, and source inventory.
+- Switch any layer to 3D. `relief3d.js` draws SRTM elevation for every cell
+  (`assets/elevation.i16`, checked against `elevation.json`) as a WebGL2 block
+  model; cells at or above the alert threshold rise as pillars. It is loaded
+  only when 3D is first opened. Rebuild the elevation file with
+  `.venv\Scripts\python.exe scripts\build_relief_asset.py`.
+- Forecast colours use seven log-spaced classes (0.01, 0.03, 0.1, 0.3, 1% and
+  the alert threshold): across all 731 maps 99% of cell-days are below 0.33%,
+  so linear bins would colour almost the whole country the same. The demo
+  formula uses its own edges ending at its 5% filter.
+- Without the daily payloads (a fresh Git checkout), the map opens the demo
+  with an explicit note instead of an error.
 
 The DEMO layer is a deterministic spatial/seasonal formula for demonstrating
 the product. Its probabilities, 5% filter, and factor indices are illustrative.
