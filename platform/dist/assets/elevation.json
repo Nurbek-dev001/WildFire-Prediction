@@ -1,0 +1,11 @@
+{
+ "source": "SRTM 90 m via data/real/public_predictors/terrain/national.npz",
+ "source_sha256": "2e7a596ca17ac24a487811992d9bd1508370c1d6d8b16532adae5426425117ad",
+ "cells": 110129,
+ "format": "little_endian_int16_metres",
+ "missing": -32768,
+ "missing_cells": 29,
+ "min_m": -134,
+ "max_m": 5860,
+ "sha256": "07421558d9852afe1e5d499862f5fbbe7eb19346aa279a17ae64e8a9fe360ede"
+}
