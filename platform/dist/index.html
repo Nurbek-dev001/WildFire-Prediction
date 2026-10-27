@@ -133,7 +133,23 @@
         <div id="cell-factors"></div>
         <div class="cell-card-foot"><span id="cell-area"></span><span id="cell-elevation"></span><span id="cell-id"></span></div>
         <p class="card-disclaimer" id="card-disclaimer"></p>
+        <button class="btn is-primary card-place" id="open-detail">Посмотреть место на снимке</button>
       </article>
+
+      <div class="detail-bar" id="detail-bar" hidden>
+        <button class="btn" id="close-detail"><svg><use href="#i-left"/></svg>Вся карта</button>
+        <div class="detail-title"><b id="detail-title">—</b><span id="detail-sub"></span></div>
+        <div class="segmented" role="group" aria-label="Источник снимка"><button id="detail-esri" aria-pressed="true">Esri</button><button id="detail-s2" aria-pressed="false">Sentinel-2</button></div>
+      </div>
+      <div class="detail-legend" id="detail-legend" hidden>
+        <span><i class="mk mk-pred"></i>прогноз выше порога</span>
+        <span><i class="mk mk-obs"></i>очаг в этот день</span>
+        <span><i class="mk mk-past"></i>очаги 2023</span>
+        <span><i class="mk mk-past is-2024"></i>очаги 2024</span>
+        <span><i class="mk mk-cell"></i>ячейка 5 км, цвет — прогноз ≥ 0,03%</span>
+        <label class="detail-check"><input type="checkbox" id="detail-past" checked> показывать очаги 2023–2024</label>
+        <span class="detail-note">Ячейки и точки кликабельны. Реальные очаги открыты после оценки модели.</span>
+      </div>
 
       <div class="legend" id="legend">
         <span class="legend-title" id="legend-title">Вероятность нового очага за сутки, %</span>

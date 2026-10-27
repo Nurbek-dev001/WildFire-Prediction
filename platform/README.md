@@ -79,6 +79,17 @@ does not support fetching the map assets.
   release's event audit; these labels were opened only after the model was
   frozen and evaluated, so the comparison is retrospective. Rebuild with
   `.venv\Scripts\python.exe scripts\build_events_asset.py`.
+- "Посмотреть место на снимке" (cell card, or any point in the list) opens a
+  zoomable satellite view of that place: Esri World Imagery by default
+  (about 0.5–1 m; attribution Esri, Maxar, Earthstar Geographics; commercial
+  use needs an ArcGIS account under Esri's terms) or Sentinel-2 cloudless 2016
+  by EOX (10 m, CC BY 4.0). It overlays the 5 km cells coloured by the
+  forecast, the day's alert cells and events, and every observed 2023–2024
+  event nearby; cells open a popup with the date's probability, VIIRS counts
+  for 2015–2022 and the cell's 2023–2024 events. This is the only part of the
+  site that needs a network connection. `detail.js` loads Leaflet and proj4
+  from `vendor/` (versions, licences and SHA-256 in `vendor/README.md`) on
+  first use. Cell squares use the grid CRS, LAEA lat_0 48, lon_0 67, WGS 84.
 - `reports/` holds the readable report pages (model, previous model, alert
   thresholds, data quality) in the shared design. Each page reads only release
   files and checks every one against its `complete.json` (or

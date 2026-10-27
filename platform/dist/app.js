@@ -7,7 +7,7 @@ const nf = new Intl.NumberFormat('ru-RU');
 const df = new Intl.DateTimeFormat('ru-RU', {day:'numeric', month:'long', year:'numeric',timeZone:'UTC'});
 const pf = p => state.mode==='real'&&manifest?.ready?probability(p):(p * 100).toLocaleString('ru-RU', {minimumFractionDigits:1,maximumFractionDigits:1}) + '%';
 const canvas = $('map'), ctx = canvas.getContext('2d');
-const state = {mode:'demo', layer:'forecast', view:'2d', basemap:'satellite', day:'2022-07-15', year:2022, zoom:1, panX:0, panY:0, selected:-1, region:-1, highOnly:false, lines:true, showPredicted:true, showObserved:true};
+const state = {mode:'demo', layer:'forecast', view:'2d', detail:-1, basemap:'satellite', day:'2022-07-15', year:2022, zoom:1, panX:0, panY:0, selected:-1, region:-1, highOnly:false, lines:true, showPredicted:true, showObserved:true};
 let geo, manifest, cells, values, history, boundary, regionPaths, raster, cellByKey, baseScale=1, width=1, height=1, toastTimer, renderFrame, relief, hatch, satellite, events;
 const digest=async buffer=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',buffer)),v=>v.toString(16).padStart(2,'0')).join('');
 // NASA Blue Marble basemap, checked against satellite.json before use; the map works without it.
@@ -117,7 +117,7 @@ function makeRaster(){
   }
   state.regionStats=totals.map((v,i)=>state.layer==='history'?v:sizes[i]?v/sizes[i]:NaN);
   renderLegend(bounds,!hist&&state.mode==='real'&&!state.realValues?null:classCounts);
-  renderRegions();renderPoints();updateCell();scheduleDraw();syncRelief();
+  renderRegions();renderPoints();updateCell();scheduleDraw();syncRelief();if(state.detail>=0)detail?.refresh(detailData());
 }
 function renderPoints(){
   const on=pointsActive();$('points-group').hidden=!on;$('points-legend').hidden=!on;if(!on){relief?.setMarkers([]);return}
@@ -126,10 +126,37 @@ function renderPoints(){
   $('points-summary').title=events?`${nf.format(covered)} очагов в области с прогнозом; совпадение считается в той же ячейке 5 км в тот же день.`:'';
   const label=i=>geo.regions[cells[i].region].label+(/ская$/.test(geo.regions[cells[i].region].label)?' обл.':'');
   const hitCells=new Set(obs.filter(e=>e.hit).map(e=>e.cell));
-  $('points-list').replaceChildren(...pred.slice(0,12).map(i=>{const b=document.createElement('button');b.className='point-item';b.innerHTML=`<i class="mk mk-pred${hitCells.has(i)?' is-hit':''}"></i><span><b>${label(i)}</b><small>${cells[i].lat.toLocaleString('ru-RU',{maximumFractionDigits:2})}° с. ш., ${cells[i].lon.toLocaleString('ru-RU',{maximumFractionDigits:2})}° в. д.${hitCells.has(i)?' · очаг подтвердился':''}</small></span><span class="point-value">${pf(values[i])}</span>`;b.onclick=()=>focusCell(i);return b}));
+  $('points-list').replaceChildren(...pred.slice(0,12).map(i=>{const b=document.createElement('button');b.className='point-item';b.innerHTML=`<i class="mk mk-pred${hitCells.has(i)?' is-hit':''}"></i><span><b>${label(i)}</b><small>${cells[i].lat.toLocaleString('ru-RU',{maximumFractionDigits:2})}° с. ш., ${cells[i].lon.toLocaleString('ru-RU',{maximumFractionDigits:2})}° в. д.${hitCells.has(i)?' · очаг подтвердился':''}</small></span><span class="point-value">${pf(values[i])}</span>`;b.onclick=()=>openDetail(i);b.title='Открыть место на спутниковом снимке';return b}));
   if(pred.length>12){const p=document.createElement('p');p.className='blank-list';p.textContent=`Ещё ${nf.format(pred.length-12)} — на карте`;$('points-list').append(p)}
   relief?.setMarkers(state.showObserved?obs.map(e=>({x:e.x,y:e.y,hit:e.hit})):[]);
 }
+// Satellite detail view: zoomable Esri / Sentinel-2 tiles of one place. Loads on first use.
+let detail=null,detailRequest=null,allEventsCache=null;
+function allEvents(){
+  if(!events||!manifest?.ready)return [];
+  if(!allEventsCache){allEventsCache=[];for(const [d,list] of events)for(const e of list){const date=manifest.available_days[d];allEventsCache.push({...e,date:df.format(new Date(date+'T00:00:00Z')).replace(' г.',''),year:+date.slice(0,4)})}}
+  return allEventsCache;
+}
+function detailData(){
+  const hist=state.layer==='history',real=pointsActive();
+  return {values,layer:state.layer,colors,history,classOf:v=>classOf(v,hist?HISTORY_BOUNDS:forecastBounds()),alertAt:real?riskThreshold():null,alerts:real?predictedCells():[],
+    dayEvents:dayEvents(),allEvents:state.mode==='real'?allEvents():[],format:v=>hist?nf.format(v):pf(v),dayLabel:df.format(new Date(state.day+'T00:00:00Z')).replace(' г.',''),
+    showPast:$('detail-past').checked,showPredicted:state.showPredicted,showObserved:state.showObserved};
+}
+async function openDetail(i){
+  if(!detail){
+    $('loading').hidden=false;$('loading').lastElementChild.textContent='Загружаем детальный снимок…';
+    try{detailRequest=detailRequest||import('./detail.js').then(({createDetail})=>createDetail({host:$('map-shell'),geo,cells,onSelect:selectCell}));detail=await detailRequest}
+    catch(error){detailRequest=null;console.error('Detail view unavailable',error);toast('Детальный снимок недоступен: '+error.message);return}
+    finally{syncLayer()}
+  }
+  state.detail=i;$('map-shell').classList.add('is-detail');$('detail-bar').hidden=false;$('detail-legend').hidden=false;
+  const c=cells[i],label=geo.regions[c.region].label;
+  $('detail-title').textContent=label+(/ская$/.test(label)?' область':'');
+  $('detail-sub').textContent=`${c.lat.toLocaleString('ru-RU',{maximumFractionDigits:3})}° с. ш., ${c.lon.toLocaleString('ru-RU',{maximumFractionDigits:3})}° в. д. · ячейка 5 × 5 км обведена пунктиром`;
+  detail.refresh(detailData());detail.open(i);selectCell(i);
+}
+function closeDetail(){state.detail=-1;detail?.close();$('map-shell').classList.remove('is-detail');$('detail-bar').hidden=true;$('detail-legend').hidden=true;scheduleDraw()}
 function focusCell(i){
   const c=cells[i];
   if(state.view==='3d'){relief.flyTo((c.col+.5)*5,-(c.row+.5)*5)}
@@ -313,7 +340,7 @@ function download(){
 }
 
 $('nav-data').onclick=dataDialog;$('nav-method').onclick=methodDialog;$('nav-map').onclick=e=>{e.preventDefault();if($('info-dialog').open)$('info-dialog').close();reset()};$('view-2d').onclick=()=>setView('2d');$('view-3d').onclick=()=>setView('3d');$('close-dialog').onclick=()=>$('info-dialog').close();$('info-dialog').addEventListener('click',e=>{if(e.target===$('info-dialog')){const r=$('info-dialog').getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)$('info-dialog').close()}});$('holdout-button').onclick=()=>manifest?.ready?showDialog('РЕАЛЬНЫЕ МЕТРИКИ',evaluation(manifest)):showDialog('ЗАКРЫТАЯ ТЕСТОВАЯ ВЫБОРКА','<h2>2023–2024 остаются закрытыми.</h2><p>Архивы скачаны и проверены по контрольным суммам. Наблюдения из этих файлов не прочитаны и не используются на карте, для выбора модели, калибровки или демонстрации.</p><p>Финальная оценка выполняется только после фиксации модели, признаков и порогов. В эту платформу включены исторические наблюдения только за 2015–2022 годы.</p>');
-$('demo-mode').onclick=()=>setMode('demo');$('real-mode').onclick=()=>setMode('real');$('return-demo').onclick=()=>setMode('demo');$('forecast-layer').onclick=()=>setLayer('forecast');$('history-layer').onclick=()=>setLayer('history');$('history-year').onchange=e=>{state.year=Number(e.target.value);syncLayer();makeRaster()};$('region-search').oninput=renderRegions;$('basemap-satellite').onclick=()=>{state.basemap='satellite';syncBasemap()};$('basemap-scheme').onclick=()=>{state.basemap='scheme';syncBasemap()};$('show-predicted').onchange=e=>{state.showPredicted=e.target.checked;syncRelief();scheduleDraw()};$('show-observed').onchange=e=>{state.showObserved=e.target.checked;renderPoints();scheduleDraw()};$('region-lines').onchange=e=>{state.lines=e.target.checked;relief?.setLines(state.lines);scheduleDraw()};$('high-only').onchange=e=>{state.highOnly=e.target.checked;makeRaster()};$('forecast-date').onchange=e=>setDate(e.target.value);$('previous-day').onclick=()=>changeDay(-1);$('next-day').onclick=()=>changeDay(1);$('zoom-in').onclick=()=>state.view==='3d'?relief.zoom(1.4):zoomAt(1.4);$('zoom-out').onclick=()=>state.view==='3d'?relief.zoom(1/1.4):zoomAt(1/1.4);$('reset-map').onclick=reset;$('close-card').onclick=()=>{state.selected=-1;$('cell-card').hidden=true;relief?.setSelected(-1);scheduleDraw()};$('export-button').onclick=download;
+$('demo-mode').onclick=()=>setMode('demo');$('real-mode').onclick=()=>setMode('real');$('return-demo').onclick=()=>setMode('demo');$('forecast-layer').onclick=()=>setLayer('forecast');$('history-layer').onclick=()=>setLayer('history');$('history-year').onchange=e=>{state.year=Number(e.target.value);syncLayer();makeRaster()};$('region-search').oninput=renderRegions;$('open-detail').onclick=()=>state.selected>=0&&openDetail(state.selected);$('close-detail').onclick=closeDetail;$('detail-past').onchange=()=>detail?.refresh(detailData());for(const [id,key] of [['detail-esri','esri'],['detail-s2','s2']])$(id).onclick=()=>{detail?.setSource(key);$('detail-esri').setAttribute('aria-pressed',String(key==='esri'));$('detail-s2').setAttribute('aria-pressed',String(key==='s2'))};$('basemap-satellite').onclick=()=>{state.basemap='satellite';syncBasemap()};$('basemap-scheme').onclick=()=>{state.basemap='scheme';syncBasemap()};$('show-predicted').onchange=e=>{state.showPredicted=e.target.checked;syncRelief();scheduleDraw()};$('show-observed').onchange=e=>{state.showObserved=e.target.checked;renderPoints();scheduleDraw()};$('region-lines').onchange=e=>{state.lines=e.target.checked;relief?.setLines(state.lines);scheduleDraw()};$('high-only').onchange=e=>{state.highOnly=e.target.checked;makeRaster()};$('forecast-date').onchange=e=>setDate(e.target.value);$('previous-day').onclick=()=>changeDay(-1);$('next-day').onclick=()=>changeDay(1);$('zoom-in').onclick=()=>state.view==='3d'?relief.zoom(1.4):zoomAt(1.4);$('zoom-out').onclick=()=>state.view==='3d'?relief.zoom(1/1.4):zoomAt(1/1.4);$('reset-map').onclick=reset;$('close-card').onclick=()=>{state.selected=-1;$('cell-card').hidden=true;relief?.setSelected(-1);scheduleDraw()};$('export-button').onclick=download;
 $('alert-profile').onchange=e=>{state.alertProfile=e.target.value;syncLayer();makeRaster()};
 $('today-button').onclick=async()=>showDialog('ТЕКУЩИЕ ДАННЫЕ',await readiness());
 $('quality-button').onclick=async()=>showDialog('ПРОВЕРКА КАЧЕСТВА',await quality());
