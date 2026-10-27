@@ -65,6 +65,20 @@ does not support fetching the map assets.
   formula uses its own edges ending at its 5% filter.
 - Without the daily payloads (a fresh Git checkout), the map opens the demo
   with an explicit note instead of an error.
+- The default basemap is a true-colour satellite image: NASA Blue Marble Next
+  Generation (cloud-free composite, public domain) from NASA GIBS, resampled to
+  the 1 km equal-area grid in `assets/satellite.jpg` and checked against
+  `satellite.json`. It also textures the 3D relief. Rebuild with
+  `.venv\Scripts\python.exe scripts\build_satellite_asset.py`; raw tiles and
+  their SHA-256 records stay in `data/real/public_predictors/satellite/raw/`.
+  Over the image, cells below 0.03% are transparent.
+- For a model date the map marks possible ignition points: cells at or above
+  the alert threshold (rings, and a list sorted by probability) and the
+  observed new-fire events of that day (diamonds; yellow when the same cell
+  had an alert). `assets/events-2023-2024.bin` holds the 17,139 events of the
+  release's event audit; these labels were opened only after the model was
+  frozen and evaluated, so the comparison is retrospective. Rebuild with
+  `.venv\Scripts\python.exe scripts\build_events_asset.py`.
 - `reports/` holds the readable report pages (model, previous model, alert
   thresholds, data quality) in the shared design. Each page reads only release
   files and checks every one against its `complete.json` (or

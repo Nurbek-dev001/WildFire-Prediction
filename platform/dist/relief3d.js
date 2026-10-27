@@ -55,7 +55,7 @@ void main() {
 const TERRAIN_FS = `
 in vec3 v_normal; in float v_elev; in float v_val; in float v_side; in vec2 v_xz; in float v_depth;
 uniform vec3 u_ramp[7]; uniform float u_bounds[6]; uniform float u_k0; uniform vec3 u_sun; uniform vec3 u_fog;
-uniform float u_fogNear; uniform float u_fogFar; uniform float u_dim; uniform int u_region; uniform float u_regionId;
+uniform float u_fogNear; uniform float u_fogFar; uniform sampler2D u_sat; uniform float u_useSat; uniform vec4 u_satExt;
 out vec4 color;
 vec3 tint(float e) {
   vec3 c = mix(vec3(0.80, 0.77, 0.63), vec3(0.85, 0.82, 0.66), smoothstep(-40.0, 150.0, e));
@@ -72,6 +72,11 @@ void main() {
     return;
   }
   vec3 base = tint(v_elev);
+  if (u_useSat > 0.5) {
+    // Satellite colour, lifted slightly because relief shading darkens it again below.
+    vec2 uv = vec2((v_xz.x - u_satExt.x) / u_satExt.z, (v_xz.y - u_satExt.y) / u_satExt.w);
+    base = min(texture(u_sat, uv).rgb * 1.18 + 0.03, 1.0);
+  }
   vec3 c = base;
   if (v_val > -1.5 && v_val < -0.5) {
     float stripe = step(0.5, fract((v_xz.x + v_xz.y) * 0.12));
@@ -80,6 +85,7 @@ void main() {
     int k = 0;
     for (int i = 0; i < 6; i++) if (v_val >= u_bounds[i]) k = i + 1;
     float w = k == 0 ? u_k0 : (k == 1 ? 0.55 : (k == 2 ? 0.7 : (k == 3 ? 0.8 : (k == 4 ? 0.88 : (k == 5 ? 0.94 : 1.0)))));
+    if (u_useSat > 0.5 && u_k0 < 0.3) w = k <= 1 ? 0.0 : w * 0.9;
     c = mix(base, u_ramp[k], w);
   }
   float diffuse = max(dot(normalize(v_normal), u_sun), 0.0);
@@ -109,6 +115,24 @@ void main() {
   vec4 clip = u_mvp * vec4(a_inst.x, a_inst.z * u_exag / 1000.0 + a_inst.w * u_grow, a_inst.y, 1.0);
   gl_Position = clip;
   gl_PointSize = clamp(u_size * u_pulse / clip.w, 6.0, 90.0);
+}`;
+// Observed events: a diamond marker standing on the relief; yellow when the cell had an alert.
+const MARK_VS = `
+in vec4 a_m; uniform mat4 u_mvp; uniform float u_exag; uniform float u_size;
+out float v_hit;
+void main() {
+  gl_Position = u_mvp * vec4(a_m.x, a_m.y * u_exag / 1000.0 + 3.0, a_m.z, 1.0);
+  gl_PointSize = u_size;
+  v_hit = a_m.w;
+}`;
+const MARK_FS = `
+in float v_hit; out vec4 color;
+void main() {
+  vec2 p = abs(gl_PointCoord - 0.5) * 2.0;
+  float d = p.x + p.y;
+  if (d > 1.0) discard;
+  vec3 fill = v_hit > 0.5 ? vec3(1.0, 0.82, 0.4) : vec3(1.0, 0.996, 0.98);
+  color = vec4(d > 0.68 ? vec3(0.1, 0.24, 0.21) : fill, 1.0);
 }`;
 const GLOW_FS = `
 out vec4 color;
@@ -256,7 +280,13 @@ export async function createRelief({ host, geo, cells, onPick }) {
   gl.bindBuffer(gl.ARRAY_BUFFER, pillars.inst);
   const gi = gl.getAttribLocation(glow.p, 'a_inst');
   gl.enableVertexAttribArray(gi); gl.vertexAttribPointer(gi, 4, gl.FLOAT, false, 0, 0); gl.vertexAttribDivisor(gi, 1);
+  const marks = program(MARK_VS, MARK_FS);
+  marks.vao = gl.createVertexArray(); gl.bindVertexArray(marks.vao);
+  marks.buf = buffer(new Float32Array(4), gl.getAttribLocation(marks.p, 'a_m'), 4, { usage: gl.DYNAMIC_DRAW });
+  marks.n = 0;
   gl.bindVertexArray(null);
+  const satTexture = gl.createTexture();
+  let satExt = [0, 0, 1, 1], hasSat = false;
 
   const cityEls = geo.cities.map((c) => {
     const e = document.createElement('span');
@@ -371,6 +401,11 @@ export async function createRelief({ host, geo, cells, onPick }) {
     gl.uniform3fv(terrain.u.u_fog, [0.91, 0.93, 0.89]);
     gl.uniform1f(terrain.u.u_fogNear, state.dist * 0.9);
     gl.uniform1f(terrain.u.u_fogFar, state.dist * 2.2);
+    gl.uniform1f(terrain.u.u_useSat, state.useSat && hasSat ? 1 : 0);
+    gl.uniform4fv(terrain.u.u_satExt, satExt);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, satTexture);
+    gl.uniform1i(terrain.u.u_sat, 0);
     gl.bindVertexArray(terrain.vao);
     gl.drawElements(gl.TRIANGLES, indexCount, gl.UNSIGNED_INT, 0);
 
@@ -409,6 +444,15 @@ export async function createRelief({ host, geo, cells, onPick }) {
       gl.bindVertexArray(glow.vao);
       gl.drawArraysInstanced(gl.POINTS, 0, 1, pillars.n);
       gl.depthMask(true);
+    }
+    if (marks.n) {
+      gl.disable(gl.BLEND);
+      gl.useProgram(marks.p);
+      gl.uniformMatrix4fv(marks.u.u_mvp, false, mvp);
+      gl.uniform1f(marks.u.u_exag, EXAG);
+      gl.uniform1f(marks.u.u_size, 13 * dpr);
+      gl.bindVertexArray(marks.vao);
+      gl.drawArrays(gl.POINTS, 0, marks.n);
     }
     gl.bindVertexArray(null);
 
@@ -449,6 +493,27 @@ export async function createRelief({ host, geo, cells, onPick }) {
       state.k0 = k0;
     },
     setSelected(i) { state.selected = i; },
+    // extent: {x0, x1, y0, y1} in map km, y south positive, as satellite.json records it.
+    setSatellite(image, extent) {
+      gl.bindTexture(gl.TEXTURE_2D, satTexture);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, image);
+      gl.generateMipmap(gl.TEXTURE_2D);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      satExt = [extent.x0, extent.y0, extent.x1 - extent.x0, extent.y1 - extent.y0];
+      hasSat = true;
+    },
+    setBasemap(useSatellite) { state.useSat = useSatellite; },
+    // points: [{x, y, hit}] in map km; drawn on the relief surface.
+    setMarkers(points) {
+      const data = new Float32Array(Math.max(4, points.length * 4));
+      points.forEach((p, i) => { data.set([p.x, heightAt(p.x, p.y), p.y, p.hit ? 1 : 0], i * 4); });
+      gl.bindBuffer(gl.ARRAY_BUFFER, marks.buf);
+      gl.bufferData(gl.ARRAY_BUFFER, data, gl.DYNAMIC_DRAW);
+      marks.n = points.length;
+    },
+    flyTo(x, z) { state.fit = false; state.target = [x, 0, z]; goal.dist = 900; },
     setLines(on) { state.lines = on; },
     zoom(factor) { state.fit = false; goal.dist = Math.min(9000, Math.max(250, goal.dist / factor)); },
     reset() { state.fit = true; goal.yaw = 0; goal.pitch = 0.82; state.target = [...home]; },

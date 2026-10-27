@@ -64,6 +64,7 @@
 
       <section class="group" aria-labelledby="layers-heading">
         <h2 class="label" id="layers-heading">Слой</h2>
+        <div class="basemap-row"><span>Подложка</span><div class="segmented" role="group" aria-label="Подложка карты"><button id="basemap-satellite" aria-pressed="true">Спутник</button><button id="basemap-scheme" aria-pressed="false">Схема</button></div></div>
         <button class="layer-option" id="forecast-layer" aria-pressed="true"><span class="layer-symbol heat-symbol"></span><span><strong>Новый очаг за сутки</strong><small>Первое спутниковое обнаружение</small></span><span class="radio-dot"></span></button>
         <button class="layer-option" id="history-layer" aria-pressed="false"><span class="layer-symbol fire-symbol"></span><span><strong>Наблюдения VIIRS</strong><small>Реальные детекции · 2015–2022</small></span><span class="radio-dot"></span></button>
         <div class="history-options" id="history-options" hidden><label for="history-year">Год наблюдений</label><select id="history-year"><option>2022</option><option>2021</option><option>2020</option><option>2019</option><option>2018</option><option>2017</option><option>2016</option><option>2015</option></select></div>
@@ -76,6 +77,15 @@
         </div>
         <label class="toggle-row" id="high-only-row"><span id="threshold-label">Только предупреждения</span><input id="high-only" type="checkbox"><span class="toggle"></span></label>
         <label class="toggle-row"><span>Границы областей</span><input id="region-lines" type="checkbox" checked><span class="toggle"></span></label>
+      </section>
+
+      <section class="group" id="points-group" aria-labelledby="points-heading" hidden>
+        <h2 class="label" id="points-heading">Точки возгорания на эту дату</h2>
+        <p class="points-summary" id="points-summary"></p>
+        <label class="toggle-row"><span><i class="mk mk-pred"></i>Прогноз выше порога</span><input id="show-predicted" type="checkbox" checked><span class="toggle"></span></label>
+        <label class="toggle-row"><span><i class="mk mk-obs"></i>Реальные новые очаги VIIRS</span><input id="show-observed" type="checkbox" checked><span class="toggle"></span></label>
+        <div class="points-list" id="points-list"></div>
+        <p class="points-note">Реальные очаги — первое обнаружение каждого нового события спутником S-NPP VIIRS. Эти метки открыты после фиксации и оценки модели, поэтому сравнение ретроспективное. Совпадение — очаг в той же ячейке 5 км в тот же день.</p>
       </section>
 
       <section class="group" aria-labelledby="regions-heading">
@@ -130,13 +140,14 @@
         <div class="legend-ramp" id="legend-ramp"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><span class="threshold" id="legend-threshold" title="Порог тревоги"></span></div>
         <div class="legend-ticks" id="legend-ticks"></div>
         <div class="legend-counts" id="legend-counts"></div>
+        <div class="points-legend" id="points-legend" hidden><span><i class="mk mk-pred"></i>прогноз выше порога</span><span><i class="mk mk-obs"></i>реальный новый очаг</span><span><i class="mk mk-obs is-hit"></i>совпадение</span></div>
         <p class="legend-note" id="legend-note"></p>
       </div>
 
       <div class="map-foot">
         <div class="map-scale" id="map-scale"><span id="scale-label">200 км</span><i></i></div>
         <div class="map-hint" id="map-hint">Нажмите на карту, чтобы изучить ячейку</div>
-        <div class="attribution"><a href="https://www.geoboundaries.org/" target="_blank" rel="noopener">geoBoundaries / OSM · ODbL</a><span>Границы областей: 2017</span><span id="relief-credit" hidden>Рельеф SRTM</span></div>
+        <div class="attribution"><a href="https://www.geoboundaries.org/" target="_blank" rel="noopener">geoBoundaries / OSM · ODbL</a><span>Границы областей: 2017</span><span id="relief-credit" hidden>Рельеф SRTM</span><span id="satellite-credit" hidden>Снимок: NASA Blue Marble · GIBS</span></div>
       </div>
       <div class="toast" id="toast" role="status" hidden></div>
     </section>

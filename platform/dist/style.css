@@ -97,6 +97,24 @@ select:disabled { opacity: 1; color: var(--ink); }
 .region-circle { width: 8px; height: 8px; border-radius: 50%; background: var(--p4); }
 .region-value { color: var(--muted); }
 .blank-list { color: var(--muted); padding: var(--s3) 0; }
+.basemap-row { display: grid; grid-template-columns: auto 1fr; gap: var(--s3); align-items: center; margin-bottom: var(--s1); }
+.basemap-row > span { color: var(--ink-soft); }
+.mk { display: inline-block; width: 14px; height: 14px; margin-right: var(--s2); vertical-align: -2px; flex: none; }
+.mk-pred { border-radius: 50%; border: 2.5px solid var(--p7); background: radial-gradient(circle, var(--p7) 0 2.5px, var(--surface) 3px); box-shadow: 0 0 0 1.5px var(--surface); }
+.mk-obs { width: 11px; height: 11px; margin: 0 10px 0 2px; transform: rotate(45deg); background: var(--surface); border: 1.6px solid var(--ink); }
+.mk-obs.is-hit { background: #ffd166; }
+.mk-pred.is-hit { box-shadow: 0 0 0 1.5px var(--surface), 0 0 0 4px #ffd166; }
+.points-summary { display: grid; gap: 2px; padding: var(--s3); border-radius: var(--r-md); background: var(--surface-sunken); }
+.points-summary b { font-weight: var(--w-bold); }
+.points-list { display: grid; }
+.point-item { display: grid; grid-template-columns: 24px 1fr auto; gap: var(--s2); align-items: center; padding: 7px var(--s2); border-bottom: 1px solid var(--line); text-align: left; }
+.point-item:hover { background: var(--surface-sunken); }
+.point-item b { display: block; font-weight: var(--w-medium); }
+.point-item small { display: block; font-size: var(--text-xs); line-height: var(--lh-xs); color: var(--muted); }
+.point-value { font-weight: var(--w-bold); color: var(--accent); }
+.points-note { font-size: var(--text-xs); line-height: var(--lh-xs); color: var(--muted); }
+.points-legend { display: flex; flex-wrap: wrap; gap: var(--s1) var(--s3); font-size: var(--text-xs); line-height: var(--lh-xs); color: var(--ink-soft); }
+.points-legend span { display: inline-flex; align-items: center; }
 .report-buttons { display: flex; flex-wrap: wrap; gap: var(--s2); }
 .report-buttons button { height: 32px; padding: 0 var(--s3); border-radius: var(--r-pill); border: 1px solid var(--line-strong); font-weight: var(--w-medium); font-size: var(--text-xs); }
 .report-buttons button:hover { background: var(--surface-sunken); }
