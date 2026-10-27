@@ -1,0 +1,75 @@
+/* Steppe design tokens. Proposal: the map app and every report page read these. */
+:root {
+  /* Surfaces */
+  --canvas: #f6f7f1;
+  --surface: #fffefa;
+  --surface-sunken: #eef0e6;
+  --line: #e2e6dc;
+  --line-strong: #c9d0c2;
+
+  /* Text */
+  --ink: #193d35;
+  --ink-soft: #315449;
+  --muted: #5f6b63;
+  --on-ink: #f2f5ef;
+  --on-ink-muted: #b1c6bb;
+
+  /* Status. Each pair is text colour + tint, AA on its tint. */
+  --accent: #a84a1c;
+  --accent-soft: #f6e3d3;
+  --demo: #835020;
+  --demo-soft: #f5ead6;
+  --verified: #2f6b4f;
+  --verified-soft: #e3eee5;
+  --danger: #a8342a;
+  --danger-soft: #f6e1dc;
+  --focus: #a84a1c;
+
+  /* Probability ramp: 7 classes, OKLab lightness strictly decreasing */
+  --p1: #f3eccb;
+  --p2: #eed69a;
+  --p3: #e8b86a;
+  --p4: #dc9445;
+  --p5: #c96f2e;
+  --p6: #a84f25;
+  --p7: #7e3520;
+  --p-missing: repeating-linear-gradient(135deg, #d9ddd2 0 2px, transparent 2px 6px);
+
+  /* Type: one family, five sizes, three weights */
+  --font: 'Golos Text', system-ui, 'Segoe UI', sans-serif;
+  --text-xs: 12px;
+  --text-sm: 14px;
+  --text-md: 16px;
+  --text-lg: 20px;
+  --text-xl: 32px;
+  --lh-xs: 16px;
+  --lh-sm: 20px;
+  --lh-md: 24px;
+  --lh-lg: 28px;
+  --lh-xl: 36px;
+  --w-regular: 400;
+  --w-medium: 500;
+  --w-bold: 600;
+
+  /* Space: 4px base */
+  --s1: 4px;
+  --s2: 8px;
+  --s3: 12px;
+  --s4: 16px;
+  --s5: 24px;
+  --s6: 32px;
+  --s7: 48px;
+
+  /* Shape */
+  --r-sm: 4px;
+  --r-md: 8px;
+  --r-lg: 12px;
+  --r-pill: 999px;
+  --shadow-1: 0 1px 2px rgb(25 61 53 / 6%), 0 0 0 1px rgb(25 61 53 / 6%);
+  --shadow-2: 0 8px 24px rgb(25 61 53 / 12%), 0 0 0 1px rgb(25 61 53 / 6%);
+
+  /* Layout */
+  --bar-h: 56px;
+  --panel-w: 328px;
+  --report-w: 880px;
+}
