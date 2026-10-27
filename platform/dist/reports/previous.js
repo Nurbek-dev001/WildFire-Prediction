@@ -1,4 +1,4 @@
-import { $, pct, num, run, loadVerified, table, barChart, reliability, widthOf } from './report.js';
+import { $, pct, num, run, loadVerified, table, barChart, reliability, widthOf } from './report.js?v=20261027-detail';
 
 const MODELS = { logistic: 'Логистическая регрессия', random_forest: 'Случайный лес', xgboost: 'XGBoost', catboost: 'CatBoost', weather_logistic: 'Логистическая, только погода', seasonal: 'Сезонная база' };
 const FEATURES = {

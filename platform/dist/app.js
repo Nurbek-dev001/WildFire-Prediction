@@ -146,7 +146,7 @@ function detailData(){
 async function openDetail(i){
   if(!detail){
     $('loading').hidden=false;$('loading').lastElementChild.textContent='Загружаем детальный снимок…';
-    try{detailRequest=detailRequest||import('./detail.js').then(({createDetail})=>createDetail({host:$('map-shell'),geo,cells,onSelect:selectCell}));detail=await detailRequest}
+    try{detailRequest=detailRequest||import('./detail.js?v=20261027-detail').then(({createDetail})=>createDetail({host:$('map-shell'),geo,cells,onSelect:selectCell}));detail=await detailRequest}
     catch(error){detailRequest=null;console.error('Detail view unavailable',error);toast('Детальный снимок недоступен: '+error.message);return}
     finally{syncLayer()}
   }
@@ -192,7 +192,7 @@ async function setView(view){
     $('view-3d').disabled=true;
     $('loading').hidden=false;$('loading').lastElementChild.textContent='Загружаем рельеф SRTM…';
     try{
-      reliefRequest=reliefRequest||import('./relief3d.js').then(({createRelief})=>createRelief({host:$('map-shell'),geo,cells,onPick:i=>{if(i>=0)selectCell(i);else{state.selected=-1;updateCell();syncRelief()}}}));
+      reliefRequest=reliefRequest||import('./relief3d.js?v=20261027-detail').then(({createRelief})=>createRelief({host:$('map-shell'),geo,cells,onPick:i=>{if(i>=0)selectCell(i);else{state.selected=-1;updateCell();syncRelief()}}}));
       relief=await reliefRequest;
       if(satellite)relief.setSatellite(satellite.img,satellite.extent);
       relief.setBasemap(state.basemap==='satellite'&&!!satellite);renderPoints();

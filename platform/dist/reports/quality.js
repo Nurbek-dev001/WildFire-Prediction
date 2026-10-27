@@ -1,4 +1,4 @@
-import { $, pct, num, run, loadVerified, table, dotPanel, barChart, widthOf, panelWidth } from './report.js';
+import { $, pct, num, run, loadVerified, table, dotPanel, barChart, widthOf, panelWidth } from './report.js?v=20261027-detail';
 
 const MONTHS = ['янв', 'фев', 'мар', 'апр', 'май', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
 const MODEL = { xgboost: 'Исходный XGBoost', xgboost_stack: 'XGBoost + второй уровень' };

@@ -1,4 +1,4 @@
-import { $, pct, num, run, loadVerified, table, dotPanel, panelWidth } from './report.js';
+import { $, pct, num, run, loadVerified, table, dotPanel, panelWidth } from './report.js?v=20261027-detail';
 
 const LABEL = { xgboost_original: 'Исходный XGBoost', xgboost_spatiotemporal: 'XGBoost + второй уровень' };
 
