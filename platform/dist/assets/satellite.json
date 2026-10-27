@@ -1,0 +1,28 @@
+{
+ "source": "NASA Blue Marble Next Generation via NASA GIBS WMS",
+ "layer": "BlueMarble_NextGeneration",
+ "license": "NASA imagery, public domain; acknowledgement to NASA GIBS / ESDIS",
+ "raw_tiles": [
+  "BlueMarble_NextGeneration_42.500_47.000_54.500_56.500.jpg",
+  "BlueMarble_NextGeneration_54.500_47.000_66.500_56.500.jpg",
+  "BlueMarble_NextGeneration_66.500_47.000_78.500_56.500.jpg",
+  "BlueMarble_NextGeneration_78.500_47.000_90.500_56.500.jpg",
+  "BlueMarble_NextGeneration_42.500_37.500_54.500_47.000.jpg",
+  "BlueMarble_NextGeneration_54.500_37.500_66.500_47.000.jpg",
+  "BlueMarble_NextGeneration_66.500_37.500_78.500_47.000.jpg",
+  "BlueMarble_NextGeneration_78.500_37.500_90.500_47.000.jpg"
+ ],
+ "resampling": "bilinear from EPSG:4326 mosaic at 0.008 degrees",
+ "extent_km": {
+  "x0": -1520,
+  "x1": 1480,
+  "y0": -850,
+  "y1": 850,
+  "y_axis": "south positive, as in geography.json"
+ },
+ "pixel_km": 1,
+ "width": 3000,
+ "height": 1700,
+ "sha256": "6f753820b12e6ccc8f762ade45c9b321e587c48b301f7c2cdee220e70b13b3c6",
+ "bytes": 795136
+}

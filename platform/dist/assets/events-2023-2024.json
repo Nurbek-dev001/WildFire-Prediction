@@ -1,0 +1,12 @@
+{
+ "source": "runs/model_stack_v5/audit/events.parquet",
+ "source_sha256": "111c56d0fe65493ef104a8b28e534292eac5798bf1a2e09816882bdbf46f874e",
+ "definition": "First SNPP VIIRS nominal/high detection of each event connected within 2 km and 48 hours",
+ "labels_opened_after_release": true,
+ "release_sha256": "eee99c1a8db0012ca27e43d3216f1494cd38405fe3f40d26cead1b5370319523",
+ "events": 17139,
+ "covered": 15950,
+ "hit_same_day": 1194,
+ "record_bytes": 16,
+ "sha256": "a40f4d99c5a8e09ea7be48a8bd998d9b9d9d45c8361feb7e4aba0379bf1c0019"
+}
