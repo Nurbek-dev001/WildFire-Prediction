@@ -6,3 +6,4 @@ node_modules/
 # Derived ML payloads are packaged for deployment and bound by the tracked
 # forecast manifest, without exceeding the source Git receive size limit.
 /dist/assets/predictions/
+/dist/assets/predictions-v6/

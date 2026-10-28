@@ -56,6 +56,10 @@ svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width:
 .note.is-demo::before { background: var(--demo); }
 .note.is-verified { background: var(--verified-soft); }
 .note.is-verified::before { background: var(--verified); }
+.note.is-caution { background: var(--accent-soft); }
+.note.is-caution::before { background: var(--accent); }
+.model-row { margin-top: calc(-1 * var(--s1)); }
+.caution-note { color: var(--accent) !important; }
 
 .stats { display: grid; border-radius: var(--r-md); box-shadow: var(--shadow-1); background: var(--surface); }
 .stat { display: flex; justify-content: space-between; align-items: baseline; gap: var(--s3); padding: var(--s2) var(--s3); border-bottom: 1px solid var(--line); }
@@ -237,6 +241,7 @@ select:disabled { opacity: 1; color: var(--ink); }
 .detail-note { color: var(--muted); }
 .mk-past { width: 10px; height: 10px; margin: 0 10px 0 2px; border-radius: 50%; background: #f2f5ef; border: 1.4px solid var(--ink); }
 .mk-past.is-2024 { background: #c9e3ff; }
+.mk-past.is-2026 { background: #ffd7a8; }
 .mk-cell { width: 14px; height: 14px; border: 1.5px solid var(--p5); background: rgb(201 111 46 / 30%); }
 .detail-diamond { display: block; width: 12px; height: 12px; margin: 2px; transform: rotate(45deg); background: #fffefa; border: 2px solid #193d35; box-shadow: 0 0 0 2px rgb(255 254 250 / 70%); }
 .detail-diamond.is-hit { background: #ffd166; }

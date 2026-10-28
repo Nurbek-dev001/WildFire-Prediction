@@ -1,13 +1,15 @@
-import {decodeHalf,upgradeMethod,upgradeEvaluation} from './upgrade-results.js?v=20261028-lang';
-import {t,locale} from './i18n.js?v=20261028-lang';
+import {decodeHalf,upgradeMethod,upgradeEvaluation} from './upgrade-results.js?v=20261029-v6';
+import {t,locale} from './i18n.js?v=20261029-v6';
 import {policyComparison} from './operating-policy.js';
+import {isV6,validateV6,v6Method,v6Evaluation} from './model-v6.js?v=20261029-v6';
 const escape = value => String(value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 export const probability = p => Number.isFinite(p) ? (p*100).toLocaleString(locale(),{minimumFractionDigits:2,maximumFractionDigits:4})+'%' : '—';
-export const modelLabel = name => ({xgboost_spatiotemporal:'XGBoost + stacking',logistic:'Logistic regression',random_forest:'Random forest',xgboost:'XGBoost',catboost:'CatBoost',weather_logistic:'Только погода · logistic',seasonal:'Сезонный фон'}[name] || name);
-export function modelInputs(m){return t(m.upgrade?'inputs.upgrade':m.model==='seasonal'?'inputs.seasonal':m.model==='weather_logistic'?'inputs.weather':'inputs.default')}
+export const modelLabel = name => ({xgboost_v6:'XGBoost v6',xgboost_spatiotemporal:'XGBoost + stacking',logistic:'Logistic regression',random_forest:'Random forest',xgboost:'XGBoost',catboost:'CatBoost',weather_logistic:'Только погода · logistic',seasonal:'Сезонный фон'}[name] || name);
+export function modelInputs(m){return t(isV6(m)?'inputs.v6':m.upgrade?'inputs.upgrade':m.model==='seasonal'?'inputs.seasonal':m.model==='weather_logistic'?'inputs.weather':'inputs.default')}
 export function scale(m){const b=m.boundaries||[];return [0,...b,Math.min(1,Math.max(m.threshold||0,(b.at(-1)||.001)*1.5))]}
 export function validateManifest(m){
   if(!m.ready)return;
+  if(isV6(m))return validateV6(m);
   if(m.synthetic!==false||!m.evaluation_released||!Array.isArray(m.available_days)||!m.available_days.length)throw Error('Evaluated forecast dates absent');
   if(!['little_endian_float32_gzip','little_endian_float32_byte_shuffle_gzip','little_endian_float16_byte_shuffle_gzip'].includes(m.format))return;
   if(!Number.isFinite(m.threshold)||m.threshold<0||m.threshold>1||!Array.isArray(m.boundaries)||m.boundaries.length<1||m.boundaries.length>3||m.boundaries.some((p,i,a)=>!Number.isFinite(p)||p<0||p>1||i>0&&p<a[i-1]))throw Error('Frozen thresholds invalid');
@@ -19,7 +21,7 @@ export async function loadForecast(day,m,count){
   if(m.synthetic!==false||!m.evaluation_released)throw Error('Evaluation provenance absent');
   if(['little_endian_float32_gzip','little_endian_float32_byte_shuffle_gzip','little_endian_float16_byte_shuffle_gzip'].includes(m.format)){
     const proof=m.prediction_assets?.[day];if(proof?.synthetic!==false||proof.target_day!==day||proof.count!==count||proof.model!==m.model||proof.release_sha256!==m.release_sha256||proof.format!==m.format)throw Error('Forecast provenance differs');
-    const response=await fetch(`./assets/predictions/${day}.${m.format.includes('float16')?'f16':'f32'}.gz`);if(!response.ok)throw Error('Forecast unavailable');
+    const response=await fetch(`${isV6(m)?m.prediction_path:'./assets/predictions/'}${day}.${m.format.includes('float16')?'f16':'f32'}.gz`);if(!response.ok)throw Error('Forecast unavailable');
     const compressed=await response.arrayBuffer();
     const digest=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',compressed)),v=>v.toString(16).padStart(2,'0')).join('');
     if(digest!==proof.payload_sha256)throw Error('Forecast checksum differs');
@@ -33,9 +35,10 @@ export async function loadForecast(day,m,count){
   if(data.synthetic!==false||data.target_day!==day||data.probabilities.length!==count||!data.probabilities.every(p=>p===null||Number.isFinite(p)&&p>=0&&p<=1))throw Error('Invalid forecast');
   return Float32Array.from(data.probabilities,p=>p===null?NaN:p);
 }
-export function sources(m){return t('src.body',{model:escape(modelLabel(m.model)),inputs:modelInputs(m)})}
-export function methodology(m){if(m.upgrade)return upgradeMethod(m);return `<h2>Прогноз, который можно проверить.</h2><div class="method-step"><b>01</b><div><strong>Реальная сетка 5 × 5 км</strong><p>110 129 ячеек Казахстана. Цель — первое обнаружение события, объединённого в пределах 2 км и 48 часов. Ячейки с детекциями за предыдущие 48 часов исключаются из прогноза нового очага.</p></div></div><div class="method-step"><b>02</b><div><strong>Выбор модели: 2015–2021</strong><p>Сравнивались logistic regression, random forest, XGBoost, CatBoost и два базовых метода. Временная валидация: 2019, 2020, 2021; обучение каждого раза использует более ранние годы.</p></div></div><div class="method-step"><b>03</b><div><strong>Калибровка: только 2022</strong><p>Калибровка и исходный порог ${probability(m.threshold)} зафиксированы до первого открытия теста. Обновлённые режимы предупреждений выбраны отдельно только по 2022 году; модель и вероятности не менялись. Отрицательные примеры имеют веса, восстанавливающие частоту событий в допустимых ячейках.</p></div></div><div class="method-step"><b>04</b><div><strong>Финальный тест: 2023–2024</strong><p>Эти годы открыты после фиксации модели. Их метрики не использовались для выбора победителя. Обученная модель: ${escape(modelLabel(m.model))}.</p></div></div><p>Метеоархив имеет задержку: используются наблюдения не позднее чем за 7 дней до целевой даты; NDVI — с консервативной задержкой и ограничением давности. Пропуски NDVI обрабатывает препроцессор, обученный только на тренировочных данных. Это ретроспективный эксперимент на переобработанных архивах; оперативная пригодность не подтверждена.</p><p><a href="./assets/model-method.txt" target="_blank">Подробная методика ↗</a></p>`}
+export function sources(m){return t('src.body',{model:escape(modelLabel(m.model)),inputs:modelInputs(m),period:isV6(m)?'2023–2024, 2026':'2023–2024'})}
+export function methodology(m){if(isV6(m))return v6Method(m);if(m.upgrade)return upgradeMethod(m);return `<h2>Прогноз, который можно проверить.</h2><div class="method-step"><b>01</b><div><strong>Реальная сетка 5 × 5 км</strong><p>110 129 ячеек Казахстана. Цель — первое обнаружение события, объединённого в пределах 2 км и 48 часов. Ячейки с детекциями за предыдущие 48 часов исключаются из прогноза нового очага.</p></div></div><div class="method-step"><b>02</b><div><strong>Выбор модели: 2015–2021</strong><p>Сравнивались logistic regression, random forest, XGBoost, CatBoost и два базовых метода. Временная валидация: 2019, 2020, 2021; обучение каждого раза использует более ранние годы.</p></div></div><div class="method-step"><b>03</b><div><strong>Калибровка: только 2022</strong><p>Калибровка и исходный порог ${probability(m.threshold)} зафиксированы до первого открытия теста. Обновлённые режимы предупреждений выбраны отдельно только по 2022 году; модель и вероятности не менялись. Отрицательные примеры имеют веса, восстанавливающие частоту событий в допустимых ячейках.</p></div></div><div class="method-step"><b>04</b><div><strong>Финальный тест: 2023–2024</strong><p>Эти годы открыты после фиксации модели. Их метрики не использовались для выбора победителя. Обученная модель: ${escape(modelLabel(m.model))}.</p></div></div><p>Метеоархив имеет задержку: используются наблюдения не позднее чем за 7 дней до целевой даты; NDVI — с консервативной задержкой и ограничением давности. Пропуски NDVI обрабатывает препроцессор, обученный только на тренировочных данных. Это ретроспективный эксперимент на переобработанных архивах; оперативная пригодность не подтверждена.</p><p><a href="./assets/model-method.txt" target="_blank">Подробная методика ↗</a></p>`}
 export function evaluation(m){
+  if(isV6(m))return v6Evaluation(m);
   if(m.upgrade)return upgradeEvaluation(m);
   const metrics=m.test_metrics||{};const number=(v,n=4)=>Number.isFinite(v)?v.toLocaleString('ru-RU',{maximumFractionDigits:n}):'—';
   const rows=Object.entries(metrics).map(([name,s])=>`<tr${name===m.model?' class="chosen-model"':''}><td>${escape(modelLabel(name))}${name===m.model?' · выбрана':''}</td><td>${number(s.average_precision)}</td><td>${number(s.roc_auc)}</td><td>${number(s.brier,6)}</td></tr>`).join('');const s=metrics[m.model]||{};

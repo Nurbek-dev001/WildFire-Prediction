@@ -8,8 +8,8 @@
   <link rel="icon" href="./assets/mark.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600&display=swap">
-  <link rel="stylesheet" href="./tokens.css?v=20261028-lang">
-  <link rel="stylesheet" href="./style.css?v=20261028-lang">
+  <link rel="stylesheet" href="./tokens.css?v=20261029-v6">
+  <link rel="stylesheet" href="./style.css?v=20261029-v6">
 </head>
 <body>
   <svg class="icon-library" aria-hidden="true"><defs>
@@ -30,6 +30,7 @@
     <nav class="nav" data-i18n-attr="aria-label:nav.sections" aria-label="Разделы">
       <a href="./" id="nav-map" aria-current="page" data-i18n="nav.map">Карта</a>
       <a href="./reports/model.html" data-i18n="nav.model">Модель</a>
+      <a href="./reports/stack.html" data-i18n="nav.stack">Модель v5</a>
       <a href="./reports/previous.html" data-i18n="nav.previous">Исходная модель</a>
       <a href="./reports/alerts.html" data-i18n="nav.alerts">Пороги тревоги</a>
       <a href="./reports/quality.html" data-i18n="nav.quality">Качество данных</a>
@@ -55,6 +56,7 @@
           <button id="view-2d" aria-pressed="true">2D</button><button id="view-3d" aria-pressed="false">3D</button>
         </div>
       </div>
+      <div class="basemap-row model-row" id="model-row" hidden><span data-i18n="model.version">Версия модели</span><div class="segmented" role="group" data-i18n-attr="aria-label:model.version" aria-label="Версия модели"><button id="model-v6" aria-pressed="true" data-i18n-attr="title:model.v6" title="v6 · история очагов">v6</button><button id="model-v5" aria-pressed="false" data-i18n-attr="title:model.stack" title="XGBoost + второй уровень">v5</button></div></div>
       <div class="note" id="mode-note"></div>
 
       <div class="stats" aria-live="polite">
@@ -76,6 +78,7 @@
           <p id="alert-profile-help" data-i18n="profile.help">Порог выбран по 2022. Метрики — за 2023–2024, не гарантия для выбранной даты.</p>
           <a href="./reports/alerts.html" data-i18n="profile.compareModes">Сравнить режимы</a>
         </div>
+        <label class="toggle-row" id="heat-row" hidden data-i18n-attr="title:heat.help" title="Ячейки, где VIIRS видел тепло каждый год 2015–2022 не меньше 20 раз: заводы, факелы. Обе модели дают им очень высокие значения."><span data-i18n="heat.hide">Скрыть постоянные тепловые источники</span><input id="hide-heat" type="checkbox" checked><span class="toggle"></span></label>
         <label class="toggle-row" id="high-only-row"><span id="threshold-label">Только предупреждения</span><input id="high-only" type="checkbox"><span class="toggle"></span></label>
         <label class="toggle-row"><span data-i18n="regionLines">Границы областей</span><input id="region-lines" type="checkbox" checked><span class="toggle"></span></label>
       </section>
@@ -147,8 +150,9 @@
         <span><i class="mk mk-obs"></i><span data-i18n="detail.l.day">очаг в этот день</span></span>
         <span><i class="mk mk-past"></i><span data-i18n="detail.l.2023">очаги 2023</span></span>
         <span><i class="mk mk-past is-2024"></i><span data-i18n="detail.l.2024">очаги 2024</span></span>
+        <span id="detail-l-2026" hidden><i class="mk mk-past is-2026"></i><span data-i18n="detail.l.2026">очаги 2026</span></span>
         <span><i class="mk mk-cell"></i><span data-i18n="detail.l.cell">ячейка 5 км, цвет — прогноз ≥ 0,03%</span></span>
-        <label class="detail-check"><input type="checkbox" id="detail-past" checked><span data-i18n="detail.l.past"> показывать очаги 2023–2024</span></label>
+        <label class="detail-check"><input type="checkbox" id="detail-past" checked><span data-i18n="detail.l.past"> показывать прошлые очаги</span></label>
         <span class="detail-note" data-i18n="detail.l.note">Ячейки и точки кликабельны. Реальные очаги открыты после оценки модели.</span>
       </div>
 
@@ -171,6 +175,6 @@
   </main>
 
   <dialog id="info-dialog"><div class="dialog-heading"><span class="label" id="dialog-eyebrow">STEPPE</span><button class="btn is-icon" id="close-dialog" data-i18n-attr="aria-label:close" aria-label="Закрыть"><svg><use href="#i-close"/></svg></button></div><div id="dialog-content"></div></dialog>
-  <script type="module" src="./app.js?v=20261028-lang"></script>
+  <script type="module" src="./app.js?v=20261029-v6"></script>
 </body>
 </html>

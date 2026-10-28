@@ -1,4 +1,4 @@
-import { $, t, pct, num, run, loadVerified, table, dotPanel, prCurve, widthOf, panelWidth } from './report.js?v=20261028-lang';
+import { $, t, pct, num, run, loadVerified, table, dotPanel, prCurve, widthOf, panelWidth } from './report.js?v=20261029-v6';
 
 const ORDER = ['precision', 'balanced', 'coverage'];
 

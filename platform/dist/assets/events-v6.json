@@ -1,0 +1,14 @@
+{
+  "sources": [
+    "runs/model_stack_v5/audit/events.parquet (2023\u20132024, SNPP standard processing)",
+    "runs/test_2026/events.parquet (2026, NASA GIBS S-NPP NRT, first detection of each event)"
+  ],
+  "definition": "First SNPP VIIRS nominal/high detection of each event connected within 2 km and 48 hours",
+  "labels_opened_after_release": true,
+  "release_sha256": "6575d61a84036b5964155f7966c28282271d359e936f1aa1e8754e6018b848d9",
+  "events": 28300,
+  "covered": 26263,
+  "hit_same_day": 4770,
+  "record_bytes": 16,
+  "sha256": "407ea7135eed4b2e2b684093017f3e8001af4711492083e481660c263d29472f"
+}

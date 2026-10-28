@@ -2,7 +2,7 @@
 // the day's alert cells and observed events, and every observed 2023–2024 event nearby.
 // Only this view needs the network; Leaflet and proj4 are vendored and load on first use.
 
-import { t, regionName, coords } from './i18n.js?v=20261028-lang';
+import { t, regionName, coords } from './i18n.js?v=20261029-v6';
 
 const LAEA = '+proj=laea +lat_0=48 +lon_0=67 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs';
 const SOURCES = {
@@ -103,7 +103,7 @@ export async function createDetail({ host, geo, cells, onSelect }) {
     if (data.showPast) for (const e of data.allEvents) {
       const p = ll(e.x, -e.y);
       if (!b.contains(p)) continue;
-      L.circleMarker(p, { renderer, radius: 4, color: '#193d35', weight: 1.4, fillColor: e.year === 2023 ? '#f2f5ef' : '#c9e3ff', fillOpacity: 1 })
+      L.circleMarker(p, { renderer, radius: 4, color: '#193d35', weight: 1.4, fillColor: e.year === 2023 ? '#f2f5ef' : e.year === 2024 ? '#c9e3ff' : '#ffd7a8', fillOpacity: 1 })
         .bindTooltip(t('detail.tip.past', { date: esc(e.date), hit: e.hit })).addTo(past);
     }
     if (data.alertAt !== null && data.showPredicted) for (const i of data.alerts) {

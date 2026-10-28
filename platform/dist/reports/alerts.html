@@ -7,8 +7,8 @@
 <link rel="icon" href="../assets/mark.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600&display=swap">
-<link rel="stylesheet" href="../tokens.css?v=20261028-lang">
-<link rel="stylesheet" href="./report.css?v=20261028-lang">
+<link rel="stylesheet" href="../tokens.css?v=20261029-v6">
+<link rel="stylesheet" href="./report.css?v=20261029-v6">
 </head>
 <body>
 <header class="topbar">
@@ -16,6 +16,7 @@
   <nav class="nav" data-i18n-attr="aria-label:nav.sections" aria-label="Разделы">
     <a href="../" data-i18n="nav.map">Карта</a>
     <a href="./model.html" data-i18n="nav.model">Модель</a>
+    <a href="./stack.html" data-i18n="nav.stack">Модель v5</a>
     <a href="./previous.html" data-i18n="nav.previous">Исходная модель</a>
     <a href="./alerts.html" aria-current="page" data-i18n="nav.alerts">Пороги тревоги</a>
     <a href="./quality.html" data-i18n="nav.quality">Качество данных</a>
@@ -31,7 +32,7 @@
     <p class="lead" id="lead" data-i18n-html="alerts.10">Три режима предупреждений для исходного XGBoost. Пороги выбраны только по 2022 году; модель, калибровка и вероятности не менялись.</p>
   </div>
 
-  <div class="banner"><svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg><span data-i18n-html="alerts.3"><strong>Это предыдущая редакция</strong>Режимы относятся к исходному XGBoost. Текущая карта работает на модели с вторым уровнем и одним порогом, выбранным на 2022 году, — см. <a href="./model.html">«Модель»</a>.</span></div>
+  <div class="banner"><svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg><span data-i18n-html="alerts.3"><strong>Это предыдущая редакция</strong>Режимы относятся к исходному XGBoost. Текущая карта работает на модели v6 с одним порогом, выбранным на 2022 году, — см. <a href="./model.html">«Модель»</a>.</span></div>
 
   <div class="banner is-danger" id="error" hidden><svg class="ico" viewBox="0 0 24 24"><path d="M12 3 2 20h20L12 3z"/><path d="M12 10v4M12 17h.01"/></svg><span><strong data-i18n="rep.failed">Файлы отчёта не прошли проверку</strong><p></p></span></div>
 
@@ -83,6 +84,6 @@
     <p class="muted" data-after-load hidden data-i18n-html="alerts.15">SHA-256 политики: <code id="policy-hash"></code><br>SHA-256 исходного релиза модели: <code id="model-hash"></code></p>
   </section>
 </main>
-<script type="module" src="./alerts.js?v=20261028-lang"></script>
+<script type="module" src="./alerts.js?v=20261029-v6"></script>
 </body>
 </html>

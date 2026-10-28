@@ -1,4 +1,4 @@
-import {t,num} from './i18n.js?v=20261028-lang';
+import {t,num} from './i18n.js?v=20261029-v6';
 const pct=v=>Number.isFinite(v)?num(100*v,{maximumFractionDigits:2})+'%':'—';
 const esc=v=>String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 let population;

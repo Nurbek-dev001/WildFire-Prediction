@@ -1,15 +1,16 @@
-import {loadUpgrade} from './upgrade-results.js?v=20261028-lang';
-import {t,num,pctText,onLang,bindSwitch,regionName,cityName,coords,longDate,weekday} from './i18n.js?v=20261028-lang';
-import {populationNote,readiness,quality} from './quality.js?v=20261028-lang';
-import {probability,modelLabel,modelInputs,loadForecast,validateManifest,sources,methodology,evaluation} from './model-results.js?v=20261028-lang';
+import {loadUpgrade} from './upgrade-results.js?v=20261029-v6';
+import {t,num,pctText,onLang,bindSwitch,regionName,cityName,coords,longDate,weekday} from './i18n.js?v=20261029-v6';
+import {populationNote,readiness,quality} from './quality.js?v=20261029-v6';
+import {probability,modelLabel,modelInputs,loadForecast,validateManifest,sources,methodology,evaluation} from './model-results.js?v=20261029-v6';
 import {loadOperatingPolicy,activeProfile,profileMetrics} from './operating-policy.js';
+import {isV6,loadV6} from './model-v6.js?v=20261029-v6';
 const $ = id => document.getElementById(id);
 const nf = {format:v=>num(v)};
 const df = {format:d=>longDate(d)};
 const pf = p => state.mode==='real'&&manifest?.ready?probability(p):num(p*100,{minimumFractionDigits:1,maximumFractionDigits:1})+'%';
 const canvas = $('map'), ctx = canvas.getContext('2d');
-const state = {mode:'demo', layer:'forecast', view:'2d', detail:-1, basemap:'satellite', day:'2022-07-15', year:2022, zoom:1, panX:0, panY:0, selected:-1, region:-1, highOnly:false, lines:true, showPredicted:true, showObserved:true};
-let geo, manifest, cells, values, history, boundary, regionPaths, raster, cellByKey, baseScale=1, width=1, height=1, toastTimer, renderFrame, relief, hatch, satellite, events;
+const state = {mode:'demo', model:'v5', hideHeat:true, layer:'forecast', view:'2d', detail:-1, basemap:'satellite', day:'2022-07-15', year:2022, zoom:1, panX:0, panY:0, selected:-1, region:-1, highOnly:false, lines:true, showPredicted:true, showObserved:true};
+let manifests = {}, eventsByModel = {}, geo, manifest, cells, values, history, boundary, regionPaths, raster, cellByKey, baseScale=1, width=1, height=1, toastTimer, renderFrame, relief, hatch, satellite, events;
 const digest=async buffer=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',buffer)),v=>v.toString(16).padStart(2,'0')).join('');
 // NASA Blue Marble basemap, checked against satellite.json before use; the map works without it.
 async function loadSatellite(){
@@ -19,17 +20,34 @@ async function loadSatellite(){
   const img=new Image();img.src=URL.createObjectURL(new Blob([buffer],{type:'image/jpeg'}));await img.decode();
   satellite={img,extent:meta.extent_km};relief?.setSatellite(img,satellite.extent);syncBasemap();
 }
-// Observed new-fire events of 2023–2024, opened after the release was evaluated; grouped by day index.
-async function loadEvents(){
-  const meta=await (await fetch('./assets/events-2023-2024.json')).json();
-  const buffer=await (await fetch('./assets/events-2023-2024.bin')).arrayBuffer();
-  if(await digest(buffer)!==meta.sha256||buffer.byteLength!==meta.events*16)throw Error('Файл событий не совпал с events-2023-2024.json');
+// Observed new-fire events, opened after each release was evaluated; grouped by day index of that model's manifest.
+const EVENTS={v5:'./assets/events-2023-2024',v6:'./assets/events-v6'};
+async function loadEvents(key){
+  if(eventsByModel[key])return eventsByModel[key];
+  const meta=await (await fetch(EVENTS[key]+'.json')).json();
+  const buffer=await (await fetch(EVENTS[key]+'.bin')).arrayBuffer();
+  if(await digest(buffer)!==meta.sha256||buffer.byteLength!==meta.events*16||meta.release_sha256!==manifests[key].release_sha256)throw Error('Файл событий не совпал с '+EVENTS[key]+'.json');
   const dv=new DataView(buffer),byDay=new Map();
   for(let o=0;o<buffer.byteLength;o+=16){const day=dv.getUint16(o,true),flags=dv.getUint8(o+2);if(!byDay.has(day))byDay.set(day,[]);byDay.get(day).push({cell:dv.getInt32(o+4,true),x:dv.getFloat32(o+8,true),y:dv.getFloat32(o+12,true),covered:!!(flags&1),hit:!!(flags&2),hitBefore:!!(flags&4)})}
-  events=byDay;renderPoints();scheduleDraw();
+  return eventsByModel[key]=byDay;
 }
+async function useEvents(key){const byDay=await loadEvents(key);if(state.model!==key)return;events=byDay;allEventsCache=null;renderPoints();scheduleDraw()}
+// v6 and v5 cover different days; keep the season when switching (2026 ↔ 2024).
+function nearestDay(days,day){const md=day.slice(4);for(const y of [day.slice(0,4),'2024','2023','2026'])if(days.includes(y+md))return y+md;let best=days[0];for(const d of days)if(Math.abs(Date.parse(d)-Date.parse(day))<Math.abs(Date.parse(best)-Date.parse(day)))best=d;return best}
+function setModel(key){
+  if(!manifests[key]||manifest===manifests[key])return;
+  state.model=key;manifest=manifests[key];events=eventsByModel[key]||null;allEventsCache=null;
+  if(!manifest.available_days.includes(state.day)){state.day=nearestDay(manifest.available_days,state.day);toast(t('toast.modelDay',{day:df.format(new Date(state.day+'T00:00:00Z'))}))}
+  for(const k of ['v6','v5'])$('model-'+k).setAttribute('aria-pressed',String(k===key));
+  useEvents(key).catch(e=>console.warn('Observed events unavailable',e));
+  setMode('real');
+}
+// Cells with at least 20 VIIRS detections in every year 2015–2022: smelters, steel works and gas flares the
+// frozen industrial list missed. Both models give them very high values; the map hides them by default.
+const HEAT_MIN=20;let heat;
+const isHeat=i=>state.hideHeat&&state.mode==='real'&&!!heat?.[i];
 const pointsActive=()=>state.mode==='real'&&state.layer==='forecast'&&!!state.realValues&&!state.noEligibleForecast;
-const dayEvents=()=>pointsActive()&&events?events.get(manifest.available_days.indexOf(state.day))||[]:[];
+const dayEvents=()=>pointsActive()&&events?(events.get(manifest.available_days.indexOf(state.day))||[]).filter(e=>!isHeat(e.cell)):[];
 function syncBasemap(){
   const sat=state.basemap==='satellite'&&!!satellite;
   for(const k of ['satellite','scheme'])$('basemap-'+k).setAttribute('aria-pressed',String(state.basemap===k));
@@ -40,7 +58,7 @@ function predictedCells(){if(!pointsActive())return [];const t=riskThreshold(),o
 const riskThreshold=()=>state.mode==='real'&&manifest?.ready?activeProfile(manifest,state.alertProfile).threshold:.05;
 function syncProfile(){
   const policy=manifest?.operating_policy?.policy;
-  if(manifest?.upgrade){$('alert-profile-panel').querySelector('label').textContent=t('profile.active');$('alert-profile-panel').hidden=!(state.mode==='real'&&state.layer==='forecast');$('alert-profile').innerHTML=`<option>${t('model.stack')}</option>`;$('alert-profile').disabled=true;const s=manifest.test_metrics[manifest.model];$('alert-profile-metrics').textContent=t('profile.metrics',{r:pctText(s.recall),p:pctText(s.precision),t:probability(manifest.threshold)});$('alert-profile-help').textContent=t('profile.help.upgrade');const link=$('alert-profile-panel').querySelector('a');link.textContent=t('profile.compareModels');link.href='./reports/model.html';return}
+  if(manifest?.upgrade||isV6(manifest)){$('alert-profile-panel').querySelector('label').textContent=t('profile.active');$('alert-profile-panel').hidden=!(state.mode==='real'&&state.layer==='forecast');$('alert-profile').innerHTML=`<option>${t(isV6(manifest)?'model.v6':'model.stack')}</option>`;$('alert-profile').disabled=true;const s=manifest.test_metrics[manifest.model];$('alert-profile-metrics').textContent=t('profile.metrics',{r:pctText(s.recall),p:pctText(s.precision),t:probability(manifest.threshold)});$('alert-profile-help').textContent=t(isV6(manifest)?'profile.help.v6':'profile.help.upgrade');const link=$('alert-profile-panel').querySelector('a');link.textContent=t('profile.compareModels');link.href='./reports/model.html';return}
   $('alert-profile-panel').hidden=!(policy&&state.mode==='real'&&state.layer==='forecast');
   if(!policy)return;
   const select=$('alert-profile');
@@ -97,7 +115,7 @@ function makeRaster(){
   for(let i=0;i<cells.length;i++){
     const c=cells[i];let p;
     if(hist){p=history[i*8+state.year-2015];values[i]=p;total+=p;if(p>0)active++;max=Math.max(max,p);totals[c.region]+=p;sizes[c.region]++;}
-    else {p=state.mode==='demo'?scenario(c,state.day).p:(state.realValues?.[i]??NaN);values[i]=p;if(Number.isFinite(p)){finite++;max=Math.max(max,p);if(p>=riskThreshold())high++;totals[c.region]+=p;sizes[c.region]++;}}
+    else {p=state.mode==='demo'?scenario(c,state.day).p:isHeat(i)?NaN:(state.realValues?.[i]??NaN);values[i]=p;if(Number.isFinite(p)){finite++;max=Math.max(max,p);if(p>=riskThreshold())high++;totals[c.region]+=p;sizes[c.region]++;}}
     if(!hist&&state.mode==='real'&&!state.realValues)continue;
     if(!Number.isFinite(p)){if(sat&&!hist)paint(c,[200,203,196],170);continue}
     if(hist&&p===0)continue;
@@ -135,7 +153,7 @@ function renderPoints(){
 let detail=null,detailRequest=null,allEventsCache=null;
 function allEvents(){
   if(!events||!manifest?.ready)return [];
-  if(!allEventsCache){allEventsCache=[];for(const [d,list] of events)for(const e of list){const date=manifest.available_days[d];allEventsCache.push({...e,date:df.format(new Date(date+'T00:00:00Z')).replace(' г.',''),year:+date.slice(0,4)})}}
+  if(!allEventsCache){allEventsCache=[];for(const [d,list] of events)for(const e of list){if(isHeat(e.cell))continue;const date=manifest.available_days[d];allEventsCache.push({...e,date:df.format(new Date(date+'T00:00:00Z')).replace(' г.',''),year:+date.slice(0,4)})}}
   return allEventsCache;
 }
 function detailData(){
@@ -147,7 +165,7 @@ function detailData(){
 async function openDetail(i){
   if(!detail){
     $('loading').hidden=false;$('loading').lastElementChild.textContent=t('loading.detail');
-    try{detailRequest=detailRequest||import('./detail.js?v=20261028-lang').then(({createDetail})=>createDetail({host:$('map-shell'),geo,cells,onSelect:selectCell}));detail=await detailRequest}
+    try{detailRequest=detailRequest||import('./detail.js?v=20261029-v6').then(({createDetail})=>createDetail({host:$('map-shell'),geo,cells,onSelect:selectCell}));detail=await detailRequest}
     catch(error){detailRequest=null;console.error('Detail view unavailable',error);toast(t('toast.noDetail',{e:error.message}));return}
     finally{syncLayer()}
   }
@@ -171,12 +189,12 @@ function drawPoints(v){
 }
 function renderLegend(bounds,counts){
   const hist=state.layer==='history',real=state.mode==='real'&&manifest?.ready;
-  $('legend-title').textContent=hist?t('legend.title.history',{year:state.year}):t('legend.title')+(state.mode==='demo'?t('legend.demo'):'');
+  $('legend-title').textContent=hist?t('legend.title.history',{year:state.year}):t(real&&isV6(manifest)?'legend.title.v6':'legend.title')+(state.mode==='demo'?t('legend.demo'):'');
   $('legend-ticks').innerHTML=(hist?['1',...bounds.map((b,i)=>i===bounds.length-1?b+'+':String(b))]:['0',...bounds.map(pct)]).map(t=>`<span>${t}</span>`).join('');
   $('legend-threshold').hidden=hist;
   $('legend-counts').innerHTML=counts?counts.map(n=>`<span>${nf.format(n)}</span>`).join(''):'';
   $('legend-counts').title=t('legend.counts');
-  $('legend-note').textContent=hist?t('legend.note.history'):real?t('legend.note.real',{t:pf(riskThreshold()),sat:state.basemap==='satellite'&&!!satellite}):t('legend.note.demo',{t:pf(riskThreshold())});
+  $('legend-note').textContent=hist?t('legend.note.history'):real?t('legend.note.real',{t:pf(riskThreshold()),sat:state.basemap==='satellite'&&!!satellite})+(isV6(manifest)?' '+t('legend.note.v6'):''):t('legend.note.demo',{t:pf(riskThreshold())});
 }
 function syncRelief(){
   if(!relief||state.view!=='3d')return;
@@ -192,7 +210,7 @@ async function setView(view){
     $('view-3d').disabled=true;
     $('loading').hidden=false;$('loading').lastElementChild.textContent=t('loading.relief');
     try{
-      reliefRequest=reliefRequest||import('./relief3d.js?v=20261028-lang').then(({createRelief})=>createRelief({host:$('map-shell'),geo,cells,onPick:i=>{if(i>=0)selectCell(i);else{state.selected=-1;updateCell();syncRelief()}}}));
+      reliefRequest=reliefRequest||import('./relief3d.js?v=20261029-v6').then(({createRelief})=>createRelief({host:$('map-shell'),geo,cells,onPick:i=>{if(i>=0)selectCell(i);else{state.selected=-1;updateCell();syncRelief()}}}));
       relief=await reliefRequest;
       if(satellite)relief.setSatellite(satellite.img,satellite.extent);
       relief.setBasemap(state.basemap==='satellite'&&!!satellite);renderPoints();
@@ -306,9 +324,10 @@ function selectCell(index){state.selected=index;updateCell();scheduleDraw();reli
 function updateCell(){
   if(state.selected<0||state.mode==='real'&&state.layer==='forecast'&&(!state.realValues||state.noEligibleForecast)){$('cell-card').hidden=true;return}
   const c=cells[state.selected],p=values[state.selected];$('cell-card').hidden=false;$('cell-region').textContent=regionName(geo.regions[c.region],'long');$('cell-coordinates').textContent=coords(c.lat,c.lon,3);$('cell-area').textContent=t('unit.km2',{n:num(c.area,{maximumFractionDigits:2})});$('cell-id').textContent=`g5000_${c.row}_${c.col}`;$('cell-elevation').textContent=relief?t('card.elevation',{n:nf.format(Math.round(relief.elevation[state.selected]))}):'';
-  const hist=state.layer==='history',real=state.mode==='real'&&!hist;$('cell-probability').textContent=hist?nf.format(p):Number.isFinite(p)?pf(p):'—';$('cell-category').textContent=hist?t('card.hist.cat',{year:state.year}):real?t(Number.isFinite(p)?'card.cal':'card.nofc'):t(p>=.05?'card.demo.high':p>=.02?'card.demo.elev':p>=.005?'card.demo.mod':'card.demo.low');$('cell-category').style.whiteSpace='pre-line';$('probability-meter').style.width=(Number.isFinite(p)&&(!hist||p>0)?(classOf(p,hist?HISTORY_BOUNDS:forecastBounds())+1)/7*100:0)+'%';$('cell-context').textContent=t(hist?'card.ctx.hist':real?'card.ctx.real':'card.ctx.demo');$('factor-title').textContent=t(hist?'card.f.hist':real?'card.f.real':'card.f.demo');$('card-disclaimer').textContent=t(hist?'card.disc.hist':real?'card.disc.real':'card.disc.demo');
+  const hist=state.layer==='history',real=state.mode==='real'&&!hist;$('cell-probability').textContent=hist?nf.format(p):Number.isFinite(p)?pf(p):'—';$('cell-category').textContent=hist?t('card.hist.cat',{year:state.year}):real?t(Number.isFinite(p)?(isV6(manifest)?'card.rank':'card.cal'):'card.nofc'):t(p>=.05?'card.demo.high':p>=.02?'card.demo.elev':p>=.005?'card.demo.mod':'card.demo.low');$('cell-category').style.whiteSpace='pre-line';$('probability-meter').style.width=(Number.isFinite(p)&&(!hist||p>0)?(classOf(p,hist?HISTORY_BOUNDS:forecastBounds())+1)/7*100:0)+'%';$('cell-context').textContent=t(hist?'card.ctx.hist':real?'card.ctx.real':'card.ctx.demo');$('factor-title').textContent=t(hist?'card.f.hist':real?'card.f.real':'card.f.demo');$('card-disclaimer').textContent=t(hist?'card.disc.hist':real?'card.disc.real':'card.disc.demo');
   const wrap=$('cell-factors');wrap.replaceChildren();
-  if(real){const note=document.createElement('p');note.className='empty-history';const profile=activeProfile(manifest,state.alertProfile);note.textContent=t('card.source',{model:modelLabel(manifest.model),day:state.day,profile:profile.label,t:probability(profile.threshold),inputs:modelInputs(manifest)});wrap.append(note);if(events&&pointsActive()){const n=dayEvents().filter(e=>e.cell===state.selected).length,seen=document.createElement('p');seen.className='empty-history seen-note';seen.textContent=n?t('card.seen.yes',{n}):t('card.seen.no');wrap.append(seen)}const selected=state.selected;populationNote(`g5000_${c.row}_${c.col}`).then(text=>{if(state.selected===selected&&state.mode==="real"&&text&&!wrap.querySelector(".pop-note")){const exposure=document.createElement("p");exposure.className="empty-history pop-note";exposure.textContent=text;wrap.append(exposure)}}).catch(()=>{});if(Number.isFinite(p))$('cell-category').textContent=t(p>=riskThreshold()?'card.alert':'card.below');return}
+  if(real&&isHeat(state.selected)&&state.realValues){const raw=state.realValues[state.selected];$('cell-probability').textContent=Number.isFinite(raw)?pf(raw):'—';$('cell-category').textContent=t('card.heat');const note=document.createElement('p');note.className='empty-history caution-note';note.textContent=t('card.heat.note',{n:nf.format(Math.min(...Array.from({length:8},(_,y)=>history[state.selected*8+y])))});wrap.append(note);return}
+  if(real){const note=document.createElement('p');note.className='empty-history';const profile=activeProfile(manifest,state.alertProfile);note.textContent=t('card.source',{model:modelLabel(manifest.model),day:state.day,profile:profile.label,t:probability(profile.threshold),inputs:modelInputs(manifest)});wrap.append(note);if(isV6(manifest)){const caution=document.createElement('p');caution.className='empty-history caution-note';caution.textContent=t('card.v6warn')+(state.day.startsWith('2026')?'':' '+t('card.v6cont'));wrap.append(caution)}if(events&&pointsActive()){const n=dayEvents().filter(e=>e.cell===state.selected).length,seen=document.createElement('p');seen.className='empty-history seen-note';seen.textContent=n?t('card.seen.yes',{n}):t('card.seen.no');wrap.append(seen)}const selected=state.selected;populationNote(`g5000_${c.row}_${c.col}`).then(text=>{if(state.selected===selected&&state.mode==="real"&&text&&!wrap.querySelector(".pop-note")){const exposure=document.createElement("p");exposure.className="empty-history pop-note";exposure.textContent=text;wrap.append(exposure)}}).catch(()=>{});if(Number.isFinite(p))$('cell-category').textContent=t(p>=riskThreshold()?'card.alert':'card.below');return}
   const historyYears=[state.year-1,state.year,state.year+1].filter(y=>y>=2015&&y<=2022);
   const factors=hist?historyYears.map(y=>[String(y),history[state.selected*8+y-2015],Math.max(1,...historyYears.map(z=>history[state.selected*8+z-2015]))]):[t('factor.dry'),t('factor.heat'),t('factor.wind')].map((name,j)=>[name,Math.round(scenario(c,state.day).factors[j]*100),100]);
   for(const [name,n,max] of factors){const row=document.createElement('div');row.className='factor';row.innerHTML=`<span>${name}</span><span class="factor-track"><i style="width:${n/max*100}%"></i></span><span class="factor-value">${n}</span>`;wrap.append(row)}
@@ -346,7 +365,7 @@ async function setMode(mode){
     state.autoReal=false;syncLayer();
   }
 }
-function syncNote(){$('mode-note').className='note '+(state.mode==='demo'?'is-demo':manifest.ready?'is-verified':'');$('mode-note').innerHTML=t(state.mode==='demo'?(state.payloadMissing?'note.demo.missing':'note.demo'):manifest.ready?'note.real':'note.pending')}
+function syncNote(){const v6=state.mode==='real'&&isV6(manifest);$('mode-note').className='note '+(state.mode==='demo'?'is-demo':v6?'is-caution':manifest.ready?'is-verified':'');$('mode-note').innerHTML=t(state.mode==='demo'?(state.payloadMissing?'note.demo.missing':'note.demo'):v6?(state.day.startsWith('2026')?'note.real.v6':'note.real.v6.cont'):manifest.ready?'note.real':'note.pending')}
 function syncLayer(){
   const hist=state.layer==='history',empty=state.mode==='real'&&state.noEligibleForecast&&!hist,unavailable=state.mode==='real'&&(!state.realValues||empty)&&!hist;
   const loading=unavailable&&state.loadingForecast;
@@ -354,7 +373,7 @@ function syncLayer(){
   $('history-layer').classList.toggle('selected',hist);
   $('forecast-layer').setAttribute('aria-pressed',String(!hist));
   $('history-layer').setAttribute('aria-pressed',String(hist));
-  $('history-options').hidden=!hist;$('high-only-row').hidden=hist;$('timeline').hidden=hist;
+  $('history-options').hidden=!hist;$('model-row').hidden=!(state.mode==='real'&&!hist&&manifests.v6&&manifests.v5);$('detail-l-2026').hidden=!isV6(manifest);$('high-only-row').hidden=hist;$('heat-row').hidden=hist||state.mode!=='real';$('timeline').hidden=hist;
   $('map-empty').hidden=!unavailable||loading;$('loading').hidden=!loading;
   if(loading)$('loading').lastElementChild.textContent=t('loading.forecast');
   $('map-empty').classList.toggle('is-danger',!empty&&!state.payloadMissing);
@@ -372,7 +391,7 @@ function syncLayer(){
   $('forecast-date').setAttribute('aria-label',t(state.mode==='real'?'date.forecast.aria':'date.scenario.aria'));
   $('export-button').disabled=unavailable;
   $('map-hint').textContent=t(state.view==='3d'?'hint.3d':hist?'hint.history':'hint.map');
-  $('holdout-button').textContent=t(manifest.ready?'checks.metricsTest':'checks.metrics');
+  $('holdout-button').textContent=t(manifest.ready?(isV6(manifest)?'checks.metricsTest.v6':'checks.metricsTest'):'checks.metrics');
 }
 function setLayer(layer){state.layer=layer;syncLayer();makeRaster()}
 function zoomAt(factor,x=width/2,y=height/2){const [wx,wy]=toWorld(x,y);state.zoom=Math.max(.7,Math.min(4000,state.zoom*factor));const s=baseScale*state.zoom;state.panX=x-width/2-(wx-centerX)*s;state.panY=y-height/2-(wy-centerY)*s;scheduleDraw()}
@@ -386,13 +405,13 @@ function download(){
     const c=cells[i],p=values[i];if(state.region>=0&&c.region!==state.region)continue;
     if(!hist&&(state.highOnly&&p<riskThreshold()||!Number.isFinite(p)))continue;
     if(hist&&p===0)continue;
-    text+=`g5000_${c.row}_${c.col},${c.lon.toFixed(5)},${c.lat.toFixed(5)},${c.area.toFixed(4)},${geo.regions[c.region].name},`+(hist?`${state.year},${p},NASA_FIRMS_SNPP_VIIRS`:`${state.day},${p.toPrecision(9)},${p>=riskThreshold()},${riskThreshold()},${real?manifest.upgrade?'model_v3':state.alertProfile||'original':'demo'},${real?manifest.release_sha256:''},${real?manifest.operating_policy?.policy_sha256||'':''},${!real}`)+'\n';rows++;
+    text+=`g5000_${c.row}_${c.col},${c.lon.toFixed(5)},${c.lat.toFixed(5)},${c.area.toFixed(4)},${geo.regions[c.region].name},`+(hist?`${state.year},${p},NASA_FIRMS_SNPP_VIIRS`:`${state.day},${p.toPrecision(9)},${p>=riskThreshold()},${riskThreshold()},${real?isV6(manifest)?'model_v6':manifest.upgrade?'model_v3':state.alertProfile||'original':'demo'},${real?manifest.release_sha256:''},${real?manifest.operating_policy?.policy_sha256||'':''},${!real}`)+'\n';rows++;
   }
-  const url=URL.createObjectURL(new Blob(['\uFEFF',text],{type:'text/csv;charset=utf-8'})),a=document.createElement('a');a.href=url;a.download=hist?`steppe_VIIRS_${state.year}.csv`:`steppe_${real?(manifest.upgrade?'model_v3':state.alertProfile)+'_':'DEMO_'}${state.day}.csv`;a.click();setTimeout(()=>URL.revokeObjectURL(url),10000);toast(t('toast.exported',{n:nf.format(rows)}));
+  const url=URL.createObjectURL(new Blob(['\uFEFF',text],{type:'text/csv;charset=utf-8'})),a=document.createElement('a');a.href=url;a.download=hist?`steppe_VIIRS_${state.year}.csv`:`steppe_${real?(isV6(manifest)?'model_v6':manifest.upgrade?'model_v3':state.alertProfile)+'_':'DEMO_'}${state.day}.csv`;a.click();setTimeout(()=>URL.revokeObjectURL(url),10000);toast(t('toast.exported',{n:nf.format(rows)}));
 }
 
 $('nav-data').onclick=dataDialog;$('nav-method').onclick=methodDialog;$('nav-map').onclick=e=>{e.preventDefault();if($('info-dialog').open)$('info-dialog').close();reset()};$('view-2d').onclick=()=>setView('2d');$('view-3d').onclick=()=>setView('3d');$('close-dialog').onclick=()=>$('info-dialog').close();$('info-dialog').addEventListener('click',e=>{if(e.target===$('info-dialog')){const r=$('info-dialog').getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)$('info-dialog').close()}});$('holdout-button').onclick=holdoutDialog;function holdoutDialog(){manifest?.ready?showDialog(t('dlg.metrics'),evaluation(manifest),holdoutDialog):showDialog('ЗАКРЫТАЯ ТЕСТОВАЯ ВЫБОРКА','<h2>2023–2024 остаются закрытыми.</h2><p>Архивы скачаны и проверены по контрольным суммам. Наблюдения из этих файлов не прочитаны и не используются на карте, для выбора модели, калибровки или демонстрации.</p><p>Финальная оценка выполняется только после фиксации модели, признаков и порогов. В эту платформу включены исторические наблюдения только за 2015–2022 годы.</p>')}
-$('demo-mode').onclick=()=>setMode('demo');$('real-mode').onclick=()=>setMode('real');$('return-demo').onclick=()=>setMode('demo');$('forecast-layer').onclick=()=>setLayer('forecast');$('history-layer').onclick=()=>setLayer('history');$('history-year').onchange=e=>{state.year=Number(e.target.value);syncLayer();makeRaster()};$('region-search').oninput=renderRegions;$('open-detail').onclick=()=>state.selected>=0&&openDetail(state.selected);$('close-detail').onclick=closeDetail;$('detail-past').onchange=()=>detail?.refresh(detailData());for(const [id,key] of [['detail-esri','esri'],['detail-s2','s2']])$(id).onclick=()=>{detail?.setSource(key);$('detail-esri').setAttribute('aria-pressed',String(key==='esri'));$('detail-s2').setAttribute('aria-pressed',String(key==='s2'))};$('basemap-satellite').onclick=()=>{state.basemap='satellite';syncBasemap()};$('basemap-scheme').onclick=()=>{state.basemap='scheme';syncBasemap()};$('show-predicted').onchange=e=>{state.showPredicted=e.target.checked;syncRelief();scheduleDraw()};$('show-observed').onchange=e=>{state.showObserved=e.target.checked;renderPoints();scheduleDraw()};$('region-lines').onchange=e=>{state.lines=e.target.checked;relief?.setLines(state.lines);scheduleDraw()};$('high-only').onchange=e=>{state.highOnly=e.target.checked;makeRaster()};$('forecast-date').onchange=e=>setDate(e.target.value);$('previous-day').onclick=()=>changeDay(-1);$('next-day').onclick=()=>changeDay(1);$('zoom-in').onclick=()=>state.view==='3d'?relief.zoom(1.4):zoomAt(2);$('zoom-out').onclick=()=>state.view==='3d'?relief.zoom(1/1.4):zoomAt(.5);$('reset-map').onclick=reset;$('close-card').onclick=()=>{state.selected=-1;$('cell-card').hidden=true;relief?.setSelected(-1);scheduleDraw()};$('export-button').onclick=download;
+$('demo-mode').onclick=()=>setMode('demo');$('real-mode').onclick=()=>setMode('real');$('return-demo').onclick=()=>setMode('demo');$('forecast-layer').onclick=()=>setLayer('forecast');$('history-layer').onclick=()=>setLayer('history');$('history-year').onchange=e=>{state.year=Number(e.target.value);syncLayer();makeRaster()};$('region-search').oninput=renderRegions;$('open-detail').onclick=()=>state.selected>=0&&openDetail(state.selected);$('close-detail').onclick=closeDetail;$('detail-past').onchange=()=>detail?.refresh(detailData());for(const [id,key] of [['detail-esri','esri'],['detail-s2','s2']])$(id).onclick=()=>{detail?.setSource(key);$('detail-esri').setAttribute('aria-pressed',String(key==='esri'));$('detail-s2').setAttribute('aria-pressed',String(key==='s2'))};$('model-v6').onclick=()=>setModel('v6');$('model-v5').onclick=()=>setModel('v5');$('basemap-satellite').onclick=()=>{state.basemap='satellite';syncBasemap()};$('basemap-scheme').onclick=()=>{state.basemap='scheme';syncBasemap()};$('show-predicted').onchange=e=>{state.showPredicted=e.target.checked;syncRelief();scheduleDraw()};$('show-observed').onchange=e=>{state.showObserved=e.target.checked;renderPoints();scheduleDraw()};$('region-lines').onchange=e=>{state.lines=e.target.checked;relief?.setLines(state.lines);scheduleDraw()};$('high-only').onchange=e=>{state.highOnly=e.target.checked;makeRaster()};$('hide-heat').onchange=e=>{state.hideHeat=e.target.checked;allEventsCache=null;makeRaster();updateCell()};$('forecast-date').onchange=e=>setDate(e.target.value);$('previous-day').onclick=()=>changeDay(-1);$('next-day').onclick=()=>changeDay(1);$('zoom-in').onclick=()=>state.view==='3d'?relief.zoom(1.4):zoomAt(2);$('zoom-out').onclick=()=>state.view==='3d'?relief.zoom(1/1.4):zoomAt(.5);$('reset-map').onclick=reset;$('close-card').onclick=()=>{state.selected=-1;$('cell-card').hidden=true;relief?.setSelected(-1);scheduleDraw()};$('export-button').onclick=download;
 $('alert-profile').onchange=e=>{state.alertProfile=e.target.value;syncLayer();makeRaster()};
 async function readinessDialog(){showDialog(t('dlg.readiness'),await readiness(),readinessDialog)}$('today-button').onclick=readinessDialog;
 async function qualityDialog(){showDialog(t('dlg.quality'),await quality(),qualityDialog)}$('quality-button').onclick=qualityDialog;
@@ -403,7 +422,13 @@ canvas.addEventListener('pointerup',e=>{if(!drag)return;if(!drag.moved){const r=
 canvas.addEventListener('pointercancel',()=>{drag=null;canvas.style.cursor='crosshair'});
 canvas.addEventListener('wheel',e=>{e.preventDefault();const r=canvas.getBoundingClientRect();zoomAt(Math.exp(-Math.max(-300,Math.min(300,e.deltaY))*.0025),e.clientX-r.left,e.clientY-r.top)},{passive:false});
 canvas.addEventListener('keydown',e=>{if(!geo)return;if(e.key==='+'||e.key==='='){e.preventDefault();zoomAt(1.4)}else if(e.key==='-'){e.preventDefault();zoomAt(1/1.4)}else if(e.key==='Escape'){state.selected=-1;updateCell();scheduleDraw()}else if(e.key==='Enter'){e.preventDefault();selectCell(cellByKey.get('36,20')??0)}else if(e.key.startsWith('Arrow')){e.preventDefault();if(state.selected<0){selectCell(cellByKey.get('36,20')??0);return}const c=cells[state.selected],row=c.row+(e.key==='ArrowUp'?1:e.key==='ArrowDown'?-1:0),col=c.col+(e.key==='ArrowRight'?1:e.key==='ArrowLeft'?-1:0),i=cellByKey.get(`${row},${col}`);if(i!==undefined)selectCell(i)}});
-async function init(){try{const responses=await Promise.all([fetch('./assets/geography.json'),fetch('./assets/cells.bin'),fetch('./assets/forecast-manifest.json')]);if(responses.some(r=>!r.ok))throw Error('Не удалось получить файлы карты.');[geo,manifest]=await Promise.all([responses[0].json(),responses[2].json()]);validateManifest(manifest);await loadOperatingPolicy(manifest);await loadUpgrade(manifest);const buffer=await responses[1].arrayBuffer();if(buffer.byteLength!==geo.count*geo.record_bytes)throw Error('Неполный файл сетки.');const data=new DataView(buffer);cells=[];history=new Uint16Array(geo.count*8);cellByKey=new Map();for(let i=0;i<geo.count;i++){const p=i*34,c={row:data.getInt16(p,true),col:data.getInt16(p+2,true),area:data.getFloat32(p+4,true),lon:data.getFloat32(p+8,true),lat:data.getFloat32(p+12,true),region:data.getUint16(p+16,true)};cells.push(c);cellByKey.set(`${c.row},${c.col}`,i);for(let y=0;y<8;y++)history[i*8+y]=data.getUint16(p+18+y*2,true)}boundary=pathFrom(geo.outline);regionPaths=geo.regions.map(r=>pathFrom(r.rings));$('loading').hidden=true;renderTimeline();resize();setMode('demo');new ResizeObserver(resize).observe($('map-shell'));loadSatellite().catch(e=>{console.warn('Satellite basemap unavailable',e);state.basemap='scheme';$('basemap-satellite').disabled=true;syncBasemap()});loadEvents().catch(e=>console.warn('Observed events unavailable',e));if(manifest.ready){state.day=manifest.available_days.includes('2024-07-15')?'2024-07-15':manifest.available_days[0];state.autoReal=true;setMode('real')}document.fonts.ready.then(scheduleDraw)}catch(e){$('loading').lastElementChild.textContent=t('loading.failed');console.error(e)}}
+// v6 is the default when its manifest and records verify; otherwise the map stays on v5.
+const START_DAY={v5:'2024-07-15',v6:'2026-04-02'};
+async function loadModelV6(){
+  try{const r=await fetch('./assets/forecast-manifest-v6.json');if(!r.ok)return;const m=await r.json();validateManifest(m);await loadV6(m);manifests.v6=m;manifest=m;state.model='v6';$('model-v6').setAttribute('aria-pressed','true');$('model-v5').setAttribute('aria-pressed','false')}
+  catch(e){console.warn('Model v6 unavailable',e)}
+}
+async function init(){try{const responses=await Promise.all([fetch('./assets/geography.json'),fetch('./assets/cells.bin'),fetch('./assets/forecast-manifest.json')]);if(responses.some(r=>!r.ok))throw Error('Не удалось получить файлы карты.');[geo,manifest]=await Promise.all([responses[0].json(),responses[2].json()]);validateManifest(manifest);await loadOperatingPolicy(manifest);await loadUpgrade(manifest);manifests.v5=manifest;await loadModelV6();const buffer=await responses[1].arrayBuffer();if(buffer.byteLength!==geo.count*geo.record_bytes)throw Error('Неполный файл сетки.');const data=new DataView(buffer);cells=[];history=new Uint16Array(geo.count*8);cellByKey=new Map();for(let i=0;i<geo.count;i++){const p=i*34,c={row:data.getInt16(p,true),col:data.getInt16(p+2,true),area:data.getFloat32(p+4,true),lon:data.getFloat32(p+8,true),lat:data.getFloat32(p+12,true),region:data.getUint16(p+16,true)};cells.push(c);cellByKey.set(`${c.row},${c.col}`,i);for(let y=0;y<8;y++)history[i*8+y]=data.getUint16(p+18+y*2,true)}heat=new Uint8Array(geo.count);for(let i=0;i<geo.count;i++){let low=Infinity;for(let y=0;y<8;y++)low=Math.min(low,history[i*8+y]);heat[i]=low>=HEAT_MIN?1:0}boundary=pathFrom(geo.outline);regionPaths=geo.regions.map(r=>pathFrom(r.rings));$('loading').hidden=true;renderTimeline();resize();setMode('demo');new ResizeObserver(resize).observe($('map-shell'));loadSatellite().catch(e=>{console.warn('Satellite basemap unavailable',e);state.basemap='scheme';$('basemap-satellite').disabled=true;syncBasemap()});if(manifest.ready)useEvents(state.model).catch(e=>console.warn('Observed events unavailable',e));if(manifest.ready){state.day=manifest.available_days.includes(START_DAY[state.model])?START_DAY[state.model]:manifest.available_days[0];state.autoReal=true;setMode('real')}document.fonts.ready.then(scheduleDraw)}catch(e){$('loading').lastElementChild.textContent=t('loading.failed');console.error(e)}}
 // A language switch redraws every text the scripts write; i18n.js has already redone the static markup.
 onLang(()=>{if($('info-dialog').open&&dialogSource)dialogSource();if(!geo)return;allEventsCache=null;renderTimeline();syncNote();syncLayer();makeRaster();if(state.detail>=0){detailHeading(state.detail);detail?.relabel()}relief?.relabel()});
 bindSwitch();

@@ -59,9 +59,20 @@ change). v6 recall alone: 12.7–18.0%.
 
 ## Limits
 
-- v6 ranks much better but its probabilities are less well calibrated on 2026:
-  Brier skill score −0.062 versus v5's +0.009. Read its percentages as a ranking,
-  not as exact chances. Recalibration would need a new held-out period.
+- v6 ranks much better but its probabilities are not calibrated on 2026:
+  Brier skill score −0.062 versus v5's +0.009. The error runs both ways
+  (`platform/dist/v6/reliability_2026.json`): for values of 0.3–3%, around the
+  alert threshold, the observed rate was 4–6 times higher than shown; in the
+  0.015% of cell-days above 3% it was about 2.7 times lower. v5 stays within
+  1.3 times in the same ranges. Read v6 percentages as a ranking, not as
+  chances. Recalibration would need a new held-out period.
+- Persistent heat sources inflate both models. 44 cells with at least 20 VIIRS
+  detections in every year 2015–2022 (smelters, steel works, gas flares the
+  frozen industrial list missed) hold 6% of the 2026 test fires but 33% of v6
+  hits and 36% of v5 hits. Without them (post-hoc, `sensitivity_2026.json`):
+  v6 precision 7.3%, recall 10.8%, AP 0.032; v5 6.3%, 3.9%, 0.015. v6 keeps
+  its lead. The map hides these cells by default. Heat sources that appeared
+  after 2022 are not caught by this rule.
 - Precision stays low: about 9 of 100 alerts match a new fire in the same cell
   on the same day.
 - Weather enters 7 days late, as in every earlier release.
@@ -69,3 +80,17 @@ change). v6 recall alone: 12.7–18.0%.
   labels, so the comparison is fair; absolute precision is probably slightly
   optimistic.
 - Not a prospective as-issued trial and not a spatial holdout.
+
+## On the site
+
+v6 is the map's default model; v5 stays in the switch. `scripts/export_model_v6.py`
+writes full-grid daily maps for 2023–2024 and the 2026 test period; every 2026
+map is checked cell for cell against the registered test predictions.
+`scripts/publish_model_v6.py` copies them to `platform/dist/assets/predictions-v6/`
+and writes `forecast-manifest-v6.json`, the hash-bound records in
+`platform/dist/v6/` and the observed-events layer `events-v6.bin`.
+`platform/scripts/verify-v6-assets.mjs` re-checks all of it.
+
+The 2023–2024 maps are shown for continuity only, since an audit of those years
+informed the design of v6. The map, cell card and "Model" report show the
+calibration limit next to the numbers.

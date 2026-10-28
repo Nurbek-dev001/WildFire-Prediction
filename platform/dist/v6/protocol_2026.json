@@ -1,0 +1,50 @@
+{
+  "registered_utc": "2026-10-28T10:27:33.236863+00:00",
+  "synthetic": false,
+  "labels_accessed": false,
+  "test_period": [
+    "2026-01-01",
+    "2026-10-15"
+  ],
+  "excluded_target_days": [
+    "2026-04-29",
+    "2026-04-30",
+    "2026-05-01",
+    "2026-07-11",
+    "2026-07-12",
+    "2026-07-13",
+    "2026-07-14",
+    "2026-07-15",
+    "2026-07-16",
+    "2026-07-17"
+  ],
+  "excluded_reason": "GIBS has no S-NPP layer on 2026-04-29 and 2026-07-11..15; a target day also needs the two previous days for the 48 h risk set",
+  "models": {
+    "v6": {
+      "release_sha256": "6575d61a84036b5964155f7966c28282271d359e936f1aa1e8754e6018b848d9",
+      "threshold": 0.006778717041015625
+    },
+    "v5": {
+      "release_sha256": "eee99c1a8db0012ca27e43d3216f1494cd38405fe3f40d26cead1b5370319523",
+      "threshold": 0.03564453125
+    }
+  },
+  "retraining_or_tuning_permitted": false,
+  "labels": "NASA GIBS VIIRS_SNPP_Thermal_Anomalies_375m_All vector tiles, tile matrix 500m level 5, Kazakhstan bounding box 46-88E 40-56N; FIRMS NRT records (version 2.0NRT), confidence nominal/high for labels, all confidences for history features as in the frozen models; duplicates on tile seams removed by latitude, longitude and time",
+  "label_source_check": "On seven 2025 days GIBS NRT contained 582 of 583 standard-archive fire cell-days and about 7% extra cell-days; both models are scored on the same labels",
+  "deviation_from_2025_test": "NRT instead of standard processing, because FIRMS has not published a 2026 country archive and no API key is used",
+  "events": "link_events, 2 km and 48 h, continuing from the 2025 standard archive; positive = first detection of a new event in an eligible cell",
+  "risk_set": "2024 vegetated cover (MODIS 2025 is not published), finite terrain, frozen industrial exclusions, no nominal/high detection in the previous 48 h",
+  "sampling": "all positives; 300 negatives per day and region, seed 20260401, inverse inclusion weights",
+  "weather": "same Open-Meteo ERA5 0.25 degree source and daily equations, target minus 7 days",
+  "vegetation": "same NOAA VIIRS NDVI weekly calendar and QA, target minus 12, maximum age 32 days",
+  "metrics": [
+    "precision and recall at each frozen threshold",
+    "F1",
+    "average precision",
+    "ROC-AUC",
+    "estimated daily capture in the top 0.1% and 1% of eligible cells"
+  ],
+  "uncertainty": "1000 paired 100 km x 30 day cluster bootstrap draws, seed 42, for precision, recall and v6 minus v5 differences",
+  "interpretation": "One new temporal assessment of two frozen models; not a prospective as-issued trial or a spatial holdout"
+}

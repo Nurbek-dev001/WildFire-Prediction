@@ -1,0 +1,20 @@
+{
+  "synthetic": false,
+  "selection_max_year": 2022,
+  "frozen_utc": "2026-10-28T10:02:28.681003+00:00",
+  "labels_after_2022_accessed": false,
+  "artifacts": {
+    "model.joblib": "6906627b4d1a81fe25b82edc6344f8c064b395e8f471a0cf247fe854134f8f36",
+    "calibrator.joblib": "e92b98ec6c98da5b7b0a410d3e7811eb2ebff5933d69891e5a44dd02dc910af8",
+    "frozen.json": "9cdb122d1bdfe5055d2a7293b0b9e67b79f85193b58a95fb0e20914d9d049085",
+    "training.json": "493e5c00f5c41d50ec799438421b248ae6e35573959872acfab7a8b93bb728cf",
+    "protocol.json": "114c970c32ef5ea5c5d2540eb4ffb27952cb64c46404a24e64f937cdfdd67665",
+    "development_comparison.csv": "2649627d2d3d5ad6987c1bbd7d8bb88ba6e5251750abebf784984eb430aafcc5",
+    "development_selection.json": "dbae1071805ec0f4ae82e2e36d405e45bb4a6b47c5c0c8513c33c309f41fd9a4"
+  },
+  "code": {
+    "scripts\\develop_model_v6.py": "254712c48e94e41374e4b85cb3288314df5e2f771a3ea3062d87fe0c573b89a3",
+    "src\\wildfire_kz\\fire_weather.py": "84018934fe984a139367184e181bdebfe9946f0613e8289980f79a705da4c06e",
+    "src\\wildfire_kz\\model_upgrade.py": "19f8c73129ab432b0d2bc7470139584ceee8d0b6b073b64bd19e5a67ee2f239a"
+  }
+}

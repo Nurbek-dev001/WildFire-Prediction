@@ -1,8 +1,8 @@
 // Shared code for report pages: verified data loading, localised number formats, SVG charts.
 // Every number on a report comes from a release file checked against its SHA-256 record.
 
-import { t, locale, bindSwitch, onLang } from '../i18n.js?v=20261028-lang';
-import './pages-i18n.js?v=20261028-lang';
+import { t, locale, bindSwitch, onLang } from '../i18n.js?v=20261029-v6';
+import './pages-i18n.js?v=20261029-v6';
 
 export { t };
 export const $ = (id) => document.getElementById(id);
@@ -44,10 +44,30 @@ export async function loadVerified(record, base, files) {
   return out;
 }
 
+// refs: {name: {path, sha256}} from a model manifest, paths relative to the site root.
+export async function loadRefs(refs, names) {
+  const out = {};
+  await Promise.all(names.map(async (name) => {
+    const ref = refs?.[name];
+    if (!ref) throw Error(`${name} отсутствует в манифесте`);
+    const file = ref.path.split('/').pop();
+    const response = await fetch('.' + ref.path, { cache: 'no-store' });
+    if (!response.ok) throw Error(`${file} не найден`);
+    const buffer = await response.arrayBuffer();
+    if ((await sha256(buffer)) !== ref.sha256) throw Error(`${file} не совпал с записью релиза`);
+    const text = new TextDecoder().decode(buffer);
+    out[name] = file.endsWith('.json') ? JSON.parse(text) : parseCsv(text);
+    checked.push(file);
+  }));
+  return out;
+}
+
+// The badge names the model the map opens with: v6 when its manifest is published, else v5.
 export async function header() {
   try {
-    const m = await (await fetch('../assets/forecast-manifest.json')).json();
-    $('release').innerHTML = t('release', { model: t('model.stack'), hash: esc(m.release_sha256.slice(0, 8)) });
+    const v6 = await fetch('../assets/forecast-manifest-v6.json');
+    const m = v6.ok ? await v6.json() : await (await fetch('../assets/forecast-manifest.json')).json();
+    $('release').innerHTML = t('release', { model: v6.ok ? 'XGBoost v6' : t('model.stack'), hash: esc(m.release_sha256.slice(0, 8)) });
   } catch { /* the badge is optional */ }
 }
 
