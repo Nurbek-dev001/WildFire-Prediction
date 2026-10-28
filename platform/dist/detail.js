@@ -2,17 +2,19 @@
 // the day's alert cells and observed events, and every observed 2023–2024 event nearby.
 // Only this view needs the network; Leaflet and proj4 are vendored and load on first use.
 
+import { t, regionName, coords } from './i18n.js?v=20261028-lang';
+
 const LAEA = '+proj=laea +lat_0=48 +lon_0=67 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs';
 const SOURCES = {
   esri: {
     url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
     maxNativeZoom: 18,
-    attribution: 'Снимок © Esri, Maxar, Earthstar Geographics',
+    attribution: () => t('credit.esri').replace(': ', ': © '),
   },
   s2: {
     url: 'https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless_3857/default/g/{z}/{y}/{x}.jpg',
     maxNativeZoom: 15,
-    attribution: '<a href="https://s2maps.eu" target="_blank" rel="noopener">Sentinel-2 cloudless 2016</a> · EOX IT Services · Copernicus Sentinel data 2016 · CC BY 4.0',
+    attribution: () => '<a href="https://s2maps.eu" target="_blank" rel="noopener">Sentinel-2 cloudless 2016</a> · EOX IT Services · Copernicus Sentinel data 2016 · CC BY 4.0',
   },
 };
 const GRID_MIN_ZOOM = 9;
@@ -27,7 +29,6 @@ const loadCss = (href) => new Promise((resolve) => {
   l.rel = 'stylesheet'; l.href = href; l.onload = resolve; l.onerror = resolve;
   document.head.append(l);
 });
-const ru = (v, d) => v.toLocaleString('ru-RU', { minimumFractionDigits: d, maximumFractionDigits: d });
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 
 // host: positioned element to fill. cells: decoded cells.bin. onSelect(index): show the cell card.
@@ -47,13 +48,13 @@ export async function createDetail({ host, geo, cells, onSelect }) {
   host.append(el);
   const map = L.map(el, { zoomControl: false, preferCanvas: true, minZoom: 5, maxZoom: 18, worldCopyJump: false });
   map.attributionControl.setPrefix(false);
-  L.control.zoom({ position: 'topright', zoomInTitle: 'Приблизить', zoomOutTitle: 'Отдалить' }).addTo(map);
+  const zoom = L.control.zoom({ position: 'topright', zoomInTitle: t('detail.zoomIn'), zoomOutTitle: t('detail.zoomOut') }).addTo(map);
   L.control.scale({ imperial: false, position: 'bottomright' }).addTo(map);
   let base = null, source = 'esri';
   const setSource = (key) => {
     if (base) map.removeLayer(base);
     source = key;
-    base = L.tileLayer(SOURCES[key].url, { maxNativeZoom: SOURCES[key].maxNativeZoom, maxZoom: 18, attribution: SOURCES[key].attribution, crossOrigin: true }).addTo(map);
+    base = L.tileLayer(SOURCES[key].url, { maxNativeZoom: SOURCES[key].maxNativeZoom, maxZoom: 18, attribution: SOURCES[key].attribution(), crossOrigin: true }).addTo(map);
     base.bringToBack();
   };
   setSource('esri');
@@ -63,15 +64,16 @@ export async function createDetail({ host, geo, cells, onSelect }) {
   let data = null, focused = -1;
 
   function popup(i) {
-    const c = cells[i], d = data, label = geo.regions[c.region].label;
+    const c = cells[i], d = data;
     const v = d.values[i], years = d.history ? Array.from({ length: 8 }, (_, y) => d.history[i * 8 + y]) : [];
     const seen = d.allEvents.filter((e) => e.cell === i);
-    return `<div class="detail-popup"><b>${esc(label)}${/ская$/.test(label) ? ' область' : ''}</b>
-      <span>${ru(c.lat, 3)}° с. ш., ${ru(c.lon, 3)}° в. д. · ячейка 5 × 5 км</span>
-      ${d.layer === 'forecast' ? `<span>Прогноз на ${esc(d.dayLabel)}: <b>${Number.isFinite(v) ? esc(d.format(v)) : 'нет данных'}</b>${Number.isFinite(v) && d.alertAt !== null && v >= d.alertAt ? ' · выше порога' : ''}</span>` : ''}
-      ${years.length ? `<span>Детекции VIIRS 2015–2022: ${years.map((n, y) => `${2015 + y}: ${n}`).join(', ')}</span>` : ''}
-      <span>Новые очаги 2023–2024 в ячейке: ${seen.length ? seen.map((e) => esc(e.date)).join(', ') : 'нет'}</span>
-      <button type="button" data-select="${i}">Открыть карточку ячейки</button></div>`;
+    const above = Number.isFinite(v) && d.alertAt !== null && v >= d.alertAt;
+    return `<div class="detail-popup"><b>${esc(regionName(geo.regions[c.region], 'long'))}</b>
+      <span>${coords(c.lat, c.lon, 3)} · ${t('detail.popup.cell')}</span>
+      ${d.layer === 'forecast' ? `<span>${t('detail.popup.fc', { day: esc(d.dayLabel), v: Number.isFinite(v) ? esc(d.format(v)) : t('detail.popup.nodata'), above })}</span>` : ''}
+      ${years.length ? `<span>${t('detail.popup.hist')}: ${years.map((n, y) => `${2015 + y}: ${n}`).join(', ')}</span>` : ''}
+      <span>${t('detail.popup.events')}: ${seen.length ? seen.map((e) => esc(e.date)).join(', ') : t('detail.popup.none')}</span>
+      <button type="button" data-select="${i}">${t('detail.popup.open')}</button></div>`;
   }
 
   function drawGrid() {
@@ -102,7 +104,7 @@ export async function createDetail({ host, geo, cells, onSelect }) {
       const p = ll(e.x, -e.y);
       if (!b.contains(p)) continue;
       L.circleMarker(p, { renderer, radius: 4, color: '#193d35', weight: 1.4, fillColor: e.year === 2023 ? '#f2f5ef' : '#c9e3ff', fillOpacity: 1 })
-        .bindTooltip(`Новый очаг VIIRS · ${esc(e.date)}${e.hit ? ' · было предупреждение' : ''}`).addTo(past);
+        .bindTooltip(t('detail.tip.past', { date: esc(e.date), hit: e.hit })).addTo(past);
     }
     if (data.alertAt !== null && data.showPredicted) for (const i of data.alerts) {
       const c = cells[i];
@@ -111,7 +113,7 @@ export async function createDetail({ host, geo, cells, onSelect }) {
     }
     if (data.showObserved) for (const e of data.dayEvents) {
       L.marker(ll(e.x, -e.y), { icon: L.divIcon({ className: '', html: `<i class="detail-diamond${e.hit ? ' is-hit' : ''}"></i>`, iconSize: [16, 16], iconAnchor: [8, 8] }) })
-        .bindTooltip(`Новый очаг VIIRS в этот день${e.hit ? ' · в ячейке с предупреждением' : ''}`).addTo(today);
+        .bindTooltip(t('detail.tip.day', { hit: e.hit })).addTo(today);
     }
   }
 
@@ -140,6 +142,13 @@ export async function createDetail({ host, geo, cells, onSelect }) {
     // values, classOf, colors, alertAt, alerts, dayEvents, allEvents, history, layer, format, dayLabel, show* flags
     refresh(next) { data = next; if (!el.hidden) { drawGrid(); drawPoints(); drawFocus(); } },
     setSource,
+    // Popups and tooltips are built in the current language; the controls need redoing.
+    relabel() {
+      const c = zoom.getContainer();
+      c.querySelector('.leaflet-control-zoom-in').title = t('detail.zoomIn');
+      c.querySelector('.leaflet-control-zoom-out').title = t('detail.zoomOut');
+      setSource(source); map.closePopup();
+    },
     get source() { return source; },
     focus(i) { focused = i; drawFocus(); },
     resize() { map.invalidateSize(); },

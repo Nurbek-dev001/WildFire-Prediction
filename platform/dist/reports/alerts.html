@@ -3,85 +3,86 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Steppe · пороги тревоги</title>
+<title data-i18n-html="alerts.1">Steppe · пороги тревоги</title>
 <link rel="icon" href="../assets/mark.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600&display=swap">
-<link rel="stylesheet" href="../tokens.css?v=20261027-detail">
-<link rel="stylesheet" href="./report.css?v=20261027-detail">
+<link rel="stylesheet" href="../tokens.css?v=20261028-lang">
+<link rel="stylesheet" href="./report.css?v=20261028-lang">
 </head>
 <body>
 <header class="topbar">
-  <a class="wordmark" href="../" aria-label="Steppe, карта">steppe<span>.</span></a>
-  <nav class="nav" aria-label="Разделы">
-    <a href="../">Карта</a>
-    <a href="./model.html">Модель</a>
-    <a href="./previous.html">Исходная модель</a>
-    <a href="./alerts.html" aria-current="page">Пороги тревоги</a>
-    <a href="./quality.html">Качество данных</a>
+  <a class="wordmark" href="../" data-i18n-attr="aria-label:brand.aria" aria-label="Steppe, карта">steppe<span>.</span></a>
+  <nav class="nav" data-i18n-attr="aria-label:nav.sections" aria-label="Разделы">
+    <a href="../" data-i18n="nav.map">Карта</a>
+    <a href="./model.html" data-i18n="nav.model">Модель</a>
+    <a href="./previous.html" data-i18n="nav.previous">Исходная модель</a>
+    <a href="./alerts.html" aria-current="page" data-i18n="nav.alerts">Пороги тревоги</a>
+    <a href="./quality.html" data-i18n="nav.quality">Качество данных</a>
   </nav>
   <span class="release" id="release"></span>
+  <div class="lang-switch" role="group" data-i18n-attr="aria-label:lang.switch" aria-label="Язык интерфейса"><button data-lang="ru" lang="ru" aria-pressed="true" title="Русский">РУС</button><button data-lang="en" lang="en" aria-pressed="false" title="English">ENG</button><button data-lang="kk" lang="kk" aria-pressed="false" title="Қазақша">ҚАЗ</button></div>
 </header>
 
 <main class="report">
   <div class="report-head">
-    <div class="crumbs"><span>Пороги тревоги · редакция v2 для исходной модели</span><span class="chip" id="status">Сверяем файлы релиза…</span></div>
-    <h1>Больше найденных событий ценой ложных сигналов</h1>
-    <p class="lead" id="lead">Три режима предупреждений для исходного XGBoost. Пороги выбраны только по 2022 году; модель, калибровка и вероятности не менялись.</p>
+    <div class="crumbs"><span data-i18n-html="alerts.2">Пороги тревоги · редакция v2 для исходной модели</span><span class="chip" id="status" data-i18n="rep.checking">Сверяем файлы релиза…</span></div>
+    <h1 data-i18n-html="alerts.5">Больше найденных событий ценой ложных сигналов</h1>
+    <p class="lead" id="lead" data-i18n-html="alerts.10">Три режима предупреждений для исходного XGBoost. Пороги выбраны только по 2022 году; модель, калибровка и вероятности не менялись.</p>
   </div>
 
-  <div class="banner"><svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg><span><strong>Это предыдущая редакция</strong>Режимы относятся к исходному XGBoost. Текущая карта работает на модели с вторым уровнем и одним порогом, выбранным на 2022 году, — см. <a href="./model.html">«Модель»</a>.</span></div>
+  <div class="banner"><svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg><span data-i18n-html="alerts.3"><strong>Это предыдущая редакция</strong>Режимы относятся к исходному XGBoost. Текущая карта работает на модели с вторым уровнем и одним порогом, выбранным на 2022 году, — см. <a href="./model.html">«Модель»</a>.</span></div>
 
-  <div class="banner is-danger" id="error" hidden><svg class="ico" viewBox="0 0 24 24"><path d="M12 3 2 20h20L12 3z"/><path d="M12 10v4M12 17h.01"/></svg><span><strong>Файлы отчёта не прошли проверку</strong><p></p></span></div>
+  <div class="banner is-danger" id="error" hidden><svg class="ico" viewBox="0 0 24 24"><path d="M12 3 2 20h20L12 3z"/><path d="M12 10v4M12 17h.01"/></svg><span><strong data-i18n="rep.failed">Файлы отчёта не прошли проверку</strong><p></p></span></div>
 
   <div class="metrics" id="tiles"></div>
 
-  <div class="banner is-accent"><svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg><span><strong>Повторная проверка на прежнем тесте</strong>Все пороги выбраны только по 2022 году. Данные 2023–2024 применены после фиксации порогов. Их результаты уже публиковались ранее, поэтому это не новая независимая контрольная выборка.</span></div>
+  <div class="banner is-accent"><svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg><span data-i18n-html="alerts.4"><strong>Повторная проверка на прежнем тесте</strong>Все пороги выбраны только по 2022 году. Данные 2023–2024 применены после фиксации порогов. Их результаты уже публиковались ранее, поэтому это не новая независимая контрольная выборка.</span></div>
 
   <section class="section" data-after-load hidden>
-    <h2>Как выбирались пороги: 2022</h2>
+    <h2 data-i18n-html="alerts.6">Как выбирались пороги: 2022</h2>
     <div class="card"><div id="curve"></div>
       <p class="caption" id="curve-caption"></p></div>
     <div id="selection-table"></div>
-    <p class="muted">Прежний режим максимизирует F1, «Баланс» — F2, «Охват» — F2 при recall не ниже 30%. При равенстве целевой функции выбирается наибольший порог.</p>
+    <p class="muted" data-i18n-html="alerts.11">Прежний режим максимизирует F1, «Баланс» — F2, «Охват» — F2 при recall не ниже 30%. При равенстве целевой функции выбирается наибольший порог.</p>
   </section>
 
   <section class="section" data-after-load hidden>
-    <h2>Результат на 2023–2024</h2>
+    <h2 data-i18n-html="alerts.7">Результат на 2023–2024</h2>
     <div class="card"><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:var(--s5)" id="chart"></div>
-      <p class="caption">Точка — оценка, отрезок — 95% интервал: 1000 одинаковых блочных повторов 100 км × 30 дней, seed 42.</p></div>
+      <p class="caption" data-i18n-html="alerts.12">Точка — оценка, отрезок — 95% интервал: 1000 одинаковых блочных повторов 100 км × 30 дней, seed 42.</p></div>
     <div id="test-table"></div>
-    <p class="muted">* Доля ячеек-дней по выборке с весами отбора. ** Точное число ячеек-дней с предупреждением по всем 731 картам; несколько суток одной ячейки считаются отдельно. Это разные оценки нагрузки, их не следует отождествлять.</p>
+    <p class="muted" data-i18n-html="alerts.13">* Доля ячеек-дней по выборке с весами отбора. ** Точное число ячеек-дней с предупреждением по всем 731 картам; несколько суток одной ячейки считаются отдельно. Это разные оценки нагрузки, их не следует отождествлять.</p>
     <p id="intervals-text"></p>
-    <p>Больший охват сопровождается большим числом ложных сигналов. «Охват ≥30%» ограничивает полноту в 2022 году; на иной дате или территории этот уровень не гарантируется. Цель — первые спутниковые обнаружения новых растительных пожаров в ячейках 5 × 5 км, без оценки ущерба.</p>
+    <p data-i18n-html="alerts.14">Больший охват сопровождается большим числом ложных сигналов. «Охват ≥30%» ограничивает полноту в 2022 году; на иной дате или территории этот уровень не гарантируется. Цель — первые спутниковые обнаружения новых растительных пожаров в ячейках 5 × 5 км, без оценки ущерба.</p>
   </section>
 
   <section class="section" data-after-load hidden>
-    <h2>Порядок работы</h2>
+    <h2 data-i18n-html="alerts.8">Порядок работы</h2>
     <ol class="steps">
-      <li>Проверены контрольные суммы исходной модели, калибровки и релиза.</li>
-      <li>Открыта только таблица 2022 года; построена взвешенная кривая precision–recall.</li>
-      <li id="frozen-step">Зафиксированы три порога и режим по умолчанию.</li>
-      <li>Только после фиксации пороги применены к сохранённым вероятностям 2023–2024; повторного обучения и выбора порога по тесту не было.</li>
-      <li>Проверено совпадение решений на картах float32 с оценкой. Контрольные суммы всех 731 файлов вероятностей проверены; пропуски не заполнены.</li>
+      <li data-i18n-html="alerts.16">Проверены контрольные суммы исходной модели, калибровки и релиза.</li>
+      <li data-i18n-html="alerts.17">Открыта только таблица 2022 года; построена взвешенная кривая precision–recall.</li>
+      <li id="frozen-step" data-i18n-html="alerts.18">Зафиксированы три порога и режим по умолчанию.</li>
+      <li data-i18n-html="alerts.19">Только после фиксации пороги применены к сохранённым вероятностям 2023–2024; повторного обучения и выбора порога по тесту не было.</li>
+      <li data-i18n-html="alerts.20">Проверено совпадение решений на картах float32 с оценкой. Контрольные суммы всех 731 файлов вероятностей проверены; пропуски не заполнены.</li>
     </ol>
     <p id="unchanged"></p>
   </section>
 
   <section class="section">
-    <h2>Данные и записи</h2>
+    <h2 data-i18n-html="alerts.9">Данные и записи</h2>
     <div class="links">
-      <a href="../alerts/policy.json">Зафиксированная политика JSON</a>
-      <a href="../alerts/evaluation.json">Оценка JSON</a>
-      <a href="../alerts/metrics.csv">Метрики по годам CSV</a>
-      <a href="../alerts/cluster_intervals.csv">Интервалы CSV</a>
-      <a href="../alerts/full_grid_alert_counts.csv">Сигналы по датам CSV</a>
-      <a href="../alerts/calibration_curve_plot.csv">Кривая 2022 CSV</a>
-      <a href="../alerts/">Архивная запись редакции</a>
+      <a href="../alerts/policy.json" data-i18n-html="alerts.21">Зафиксированная политика JSON</a>
+      <a href="../alerts/evaluation.json" data-i18n-html="alerts.22">Оценка JSON</a>
+      <a href="../alerts/metrics.csv" data-i18n-html="alerts.23">Метрики по годам CSV</a>
+      <a href="../alerts/cluster_intervals.csv" data-i18n-html="alerts.24">Интервалы CSV</a>
+      <a href="../alerts/full_grid_alert_counts.csv" data-i18n-html="alerts.25">Сигналы по датам CSV</a>
+      <a href="../alerts/calibration_curve_plot.csv" data-i18n-html="alerts.26">Кривая 2022 CSV</a>
+      <a href="../alerts/" data-i18n-html="alerts.27">Архивная запись редакции</a>
     </div>
-    <p class="muted" data-after-load hidden>SHA-256 политики: <code id="policy-hash"></code><br>SHA-256 исходного релиза модели: <code id="model-hash"></code></p>
+    <p class="muted" data-after-load hidden data-i18n-html="alerts.15">SHA-256 политики: <code id="policy-hash"></code><br>SHA-256 исходного релиза модели: <code id="model-hash"></code></p>
   </section>
 </main>
-<script type="module" src="./alerts.js?v=20261027-detail"></script>
+<script type="module" src="./alerts.js?v=20261028-lang"></script>
 </body>
 </html>

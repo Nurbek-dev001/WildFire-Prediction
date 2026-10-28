@@ -3,104 +3,105 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Steppe · исходная модель</title>
+<title data-i18n-html="previous.1">Steppe · исходная модель</title>
 <link rel="icon" href="../assets/mark.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600&display=swap">
-<link rel="stylesheet" href="../tokens.css?v=20261027-detail">
-<link rel="stylesheet" href="./report.css?v=20261027-detail">
+<link rel="stylesheet" href="../tokens.css?v=20261028-lang">
+<link rel="stylesheet" href="./report.css?v=20261028-lang">
 </head>
 <body>
 <header class="topbar">
-  <a class="wordmark" href="../" aria-label="Steppe, карта">steppe<span>.</span></a>
-  <nav class="nav" aria-label="Разделы">
-    <a href="../">Карта</a>
-    <a href="./model.html">Модель</a>
-    <a href="./previous.html" aria-current="page">Исходная модель</a>
-    <a href="./alerts.html">Пороги тревоги</a>
-    <a href="./quality.html">Качество данных</a>
+  <a class="wordmark" href="../" data-i18n-attr="aria-label:brand.aria" aria-label="Steppe, карта">steppe<span>.</span></a>
+  <nav class="nav" data-i18n-attr="aria-label:nav.sections" aria-label="Разделы">
+    <a href="../" data-i18n="nav.map">Карта</a>
+    <a href="./model.html" data-i18n="nav.model">Модель</a>
+    <a href="./previous.html" aria-current="page" data-i18n="nav.previous">Исходная модель</a>
+    <a href="./alerts.html" data-i18n="nav.alerts">Пороги тревоги</a>
+    <a href="./quality.html" data-i18n="nav.quality">Качество данных</a>
   </nav>
   <span class="release" id="release"></span>
+  <div class="lang-switch" role="group" data-i18n-attr="aria-label:lang.switch" aria-label="Язык интерфейса"><button data-lang="ru" lang="ru" aria-pressed="true" title="Русский">РУС</button><button data-lang="en" lang="en" aria-pressed="false" title="English">ENG</button><button data-lang="kk" lang="kk" aria-pressed="false" title="Қазақша">ҚАЗ</button></div>
 </header>
 
 <main class="report">
   <div class="report-head">
-    <div class="crumbs"><span>Исходная модель · первый релиз</span><span class="chip" id="status">Сверяем файлы релиза…</span></div>
-    <h1>Шесть моделей и финальная проверка</h1>
-    <p class="lead" id="lead">XGBoost выбран по средней взвешенной AP временной валидации 2019–2021 и откалиброван на 2022 году. Контрольные данные 2023–2024 открыты после фиксации моделей и порогов.</p>
+    <div class="crumbs"><span data-i18n-html="previous.2">Исходная модель · первый релиз</span><span class="chip" id="status" data-i18n="rep.checking">Сверяем файлы релиза…</span></div>
+    <h1 data-i18n-html="previous.4">Шесть моделей и финальная проверка</h1>
+    <p class="lead" id="lead" data-i18n-html="previous.13">XGBoost выбран по средней взвешенной AP временной валидации 2019–2021 и откалиброван на 2022 году. Контрольные данные 2023–2024 открыты после фиксации моделей и порогов.</p>
   </div>
 
-  <div class="banner"><svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg><span><strong>Это предыдущий релиз</strong>Текущая карта работает на XGBoost со вторым уровнем и новыми признаками — см. <a href="./model.html">«Модель»</a>. Здесь — исходный выбор и его проверка.</span></div>
+  <div class="banner"><svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg><span data-i18n-html="previous.3"><strong>Это предыдущий релиз</strong>Текущая карта работает на XGBoost со вторым уровнем и новыми признаками — см. <a href="./model.html">«Модель»</a>. Здесь — исходный выбор и его проверка.</span></div>
 
-  <div class="banner is-danger" id="error" hidden><svg class="ico" viewBox="0 0 24 24"><path d="M12 3 2 20h20L12 3z"/><path d="M12 10v4M12 17h.01"/></svg><span><strong>Файлы отчёта не прошли проверку</strong><p></p></span></div>
+  <div class="banner is-danger" id="error" hidden><svg class="ico" viewBox="0 0 24 24"><path d="M12 3 2 20h20L12 3z"/><path d="M12 10v4M12 17h.01"/></svg><span><strong data-i18n="rep.failed">Файлы отчёта не прошли проверку</strong><p></p></span></div>
 
   <div class="metrics" id="tiles"></div>
 
   <section class="section" data-after-load hidden>
-    <h2>Сравнение замороженных моделей на 2023–2024</h2>
+    <h2 data-i18n-html="previous.5">Сравнение замороженных моделей на 2023–2024</h2>
     <div class="card" id="ap-chart"></div>
-    <p class="caption">Отрезки — 95% интервалы AP: 1000 одинаковых блочных повторов 100 км × 30 дней. Парные разности XGBoost с каждой моделью — в файле интервалов. Модель выбрана до доступа к тесту.</p>
+    <p class="caption" data-i18n-html="previous.14">Отрезки — 95% интервалы AP: 1000 одинаковых блочных повторов 100 км × 30 дней. Парные разности XGBoost с каждой моделью — в файле интервалов. Модель выбрана до доступа к тесту.</p>
     <div id="models-table"></div>
   </section>
 
   <section class="section" data-after-load hidden>
-    <h2>Калибровка вероятностей</h2>
+    <h2 data-i18n-html="previous.6">Калибровка вероятностей</h2>
     <div class="card" id="reliability"></div>
-    <p class="caption">Границы интервалов вероятностей зафиксированы на 2022 году (взвешенные децили). Размер точки отражает вес наблюдений, вертикальный отрезок — 95% интервал наблюдаемой частоты. Пунктир — идеальная калибровка.</p>
+    <p class="caption" data-i18n-html="previous.15">Границы интервалов вероятностей зафиксированы на 2022 году (взвешенные децили). Размер точки отражает вес наблюдений, вертикальный отрезок — 95% интервал наблюдаемой частоты. Пунктир — идеальная калибровка.</p>
   </section>
 
   <section class="section" data-after-load hidden>
-    <h2>Какие признаки сильнее всего влияют на прогноз</h2>
+    <h2 data-i18n-html="previous.7">Какие признаки сильнее всего влияют на прогноз</h2>
     <div class="card" id="importance"></div>
-    <p>TreeSHAP; единицы вклада — некалиброванные лог-шансы. Калибровка находится вне объяснения; аддитивное восстановление исходного выхода модели проверено численно. Глобальная оценка использует 400 случайных строк финальной выборки с исходными весами. Эти связи не являются причинными объяснениями.</p>
+    <p data-i18n-html="previous.16">TreeSHAP; единицы вклада — некалиброванные лог-шансы. Калибровка находится вне объяснения; аддитивное восстановление исходного выхода модели проверено численно. Глобальная оценка использует 400 случайных строк финальной выборки с исходными весами. Эти связи не являются причинными объяснениями.</p>
   </section>
 
   <section class="section">
-    <h2>Фактически выполненное обучение</h2>
-    <p>1 250 660 обучающих строк, 113 134 положительных. Прошедшее время запуска, включая приостановки компьютера, — 3,18 ч; пик резидентной памяти процесса — 2,03 ГиБ. Аппаратная и программная среда зафиксированы в реестре.</p>
-    <div class="table-wrap"><table class="table"><thead><tr><th>Модель</th><th>Попыток</th><th>Завершено</th><th>Остановлено рано</th><th>С ошибкой</th></tr></thead>
-      <tbody><tr><td>Случайный лес</td><td>23</td><td>14</td><td>8</td><td>1</td></tr><tr><td>XGBoost</td><td>5</td><td>5</td><td>0</td><td>0</td></tr><tr><td>CatBoost</td><td>5</td><td>5</td><td>0</td><td>0</td></tr></tbody></table></div>
-    <p class="muted">Попытки с ранней остановкой Optuna показаны отдельно. Победитель выбран до доступа к контрольным годам. До финальной оценки бюджет поиска сокращён с 50 до 5 попыток на ансамбль; уже рассчитанные варианты случайного леса сохранены, поэтому моделям выделено разное число попыток.</p>
+    <h2 data-i18n-html="previous.8">Фактически выполненное обучение</h2>
+    <p data-i18n-html="previous.17">1 250 660 обучающих строк, 113 134 положительных. Прошедшее время запуска, включая приостановки компьютера, — 3,18 ч; пик резидентной памяти процесса — 2,03 ГиБ. Аппаратная и программная среда зафиксированы в реестре.</p>
+    <div class="table-wrap"><table class="table"><thead><tr><th data-i18n-html="previous.25">Модель</th><th data-i18n-html="previous.26">Попыток</th><th data-i18n-html="previous.27">Завершено</th><th data-i18n-html="previous.28">Остановлено рано</th><th data-i18n-html="previous.29">С ошибкой</th></tr></thead>
+      <tbody><tr><td data-i18n-html="previous.30">Случайный лес</td><td>23</td><td>14</td><td>8</td><td>1</td></tr><tr><td>XGBoost</td><td>5</td><td>5</td><td>0</td><td>0</td></tr><tr><td>CatBoost</td><td>5</td><td>5</td><td>0</td><td>0</td></tr></tbody></table></div>
+    <p class="muted" data-i18n-html="previous.18">Попытки с ранней остановкой Optuna показаны отдельно. Победитель выбран до доступа к контрольным годам. До финальной оценки бюджет поиска сокращён с 50 до 5 попыток на ансамбль; уже рассчитанные варианты случайного леса сохранены, поэтому моделям выделено разное число попыток.</p>
     <p data-after-load hidden id="cpu"></p>
   </section>
 
   <section class="section">
-    <h2>Восстановление отсутствующих файлов поставщика</h2>
-    <p>Четыре отсутствующих S3-файла влажности почвы за 14 сентября — 6 декабря 2023 получены через официальный API того же поставщика ERA5. Запрошены реальные почасовые наблюдения в исходных узлах сетки. На 200 узлах в каждый из двух обучающих дней максимальное расхождение суточного признака составило 0 м³/м³. Модель, калибровка, пороги и правила признаков не менялись.</p>
+    <h2 data-i18n-html="previous.9">Восстановление отсутствующих файлов поставщика</h2>
+    <p data-i18n-html="previous.19">Четыре отсутствующих S3-файла влажности почвы за 14 сентября — 6 декабря 2023 получены через официальный API того же поставщика ERA5. Запрошены реальные почасовые наблюдения в исходных узлах сетки. На 200 узлах в каждый из двух обучающих дней максимальное расхождение суточного признака составило 0 м³/м³. Модель, калибровка, пороги и правила признаков не менялись.</p>
   </section>
 
   <section class="section" data-after-load hidden>
-    <h2>Состав данных и пропуски</h2>
-    <p>Подготовленные выборки 2015–2022, до финального удаления промышленных ячеек. Доли пропусков невзвешенные и относятся к строкам выборки. Обучающие и проверочные строки могут пересекаться между годами обучения и валидации, их нельзя суммировать как независимые наблюдения.</p>
+    <h2 data-i18n-html="previous.10">Состав данных и пропуски</h2>
+    <p data-i18n-html="previous.20">Подготовленные выборки 2015–2022, до финального удаления промышленных ячеек. Доли пропусков невзвешенные и относятся к строкам выборки. Обучающие и проверочные строки могут пересекаться между годами обучения и валидации, их нельзя суммировать как независимые наблюдения.</p>
     <div id="data-table"></div>
-    <p class="muted">Обязательные метеоданные, покров и рельеф проверены до включения строки. Пропуски NDVI и населения заполняет медиана, рассчитанная только на обучающих данных каждого разбиения.</p>
+    <p class="muted" data-i18n-html="previous.21">Обязательные метеоданные, покров и рельеф проверены до включения строки. Пропуски NDVI и населения заполняет медиана, рассчитанная только на обучающих данных каждого разбиения.</p>
   </section>
 
   <section class="section">
-    <h2>Что измерено</h2>
-    <p>Цель — первое спутниковое обнаружение связанного события, а не подтверждённое время возгорания. Отсутствие детекций не доказывает отсутствие огня. Метрики учитывают веса отбора отрицательных примеров и относятся к допустимым ячейкам с обязательными признаками.</p>
+    <h2 data-i18n-html="previous.11">Что измерено</h2>
+    <p data-i18n-html="previous.22">Цель — первое спутниковое обнаружение связанного события, а не подтверждённое время возгорания. Отсутствие детекций не доказывает отсутствие огня. Метрики учитывают веса отбора отрицательных примеров и относятся к допустимым ячейкам с обязательными признаками.</p>
     <p data-after-load hidden id="sample"></p>
-    <p>Архивы переобработаны после дат наблюдений. ERA5, NOAA NDVI, SRTM 90 м и исторические антропогенные данные — документированные открытые аналоги. Это ретроспективный эксперимент; оперативная пригодность не подтверждена.</p>
+    <p data-i18n-html="previous.23">Архивы переобработаны после дат наблюдений. ERA5, NOAA NDVI, SRTM 90 м и исторические антропогенные данные — документированные открытые аналоги. Это ретроспективный эксперимент; оперативная пригодность не подтверждена.</p>
   </section>
 
   <section class="section">
-    <h2>Данные и записи</h2>
+    <h2 data-i18n-html="previous.12">Данные и записи</h2>
     <div class="links">
-      <a href="../evaluate/metrics.csv">Все метрики CSV</a>
-      <a href="../evaluate/cluster_intervals.csv">Блочные интервалы CSV</a>
-      <a href="../comparison.csv">Временная валидация CSV</a>
-      <a href="../source_registry.json">Зафиксированные источники JSON</a>
-      <a href="../results/acquisition_manifest.json">Реестр загрузки и версий JSON</a>
-      <a href="../results/development_data_quality.csv">Доли пропусков CSV</a>
-      <a href="../results/explain/global.csv">Важность признаков CSV</a>
-      <a href="../results/explain/grouped.csv">Группы по покрову и областям CSV</a>
-      <a href="../results/budget_amendment.json">Изменение бюджета поиска JSON</a>
-      <a href="../frozen.json">Параметры фиксации JSON</a>
-      <a href="../results/">Архивная запись релиза</a>
+      <a href="../evaluate/metrics.csv" data-i18n-html="previous.31">Все метрики CSV</a>
+      <a href="../evaluate/cluster_intervals.csv" data-i18n-html="previous.32">Блочные интервалы CSV</a>
+      <a href="../comparison.csv" data-i18n-html="previous.33">Временная валидация CSV</a>
+      <a href="../source_registry.json" data-i18n-html="previous.34">Зафиксированные источники JSON</a>
+      <a href="../results/acquisition_manifest.json" data-i18n-html="previous.35">Реестр загрузки и версий JSON</a>
+      <a href="../results/development_data_quality.csv" data-i18n-html="previous.36">Доли пропусков CSV</a>
+      <a href="../results/explain/global.csv" data-i18n-html="previous.37">Важность признаков CSV</a>
+      <a href="../results/explain/grouped.csv" data-i18n-html="previous.38">Группы по покрову и областям CSV</a>
+      <a href="../results/budget_amendment.json" data-i18n-html="previous.39">Изменение бюджета поиска JSON</a>
+      <a href="../frozen.json" data-i18n-html="previous.40">Параметры фиксации JSON</a>
+      <a href="../results/" data-i18n-html="previous.41">Архивная запись релиза</a>
     </div>
-    <p class="muted" data-after-load hidden>SHA-256 фиксации: <code id="release-hash"></code></p>
+    <p class="muted" data-after-load hidden data-i18n-html="previous.24">SHA-256 фиксации: <code id="release-hash"></code></p>
   </section>
 </main>
-<script type="module" src="./previous.js?v=20261027-detail"></script>
+<script type="module" src="./previous.js?v=20261028-lang"></script>
 </body>
 </html>

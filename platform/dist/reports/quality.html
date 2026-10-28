@@ -3,113 +3,114 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Steppe · качество данных</title>
+<title data-i18n-html="quality.1">Steppe · качество данных</title>
 <link rel="icon" href="../assets/mark.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600&display=swap">
-<link rel="stylesheet" href="../tokens.css?v=20261027-detail">
-<link rel="stylesheet" href="./report.css?v=20261027-detail">
+<link rel="stylesheet" href="../tokens.css?v=20261028-lang">
+<link rel="stylesheet" href="./report.css?v=20261028-lang">
 </head>
 <body>
 <header class="topbar">
-  <a class="wordmark" href="../" aria-label="Steppe, карта">steppe<span>.</span></a>
-  <nav class="nav" aria-label="Разделы">
-    <a href="../">Карта</a>
-    <a href="./model.html">Модель</a>
-    <a href="./previous.html">Исходная модель</a>
-    <a href="./alerts.html">Пороги тревоги</a>
-    <a href="./quality.html" aria-current="page">Качество данных</a>
+  <a class="wordmark" href="../" data-i18n-attr="aria-label:brand.aria" aria-label="Steppe, карта">steppe<span>.</span></a>
+  <nav class="nav" data-i18n-attr="aria-label:nav.sections" aria-label="Разделы">
+    <a href="../" data-i18n="nav.map">Карта</a>
+    <a href="./model.html" data-i18n="nav.model">Модель</a>
+    <a href="./previous.html" data-i18n="nav.previous">Исходная модель</a>
+    <a href="./alerts.html" data-i18n="nav.alerts">Пороги тревоги</a>
+    <a href="./quality.html" aria-current="page" data-i18n="nav.quality">Качество данных</a>
   </nav>
   <span class="release" id="release"></span>
+  <div class="lang-switch" role="group" data-i18n-attr="aria-label:lang.switch" aria-label="Язык интерфейса"><button data-lang="ru" lang="ru" aria-pressed="true" title="Русский">РУС</button><button data-lang="en" lang="en" aria-pressed="false" title="English">ENG</button><button data-lang="kk" lang="kk" aria-pressed="false" title="Қазақша">ҚАЗ</button></div>
 </header>
 
 <main class="report">
   <div class="report-head">
-    <div class="crumbs"><span>Качество данных · аудит текущей модели</span><span class="chip" id="status">Сверяем файлы релиза…</span></div>
-    <h1>Независимый 2025 год, события и перенос между регионами</h1>
-    <p class="lead">Проверки после фиксации модели: новый контрольный год, полный пересчёт всех карт, уникальные спутниковые события и перенос на удержанную географию. Ни одна из них не меняла модель.</p>
+    <div class="crumbs"><span data-i18n-html="quality.2">Качество данных · аудит текущей модели</span><span class="chip" id="status" data-i18n="rep.checking">Сверяем файлы релиза…</span></div>
+    <h1 data-i18n-html="quality.5">Независимый 2025 год, события и перенос между регионами</h1>
+    <p class="lead" data-i18n-html="quality.15">Проверки после фиксации модели: новый контрольный год, полный пересчёт всех карт, уникальные спутниковые события и перенос на удержанную географию. Ни одна из них не меняла модель.</p>
   </div>
 
-  <div class="banner is-accent"><svg class="ico" viewBox="0 0 24 24"><path d="M12 3 2 20h20L12 3z"/><path d="M12 10v4M12 17h.01"/></svg><span><strong>Оперативная пригодность не подтверждена</strong>Эти проверки не превращают спутниковое обнаружение в подтверждённое время возгорания и не подтверждают, что модель годится для самостоятельного оперативного предупреждения.</span></div>
+  <div class="banner is-accent"><svg class="ico" viewBox="0 0 24 24"><path d="M12 3 2 20h20L12 3z"/><path d="M12 10v4M12 17h.01"/></svg><span data-i18n-html="quality.3"><strong>Оперативная пригодность не подтверждена</strong>Эти проверки не превращают спутниковое обнаружение в подтверждённое время возгорания и не подтверждают, что модель годится для самостоятельного оперативного предупреждения.</span></div>
 
-  <div class="banner is-danger" id="error" hidden><svg class="ico" viewBox="0 0 24 24"><path d="M12 3 2 20h20L12 3z"/><path d="M12 10v4M12 17h.01"/></svg><span><strong>Файлы отчёта не прошли проверку</strong><p></p></span></div>
+  <div class="banner is-danger" id="error" hidden><svg class="ico" viewBox="0 0 24 24"><path d="M12 3 2 20h20L12 3z"/><path d="M12 10v4M12 17h.01"/></svg><span><strong data-i18n="rep.failed">Файлы отчёта не прошли проверку</strong><p></p></span></div>
 
   <div class="metrics" id="tiles"></div>
 
   <section class="section" data-after-load hidden>
-    <h2>Новый контрольный период: 2025</h2>
+    <h2 data-i18n-html="quality.6">Новый контрольный период: 2025</h2>
     <p id="fresh-lead"></p>
     <div class="card"><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:var(--s5)" id="fresh-chart"></div>
       <p class="caption" id="fresh-caption"></p></div>
     <div id="fresh-table"></div>
     <p id="fresh-diff"></p>
-    <p>Метки 2025 года впервые открыты после фиксации релиза и реализации. Теперь этот тест считается использованным и не должен снова называться новым независимым тестом для следующих настроек.</p>
+    <p data-i18n-html="quality.16">Метки 2025 года впервые открыты после фиксации релиза и реализации. Теперь этот тест считается использованным и не должен снова называться новым независимым тестом для следующих настроек.</p>
     <p id="fresh-events"></p>
     <p id="fresh-outage"></p>
   </section>
 
   <section class="section" data-after-load hidden>
-    <h2>Полный пересчёт всех карт 2023–2024</h2>
+    <h2 data-i18n-html="quality.7">Полный пересчёт всех карт 2023–2024</h2>
     <p id="exact-text"></p>
     <p class="muted" id="exact-note"></p>
   </section>
 
   <section class="section" data-after-load hidden>
-    <h2>Уникальные спутниковые события</h2>
+    <h2 data-i18n-html="quality.8">Уникальные спутниковые события</h2>
     <p id="events-text"></p>
     <p id="components-text"></p>
   </section>
 
   <section class="section" data-after-load hidden>
-    <h2>Где модель находит очаги: регионы и месяцы</h2>
+    <h2 data-i18n-html="quality.9">Где модель находит очаги: регионы и месяцы</h2>
     <p id="subgroup-lead"></p>
     <div class="card" id="region-chart"></div>
     <div class="card" id="month-chart"></div>
-    <p class="muted">Диагностика по взвешенным ячейкам-дням 2023–2024, а не проверка переноса на новые регионы. Эти результаты не использовались для изменения модели.</p>
+    <p class="muted" data-i18n-html="quality.17">Диагностика по взвешенным ячейкам-дням 2023–2024, а не проверка переноса на новые регионы. Эти результаты не использовались для изменения модели.</p>
   </section>
 
   <section class="section" data-after-load hidden>
-    <h2>Перенос между географическими частями</h2>
-    <p>Пять непрерывных частей страны, блоки 100 км, буфер 25 км. На каждом разбиении заново обучены базовый XGBoost, хронологические модели для второго уровня, второй уровень и калибровка. Обучение 2015–2021, калибровка на своей географии 2022, проверка на удержанной географии 2022. Данные 2023–2025 не использовались.</p>
-    <div class="banner"><svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg><span><strong>Перенос слабый</strong>Результаты отдельных частей существенно хуже общей временной оценки. Гиперпараметры выбирались на всей территории до 2022, поэтому это условный аудит переноса фиксированного рецепта, а не полностью вложенный независимый пространственный тест. История детекций в удержанной части допускается как прошлое наблюдение.</span></div>
+    <h2 data-i18n-html="quality.10">Перенос между географическими частями</h2>
+    <p data-i18n-html="quality.18">Пять непрерывных частей страны, блоки 100 км, буфер 25 км. На каждом разбиении заново обучены базовый XGBoost, хронологические модели для второго уровня, второй уровень и калибровка. Обучение 2015–2021, калибровка на своей географии 2022, проверка на удержанной географии 2022. Данные 2023–2025 не использовались.</p>
+    <div class="banner"><svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg><span data-i18n-html="quality.4"><strong>Перенос слабый</strong>Результаты отдельных частей существенно хуже общей временной оценки. Гиперпараметры выбирались на всей территории до 2022, поэтому это условный аудит переноса фиксированного рецепта, а не полностью вложенный независимый пространственный тест. История детекций в удержанной части допускается как прошлое наблюдение.</span></div>
     <div id="spatial-table"></div>
   </section>
 
   <section class="section">
-    <h2>Разрешение и актуальность</h2>
-    <p>Сетка вывода 5 км. ERA5 0,25° — приблизительно 18–28 км по разным направлениям на территории Казахстана; NOAA NDVI 0,05°; SRTM 90 м. Интерполяция не создаёт новых наблюдений. Пропуски обязательной погоды исключаются; пропуски NDVI сохраняют отдельный индикатор, а не считаются наблюдением нормальной растительности.</p>
-    <p>Для независимого 2025 используется MODIS 2024. В карточке ячейки отдельно показан WorldPop 2020. В зафиксированной исторической модели остаются население 2010 и поселения 2013: тихая замена на более поздние значения нарушила бы воспроизводимость и могла бы внести будущую информацию.</p>
+    <h2 data-i18n-html="quality.11">Разрешение и актуальность</h2>
+    <p data-i18n-html="quality.19">Сетка вывода 5 км. ERA5 0,25° — приблизительно 18–28 км по разным направлениям на территории Казахстана; NOAA NDVI 0,05°; SRTM 90 м. Интерполяция не создаёт новых наблюдений. Пропуски обязательной погоды исключаются; пропуски NDVI сохраняют отдельный индикатор, а не считаются наблюдением нормальной растительности.</p>
+    <p data-i18n-html="quality.20">Для независимого 2025 используется MODIS 2024. В карточке ячейки отдельно показан WorldPop 2020. В зафиксированной исторической модели остаются население 2010 и поселения 2013: тихая замена на более поздние значения нарушила бы воспроизводимость и могла бы внести будущую информацию.</p>
   </section>
 
   <section class="section">
-    <h2>Текущая дата</h2>
-    <p>Получена публичная семидневная лента SNPP NRT. Она не покрывает историю 2026, необходимую 365-дневному признаку. Автоматический сегодняшний прогноз не введён в работу; текущие NRT не подставляются вместо стандартных меток независимого теста.</p>
+    <h2 data-i18n-html="quality.12">Текущая дата</h2>
+    <p data-i18n-html="quality.21">Получена публичная семидневная лента SNPP NRT. Она не покрывает историю 2026, необходимую 365-дневному признаку. Автоматический сегодняшний прогноз не введён в работу; текущие NRT не подставляются вместо стандартных меток независимого теста.</p>
   </section>
 
   <section class="section">
-    <h2>Граница целевой переменной</h2>
-    <p>Модель оценивает первое спутниковое обнаружение связанного события. Независимых наземных данных о времени возгорания, распространении и ущербе в проекте нет. Слой населения — оценка экспозиции, а не прогноз ущерба. Для этих задач нужны отдельные цели, данные и проверка.</p>
+    <h2 data-i18n-html="quality.13">Граница целевой переменной</h2>
+    <p data-i18n-html="quality.22">Модель оценивает первое спутниковое обнаружение связанного события. Независимых наземных данных о времени возгорания, распространении и ущербе в проекте нет. Слой населения — оценка экспозиции, а не прогноз ущерба. Для этих задач нужны отдельные цели, данные и проверка.</p>
   </section>
 
   <section class="section">
-    <h2>Данные и записи</h2>
+    <h2 data-i18n-html="quality.14">Данные и записи</h2>
     <div class="links">
-      <a href="../quality/independent_evaluation.json">Тест 2025 и интервалы JSON</a>
-      <a href="../quality/independent_protocol.json">Протокол до меток 2025 JSON</a>
-      <a href="../quality/independent_label_access.json">Журнал первого доступа JSON</a>
-      <a href="../quality/independent_event_metrics.json">События 2025 JSON</a>
-      <a href="../quality/independent_outage_sensitivity.json">Проверка сбоя SNPP JSON</a>
-      <a href="../quality/events.json">События 2023–2024 JSON</a>
-      <a href="../quality/daily_burden.csv">Сигналы по датам CSV</a>
-      <a href="../quality/subgroups.csv">Регионы, месяцы, NDVI CSV</a>
-      <a href="../quality/spatial_metrics.csv">Перенос, все метрики CSV</a>
-      <a href="../quality/spatial_plan.json">Протокол разбиений JSON</a>
-      <a href="../assets/daily-status.json">Готовность на текущую дату JSON</a>
-      <a href="../quality/">Архивная запись аудита</a>
+      <a href="../quality/independent_evaluation.json" data-i18n-html="quality.24">Тест 2025 и интервалы JSON</a>
+      <a href="../quality/independent_protocol.json" data-i18n-html="quality.25">Протокол до меток 2025 JSON</a>
+      <a href="../quality/independent_label_access.json" data-i18n-html="quality.26">Журнал первого доступа JSON</a>
+      <a href="../quality/independent_event_metrics.json" data-i18n-html="quality.27">События 2025 JSON</a>
+      <a href="../quality/independent_outage_sensitivity.json" data-i18n-html="quality.28">Проверка сбоя SNPP JSON</a>
+      <a href="../quality/events.json" data-i18n-html="quality.29">События 2023–2024 JSON</a>
+      <a href="../quality/daily_burden.csv" data-i18n-html="quality.30">Сигналы по датам CSV</a>
+      <a href="../quality/subgroups.csv" data-i18n-html="quality.31">Регионы, месяцы, NDVI CSV</a>
+      <a href="../quality/spatial_metrics.csv" data-i18n-html="quality.32">Перенос, все метрики CSV</a>
+      <a href="../quality/spatial_plan.json" data-i18n-html="quality.33">Протокол разбиений JSON</a>
+      <a href="../assets/daily-status.json" data-i18n-html="quality.34">Готовность на текущую дату JSON</a>
+      <a href="../quality/" data-i18n-html="quality.35">Архивная запись аудита</a>
     </div>
-    <p class="muted" data-after-load hidden>Релиз: <code id="release-hash"></code></p>
+    <p class="muted" data-after-load hidden data-i18n-html="quality.23">Релиз: <code id="release-hash"></code></p>
   </section>
 </main>
-<script type="module" src="./quality.js?v=20261027-detail"></script>
+<script type="module" src="./quality.js?v=20261028-lang"></script>
 </body>
 </html>

@@ -22,6 +22,10 @@ svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width:
 .nav a[aria-current="page"] { color: var(--on-ink); border-bottom-color: var(--p3); }
 .release { margin-left: auto; font-size: var(--text-xs); color: var(--on-ink-muted); white-space: nowrap; }
 .release b { color: var(--on-ink); font-weight: var(--w-medium); }
+.lang-switch { display: flex; flex: none; gap: 2px; padding: 2px; border-radius: var(--r-md); background: rgba(255, 255, 255, 0.08); }
+.lang-switch button { height: 28px; padding: 0 var(--s2); border-radius: 6px; font-size: var(--text-xs); font-weight: var(--w-medium); letter-spacing: 0.02em; color: var(--on-ink-muted); }
+.lang-switch button:hover { color: var(--on-ink); }
+.lang-switch button[aria-pressed="true"] { background: var(--on-ink); color: var(--ink); }
 
 /* ---------- layout ---------- */
 .app { display: grid; grid-template-columns: var(--panel-w) minmax(0, 1fr); min-height: 0; }
@@ -284,6 +288,7 @@ dialog .method-step p { margin-top: var(--s1); }
 /* ---------- tablet ---------- */
 @media (max-width: 1150px) {
   .release { display: none; }
+  .lang-switch { margin-left: auto; }
   .timeline-days { display: none; }
   .legend { width: 330px; }
 }

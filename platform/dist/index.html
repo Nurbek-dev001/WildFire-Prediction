@@ -3,13 +3,13 @@
 <head>
   <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#193d35">
-  <meta name="description" content="Steppe — интерактивная карта вероятности возникновения природных пожаров в Казахстане. Реальная география, рельеф SRTM, открытые данные, архив VIIRS и проверяемые результаты моделей.">
-  <title>Steppe — карта пожарной опасности</title>
+  <meta name="description" data-i18n-attr="content:page.desc" content="Steppe — интерактивная карта вероятности возникновения природных пожаров в Казахстане. Реальная география, рельеф SRTM, открытые данные, архив VIIRS и проверяемые результаты моделей.">
+  <title data-i18n="page.title">Steppe — карта пожарной опасности</title>
   <link rel="icon" href="./assets/mark.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600&display=swap">
-  <link rel="stylesheet" href="./tokens.css?v=20261028-tiles3">
-  <link rel="stylesheet" href="./style.css?v=20261028-tiles3">
+  <link rel="stylesheet" href="./tokens.css?v=20261028-lang">
+  <link rel="stylesheet" href="./style.css?v=20261028-lang">
 </head>
 <body>
   <svg class="icon-library" aria-hidden="true"><defs>
@@ -26,31 +26,32 @@
   </defs></svg>
 
   <header class="topbar">
-    <a class="wordmark" href="./" aria-label="Steppe, карта">steppe<span>.</span></a>
-    <nav class="nav" aria-label="Разделы">
-      <a href="./" id="nav-map" aria-current="page">Карта</a>
-      <a href="./reports/model.html">Модель</a>
-      <a href="./reports/previous.html">Исходная модель</a>
-      <a href="./reports/alerts.html">Пороги тревоги</a>
-      <a href="./reports/quality.html">Качество данных</a>
-      <button id="nav-data">Источники</button>
-      <button id="nav-method">Методика</button>
+    <a class="wordmark" href="./" data-i18n-attr="aria-label:brand.aria" aria-label="Steppe, карта">steppe<span>.</span></a>
+    <nav class="nav" data-i18n-attr="aria-label:nav.sections" aria-label="Разделы">
+      <a href="./" id="nav-map" aria-current="page" data-i18n="nav.map">Карта</a>
+      <a href="./reports/model.html" data-i18n="nav.model">Модель</a>
+      <a href="./reports/previous.html" data-i18n="nav.previous">Исходная модель</a>
+      <a href="./reports/alerts.html" data-i18n="nav.alerts">Пороги тревоги</a>
+      <a href="./reports/quality.html" data-i18n="nav.quality">Качество данных</a>
+      <button id="nav-data" data-i18n="nav.sources">Источники</button>
+      <button id="nav-method" data-i18n="nav.method">Методика</button>
     </nav>
     <span class="release" id="release"></span>
+    <div class="lang-switch" role="group" data-i18n-attr="aria-label:lang.switch" aria-label="Язык интерфейса"><button data-lang="ru" lang="ru" aria-pressed="true" title="Русский">РУС</button><button data-lang="en" lang="en" aria-pressed="false" title="English">ENG</button><button data-lang="kk" lang="kk" aria-pressed="false" title="Қазақша">ҚАЗ</button></div>
   </header>
 
   <main class="app">
-    <aside class="panel" aria-label="Управление картой">
+    <aside class="panel" data-i18n-attr="aria-label:panel.aria" aria-label="Управление картой">
       <div class="panel-head">
         <h1 id="map-title">Прогноз на <span id="title-date">15 июля 2024</span></h1>
-        <p id="map-intro">Вероятность нового природного пожара на следующие сутки, сетка 5 × 5 км</p>
+        <p id="map-intro" data-i18n="map.intro">Вероятность нового природного пожара на следующие сутки, сетка 5 × 5 км</p>
       </div>
 
       <div class="switches">
-        <div class="segmented" role="group" aria-label="Режим карты">
-          <button id="real-mode" aria-pressed="false">Модель</button><button id="demo-mode" aria-pressed="true">Демо</button>
+        <div class="segmented" role="group" data-i18n-attr="aria-label:mode.aria" aria-label="Режим карты">
+          <button id="real-mode" aria-pressed="false" data-i18n="mode.real">Модель</button><button id="demo-mode" aria-pressed="true" data-i18n="mode.demo">Демо</button>
         </div>
-        <div class="segmented" role="group" aria-label="Вид карты">
+        <div class="segmented" role="group" data-i18n-attr="aria-label:view.aria" aria-label="Вид карты">
           <button id="view-2d" aria-pressed="true">2D</button><button id="view-3d" aria-pressed="false">3D</button>
         </div>
       </div>
@@ -63,68 +64,68 @@
       </div>
 
       <section class="group" aria-labelledby="layers-heading">
-        <h2 class="label" id="layers-heading">Слой</h2>
-        <div class="basemap-row"><span>Подложка</span><div class="segmented" role="group" aria-label="Подложка карты"><button id="basemap-satellite" aria-pressed="true">Спутник</button><button id="basemap-scheme" aria-pressed="false">Схема</button></div></div>
-        <button class="layer-option" id="forecast-layer" aria-pressed="true"><span class="layer-symbol heat-symbol"></span><span><strong>Новый очаг за сутки</strong><small>Первое спутниковое обнаружение</small></span><span class="radio-dot"></span></button>
-        <button class="layer-option" id="history-layer" aria-pressed="false"><span class="layer-symbol fire-symbol"></span><span><strong>Наблюдения VIIRS</strong><small>Реальные детекции · 2015–2022</small></span><span class="radio-dot"></span></button>
-        <div class="history-options" id="history-options" hidden><label for="history-year">Год наблюдений</label><select id="history-year"><option>2022</option><option>2021</option><option>2020</option><option>2019</option><option>2018</option><option>2017</option><option>2016</option><option>2015</option></select></div>
+        <h2 class="label" id="layers-heading" data-i18n="layers">Слой</h2>
+        <div class="basemap-row"><span data-i18n="basemap">Подложка</span><div class="segmented" role="group" data-i18n-attr="aria-label:basemap.aria" aria-label="Подложка карты"><button id="basemap-satellite" aria-pressed="true" data-i18n="basemap.satellite">Спутник</button><button id="basemap-scheme" aria-pressed="false" data-i18n="basemap.scheme">Схема</button></div></div>
+        <button class="layer-option" id="forecast-layer" aria-pressed="true"><span class="layer-symbol heat-symbol"></span><span><strong data-i18n="layer.forecast">Новый очаг за сутки</strong><small data-i18n="layer.forecast.sub">Первое спутниковое обнаружение</small></span><span class="radio-dot"></span></button>
+        <button class="layer-option" id="history-layer" aria-pressed="false"><span class="layer-symbol fire-symbol"></span><span><strong data-i18n="layer.history">Наблюдения VIIRS</strong><small data-i18n="layer.history.sub">Реальные детекции · 2015–2022</small></span><span class="radio-dot"></span></button>
+        <div class="history-options" id="history-options" hidden><label for="history-year" data-i18n="history.year">Год наблюдений</label><select id="history-year"><option>2022</option><option>2021</option><option>2020</option><option>2019</option><option>2018</option><option>2017</option><option>2016</option><option>2015</option></select></div>
         <div class="alert-profile" id="alert-profile-panel" hidden>
-          <label for="alert-profile">Режим предупреждений</label>
+          <label for="alert-profile" data-i18n="profile.label">Режим предупреждений</label>
           <select id="alert-profile" aria-describedby="alert-profile-help alert-profile-metrics"></select>
           <p id="alert-profile-metrics" aria-live="polite"></p>
-          <p id="alert-profile-help">Порог выбран по 2022. Метрики — за 2023–2024, не гарантия для выбранной даты.</p>
-          <a href="./reports/alerts.html">Сравнить режимы</a>
+          <p id="alert-profile-help" data-i18n="profile.help">Порог выбран по 2022. Метрики — за 2023–2024, не гарантия для выбранной даты.</p>
+          <a href="./reports/alerts.html" data-i18n="profile.compareModes">Сравнить режимы</a>
         </div>
         <label class="toggle-row" id="high-only-row"><span id="threshold-label">Только предупреждения</span><input id="high-only" type="checkbox"><span class="toggle"></span></label>
-        <label class="toggle-row"><span>Границы областей</span><input id="region-lines" type="checkbox" checked><span class="toggle"></span></label>
+        <label class="toggle-row"><span data-i18n="regionLines">Границы областей</span><input id="region-lines" type="checkbox" checked><span class="toggle"></span></label>
       </section>
 
       <section class="group" id="points-group" aria-labelledby="points-heading" hidden>
-        <h2 class="label" id="points-heading">Точки возгорания на эту дату</h2>
+        <h2 class="label" id="points-heading" data-i18n="points.heading">Точки возгорания на эту дату</h2>
         <p class="points-summary" id="points-summary"></p>
-        <label class="toggle-row"><span><i class="mk mk-pred"></i>Прогноз выше порога</span><input id="show-predicted" type="checkbox" checked><span class="toggle"></span></label>
-        <label class="toggle-row"><span><i class="mk mk-obs"></i>Реальные новые очаги VIIRS</span><input id="show-observed" type="checkbox" checked><span class="toggle"></span></label>
+        <label class="toggle-row"><span><i class="mk mk-pred"></i><span data-i18n="points.predicted">Прогноз выше порога</span></span><input id="show-predicted" type="checkbox" checked><span class="toggle"></span></label>
+        <label class="toggle-row"><span><i class="mk mk-obs"></i><span data-i18n="points.observed">Реальные новые очаги VIIRS</span></span><input id="show-observed" type="checkbox" checked><span class="toggle"></span></label>
         <div class="points-list" id="points-list"></div>
-        <p class="points-note">Реальные очаги — первое обнаружение каждого нового события спутником S-NPP VIIRS. Эти метки открыты после фиксации и оценки модели, поэтому сравнение ретроспективное. Совпадение — очаг в той же ячейке 5 км в тот же день.</p>
+        <p class="points-note" data-i18n="points.note">Реальные очаги — первое обнаружение каждого нового события спутником S-NPP VIIRS. Эти метки открыты после фиксации и оценки модели, поэтому сравнение ретроспективное. Совпадение — очаг в той же ячейке 5 км в тот же день.</p>
       </section>
 
       <section class="group" aria-labelledby="regions-heading">
-        <h2 class="label" id="regions-heading">Области <span id="region-count">16</span></h2>
-        <div class="search-wrap"><svg><use href="#i-search"/></svg><input id="region-search" placeholder="Найти область" aria-label="Найти область"></div>
-        <div id="region-list" class="region-list" aria-label="Области Казахстана"></div>
+        <h2 class="label" id="regions-heading"><span data-i18n="regions">Области</span> <span id="region-count">16</span></h2>
+        <div class="search-wrap"><svg><use href="#i-search"/></svg><input id="region-search" data-i18n-attr="placeholder:regions.search;aria-label:regions.search" placeholder="Найти область" aria-label="Найти область"></div>
+        <div id="region-list" class="region-list" data-i18n-attr="aria-label:regions.list" aria-label="Области Казахстана"></div>
       </section>
 
       <section class="group" aria-labelledby="reports-heading">
-        <h2 class="label" id="reports-heading">Проверки</h2>
-        <div class="report-buttons"><button id="holdout-button">Метрики</button><button id="quality-button">Аудит · тест 2025</button><button id="today-button">Готовность данных</button></div>
+        <h2 class="label" id="reports-heading" data-i18n="checks">Проверки</h2>
+        <div class="report-buttons"><button id="holdout-button">Метрики</button><button id="quality-button" data-i18n="checks.audit">Аудит · тест 2025</button><button id="today-button" data-i18n="checks.readiness">Готовность данных</button></div>
       </section>
-      <p class="panel-foot">Сетка 5 × 5 км · 110 129 ячеек · равновеликая проекция LAEA</p>
+      <p class="panel-foot" data-i18n="panel.foot">Сетка 5 × 5 км · 110 129 ячеек · равновеликая проекция LAEA</p>
     </aside>
 
-    <section class="workspace" id="map-shell" aria-label="Интерактивная карта">
-      <canvas id="map" aria-label="Карта Казахстана. Нажмите на ячейку, чтобы увидеть вероятность пожара." tabindex="0"></canvas>
+    <section class="workspace" id="map-shell" data-i18n-attr="aria-label:map.aria" aria-label="Интерактивная карта">
+      <canvas id="map" data-i18n-attr="aria-label:map.canvas" aria-label="Карта Казахстана. Нажмите на ячейку, чтобы увидеть вероятность пожара." tabindex="0"></canvas>
 
       <div class="map-top">
         <div class="datebar timeline" id="timeline">
           <span class="timeline-title" hidden><strong>Дата прогноза</strong></span>
-          <button class="btn is-icon" id="previous-day" aria-label="Предыдущий день"><svg><use href="#i-left"/></svg></button>
+          <button class="btn is-icon" id="previous-day" data-i18n-attr="aria-label:date.prev" aria-label="Предыдущий день"><svg><use href="#i-left"/></svg></button>
           <label class="date-input-wrap"><input id="forecast-date" type="date" value="2024-07-15" aria-label="Дата прогноза"></label>
-          <button class="btn is-icon" id="next-day" aria-label="Следующий день"><svg><use href="#i-right"/></svg></button>
+          <button class="btn is-icon" id="next-day" data-i18n-attr="aria-label:date.next" aria-label="Следующий день"><svg><use href="#i-right"/></svg></button>
           <div class="timeline-days" id="timeline-days"></div>
         </div>
         <span class="chip" id="map-chip"><span id="map-badge">—</span><span class="chip-sep" aria-hidden="true"></span><span id="stat-source">—</span></span>
-        <button class="btn export-button" id="export-button" aria-label="Экспорт слоя в CSV"><svg><use href="#i-download"/></svg><span>Экспорт CSV</span></button>
+        <button class="btn export-button" id="export-button" data-i18n-attr="aria-label:export.aria" aria-label="Экспорт слоя в CSV"><svg><use href="#i-download"/></svg><span data-i18n="export">Экспорт CSV</span></button>
       </div>
 
       <div class="map-status">
-        <div class="banner" id="loading"><span class="spinner" aria-hidden="true"></span><span>Загружаем карту Казахстана…</span></div>
-        <div class="banner is-danger" id="map-empty" hidden><svg><use href="#i-alert"/></svg><span><strong>Прогноз недоступен</strong><p>—</p><button class="btn" id="return-demo">Посмотреть демо-сценарий</button></span></div>
+        <div class="banner" id="loading"><span class="spinner" aria-hidden="true"></span><span data-i18n="loading.map">Загружаем карту Казахстана…</span></div>
+        <div class="banner is-danger" id="map-empty" hidden><svg><use href="#i-alert"/></svg><span><strong>Прогноз недоступен</strong><p>—</p><button class="btn" id="return-demo" data-i18n="empty.demo">Посмотреть демо-сценарий</button></span></div>
       </div>
 
-      <div class="map-tools"><button class="btn is-icon" id="zoom-in" aria-label="Увеличить масштаб"><svg><use href="#i-plus"/></svg></button><button class="btn is-icon" id="zoom-out" aria-label="Уменьшить масштаб"><svg><use href="#i-minus"/></svg></button><button class="btn is-icon" id="reset-map" aria-label="Показать весь Казахстан" title="Весь Казахстан"><svg><use href="#i-fit"/></svg></button></div>
+      <div class="map-tools"><button class="btn is-icon" id="zoom-in" data-i18n-attr="aria-label:zoom.in" aria-label="Увеличить масштаб"><svg><use href="#i-plus"/></svg></button><button class="btn is-icon" id="zoom-out" data-i18n-attr="aria-label:zoom.out" aria-label="Уменьшить масштаб"><svg><use href="#i-minus"/></svg></button><button class="btn is-icon" id="reset-map" data-i18n-attr="aria-label:zoom.reset;title:zoom.reset" aria-label="Показать весь Казахстан" title="Показать весь Казахстан"><svg><use href="#i-fit"/></svg></button></div>
 
-      <article class="cell-card" id="cell-card" hidden aria-label="Выбранная ячейка">
-        <div class="card-top"><span class="label" id="card-kind">Выбранная ячейка</span><button class="btn is-icon" id="close-card" aria-label="Закрыть карточку"><svg><use href="#i-close"/></svg></button></div>
+      <article class="cell-card" id="cell-card" hidden data-i18n-attr="aria-label:card.aria" aria-label="Выбранная ячейка">
+        <div class="card-top"><span class="label" id="card-kind" data-i18n="card.kind">Выбранная ячейка</span><button class="btn is-icon" id="close-card" data-i18n-attr="aria-label:card.close" aria-label="Закрыть карточку"><svg><use href="#i-close"/></svg></button></div>
         <h3 id="cell-region">—</h3><div class="cell-coordinates" id="cell-coordinates">—</div>
         <div class="probability-row"><strong id="cell-probability">—</strong><span id="cell-category"></span></div>
         <div class="probability-meter"><span id="probability-meter"></span></div>
@@ -133,43 +134,43 @@
         <div id="cell-factors"></div>
         <div class="cell-card-foot"><span id="cell-area"></span><span id="cell-elevation"></span><span id="cell-id"></span></div>
         <p class="card-disclaimer" id="card-disclaimer"></p>
-        <button class="btn is-primary card-place" id="open-detail">Посмотреть место на снимке</button>
+        <button class="btn is-primary card-place" id="open-detail" data-i18n="card.place">Посмотреть место на снимке</button>
       </article>
 
       <div class="detail-bar" id="detail-bar" hidden>
-        <button class="btn" id="close-detail"><svg><use href="#i-left"/></svg>Вся карта</button>
+        <button class="btn" id="close-detail"><svg><use href="#i-left"/></svg><span data-i18n="detail.back">Вся карта</span></button>
         <div class="detail-title"><b id="detail-title">—</b><span id="detail-sub"></span></div>
-        <div class="segmented" role="group" aria-label="Источник снимка"><button id="detail-esri" aria-pressed="true">Esri</button><button id="detail-s2" aria-pressed="false">Sentinel-2</button></div>
+        <div class="segmented" role="group" data-i18n-attr="aria-label:detail.source" aria-label="Источник снимка"><button id="detail-esri" aria-pressed="true">Esri</button><button id="detail-s2" aria-pressed="false">Sentinel-2</button></div>
       </div>
       <div class="detail-legend" id="detail-legend" hidden>
-        <span><i class="mk mk-pred"></i>прогноз выше порога</span>
-        <span><i class="mk mk-obs"></i>очаг в этот день</span>
-        <span><i class="mk mk-past"></i>очаги 2023</span>
-        <span><i class="mk mk-past is-2024"></i>очаги 2024</span>
-        <span><i class="mk mk-cell"></i>ячейка 5 км, цвет — прогноз ≥ 0,03%</span>
-        <label class="detail-check"><input type="checkbox" id="detail-past" checked> показывать очаги 2023–2024</label>
-        <span class="detail-note">Ячейки и точки кликабельны. Реальные очаги открыты после оценки модели.</span>
+        <span><i class="mk mk-pred"></i><span data-i18n="detail.l.pred">прогноз выше порога</span></span>
+        <span><i class="mk mk-obs"></i><span data-i18n="detail.l.day">очаг в этот день</span></span>
+        <span><i class="mk mk-past"></i><span data-i18n="detail.l.2023">очаги 2023</span></span>
+        <span><i class="mk mk-past is-2024"></i><span data-i18n="detail.l.2024">очаги 2024</span></span>
+        <span><i class="mk mk-cell"></i><span data-i18n="detail.l.cell">ячейка 5 км, цвет — прогноз ≥ 0,03%</span></span>
+        <label class="detail-check"><input type="checkbox" id="detail-past" checked><span data-i18n="detail.l.past"> показывать очаги 2023–2024</span></label>
+        <span class="detail-note" data-i18n="detail.l.note">Ячейки и точки кликабельны. Реальные очаги открыты после оценки модели.</span>
       </div>
 
       <div class="legend" id="legend">
         <span class="legend-title" id="legend-title">Вероятность нового очага за сутки, %</span>
-        <div class="legend-ramp" id="legend-ramp"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><span class="threshold" id="legend-threshold" title="Порог тревоги"></span></div>
+        <div class="legend-ramp" id="legend-ramp"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><span class="threshold" id="legend-threshold" data-i18n-attr="title:legend.threshold" title="Порог тревоги"></span></div>
         <div class="legend-ticks" id="legend-ticks"></div>
         <div class="legend-counts" id="legend-counts"></div>
-        <div class="points-legend" id="points-legend" hidden><span><i class="mk mk-pred"></i>прогноз выше порога</span><span><i class="mk mk-obs"></i>реальный новый очаг</span><span><i class="mk mk-obs is-hit"></i>совпадение</span></div>
+        <div class="points-legend" id="points-legend" hidden><span><i class="mk mk-pred"></i><span data-i18n="legend.points.pred">прогноз выше порога</span></span><span><i class="mk mk-obs"></i><span data-i18n="legend.points.obs">реальный новый очаг</span></span><span><i class="mk mk-obs is-hit"></i><span data-i18n="legend.points.hit">совпадение</span></span></div>
         <p class="legend-note" id="legend-note"></p>
       </div>
 
       <div class="map-foot">
         <div class="map-scale" id="map-scale"><span id="scale-label">200 км</span><i></i></div>
         <div class="map-hint" id="map-hint">Нажмите на карту, чтобы изучить ячейку</div>
-        <div class="attribution"><a href="https://www.geoboundaries.org/" target="_blank" rel="noopener">geoBoundaries / OSM · ODbL</a><span>Границы областей: 2017</span><span id="relief-credit" hidden>Рельеф SRTM</span><span id="satellite-credit" hidden>Снимок: NASA Blue Marble · GIBS</span></div>
+        <div class="attribution"><a href="https://www.geoboundaries.org/" target="_blank" rel="noopener">geoBoundaries / OSM · ODbL</a><span data-i18n="credit.regions">Границы областей: 2017</span><span id="relief-credit" hidden data-i18n="credit.relief">Рельеф SRTM</span><span id="satellite-credit" hidden>Снимок: NASA Blue Marble · GIBS</span></div>
       </div>
       <div class="toast" id="toast" role="status" hidden></div>
     </section>
   </main>
 
-  <dialog id="info-dialog"><div class="dialog-heading"><span class="label" id="dialog-eyebrow">STEPPE</span><button class="btn is-icon" id="close-dialog" aria-label="Закрыть"><svg><use href="#i-close"/></svg></button></div><div id="dialog-content"></div></dialog>
-  <script type="module" src="./app.js?v=20261028-tiles3"></script>
+  <dialog id="info-dialog"><div class="dialog-heading"><span class="label" id="dialog-eyebrow">STEPPE</span><button class="btn is-icon" id="close-dialog" data-i18n-attr="aria-label:close" aria-label="Закрыть"><svg><use href="#i-close"/></svg></button></div><div id="dialog-content"></div></dialog>
+  <script type="module" src="./app.js?v=20261028-lang"></script>
 </body>
 </html>

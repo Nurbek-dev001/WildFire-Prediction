@@ -1,8 +1,12 @@
-// Shared code for report pages: verified data loading, Russian number formats, SVG charts.
+// Shared code for report pages: verified data loading, localised number formats, SVG charts.
 // Every number on a report comes from a release file checked against its SHA-256 record.
 
+import { t, locale, bindSwitch, onLang } from '../i18n.js?v=20261028-lang';
+import './pages-i18n.js?v=20261028-lang';
+
+export { t };
 export const $ = (id) => document.getElementById(id);
-const ru = (v, min, max) => v.toLocaleString('ru-RU', { minimumFractionDigits: min, maximumFractionDigits: max });
+const ru = (v, min, max) => v.toLocaleString(locale(), { minimumFractionDigits: min, maximumFractionDigits: max });
 export const pct = (v, d = 2) => ru(v * 100, d, d) + '%';
 export const num = (v, d = 0) => ru(v, d, d);
 export const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
@@ -43,12 +47,15 @@ export async function loadVerified(record, base, files) {
 export async function header() {
   try {
     const m = await (await fetch('../assets/forecast-manifest.json')).json();
-    $('release').innerHTML = `Модель <b>XGBoost + второй уровень</b> · релиз ${esc(m.release_sha256.slice(0, 8))}`;
+    $('release').innerHTML = t('release', { model: t('model.stack'), hash: esc(m.release_sha256.slice(0, 8)) });
   } catch { /* the badge is optional */ }
 }
 
 // Runs render() after data loads; shows a verified chip or a blocking error.
 export async function run(render) {
+  // Charts and tables are built once from verified files, so a language switch reloads the page.
+  bindSwitch();
+  onLang(() => location.reload());
   header();
   const status = $('status');
   // Sections open before rendering so charts can measure their width; an error closes them again.
@@ -57,20 +64,20 @@ export async function run(render) {
   try {
     await render();
     status.className = 'chip is-verified';
-    status.textContent = `Цифры сверены с SHA-256 релиза · ${checked.length} файлов`;
+    status.textContent = t('rep.verified', { n: checked.length });
     status.title = checked.join(', ');
     late.forEach((el) => { el.style.visibility = ''; });
   } catch (error) {
     late.forEach((el) => { el.hidden = true; el.style.visibility = ''; });
     console.error(error);
     status.className = 'chip is-accent';
-    status.textContent = 'Проверка не пройдена';
+    status.textContent = t('rep.notPassed');
     $('error').hidden = false;
-    $('error').querySelector('p').textContent = error.message + '. Цифры не показаны.';
+    $('error').querySelector('p').textContent = error.message + t('rep.hidden');
   }
 }
 
-export function table(headers, rows, { current = -1, tag = 'текущая' } = {}) {
+export function table(headers, rows, { current = -1, tag = t('rep.current') } = {}) {
   return `<div class="table-wrap"><table class="table"><thead><tr>${headers.map((h) => `<th scope="col">${h}</th>`).join('')}</tr></thead><tbody>${rows
     .map((r, i) => `<tr${i === current ? ' class="is-current"' : ''}>${r.map((c, j) => `<td>${c}${j === 0 && i === current && tag ? `<span class="tag">${tag}</span>` : ''}</td>`).join('')}</tr>`)
     .join('')}</tbody></table></div>`;
@@ -129,7 +136,7 @@ export function barChart({ rows, max, format, title, width = 720 }) {
 
 // Log-scale y axis helper shared by the curve and reliability charts.
 const logTicks = (lo, hi) => { const t = []; for (let e = Math.ceil(Math.log10(lo)); e <= Math.floor(Math.log10(hi)); e++) t.push(10 ** e); return t; };
-const pctTick = (v) => (v * 100 >= 1 ? num(v * 100) : (v * 100).toLocaleString('ru-RU', { maximumSignificantDigits: 1 })) + '%';
+const pctTick = (v) => (v * 100 >= 1 ? num(v * 100) : (v * 100).toLocaleString(locale(), { maximumSignificantDigits: 1 })) + '%';
 
 // Precision–recall curve: recall linear on x, precision log on y, with labelled points.
 export function prCurve({ curve, points, title, width = 720 }) {
@@ -140,7 +147,7 @@ export function prCurve({ curve, points, title, width = 720 }) {
   let s = `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(title)}"><text x="0" y="16" class="t-strong">${esc(title)}</text>`;
   for (const t of logTicks(yLo, yHi)) s += `<line class="grid" x1="${L}" x2="${R}" y1="${y(t)}" y2="${y(t)}"/><text x="${L - 8}" y="${y(t) + 4}" text-anchor="end">${pctTick(t)}</text>`;
   for (let t = 0; t <= 1.0001; t += 0.2) s += `<line class="grid" x1="${x(t)}" x2="${x(t)}" y1="${T}" y2="${B}"/><text x="${x(t)}" y="${B + 18}" text-anchor="middle">${num(t * 100)}%</text>`;
-  s += `<text x="${(L + R) / 2}" y="${H - 6}" text-anchor="middle">Полнота (recall)</text><text x="14" y="${(T + B) / 2}" transform="rotate(-90 14 ${(T + B) / 2})" text-anchor="middle">Точность (precision), лог. шкала</text>`;
+  s += `<text x="${(L + R) / 2}" y="${H - 6}" text-anchor="middle">${t('rep.recallAxis')}</text><text x="14" y="${(T + B) / 2}" transform="rotate(-90 14 ${(T + B) / 2})" text-anchor="middle">${t('rep.precisionAxis')}</text>`;
   s += `<polyline fill="none" stroke="var(--ink-soft)" stroke-width="1.8" points="${curve.map((c) => `${x(c.recall).toFixed(1)},${y(c.precision).toFixed(1)}`).join(' ')}"/>`;
   for (const p of points) s += `<circle cx="${x(p.recall)}" cy="${y(p.precision)}" r="6" fill="${p.accent ? 'var(--accent)' : 'var(--p5)'}" stroke="var(--surface)" stroke-width="2"/><text x="${x(p.recall) + 10}" y="${y(p.precision) - 8}" class="t-ink">${esc(p.label)}</text>`;
   return s + '</svg>';
@@ -161,7 +168,7 @@ export function reliability({ bins, title, width = 560 }) {
     if (W >= 500 || (all.length - 1 - i) % 2 === 0) s += `<text x="${x(t)}" y="${B + 18}" text-anchor="middle">${pctTick(t)}</text>`;
   });
   s += `<line x1="${x(lo)}" y1="${y(lo)}" x2="${x(hi)}" y2="${y(hi)}" stroke="var(--line-strong)" stroke-dasharray="4 4"/>`;
-  s += `<text x="${(L + R) / 2}" y="${H - 4}" text-anchor="middle">Предсказанная вероятность, лог. шкала</text><text x="14" y="${(T + B) / 2}" transform="rotate(-90 14 ${(T + B) / 2})" text-anchor="middle">Наблюдаемая частота</text>`;
+  s += `<text x="${(L + R) / 2}" y="${H - 4}" text-anchor="middle">${t('rep.predAxis')}</text><text x="14" y="${(T + B) / 2}" transform="rotate(-90 14 ${(T + B) / 2})" text-anchor="middle">${t('rep.obsAxis')}</text>`;
   for (const b of bins) {
     if (b.ci_lower > 0) s += `<line x1="${x(b.predicted)}" x2="${x(b.predicted)}" y1="${y(b.ci_lower)}" y2="${y(b.ci_upper)}" stroke="var(--ink-soft)" stroke-width="1.5"/>`;
     s += `<circle cx="${x(b.predicted)}" cy="${y(b.observed)}" r="${3 + 6 * Math.sqrt(b.weight / maxW)}" fill="var(--accent)" fill-opacity="0.85" stroke="var(--surface)" stroke-width="1.5"/>`;

@@ -1,6 +1,8 @@
 // 3D relief layer for the main map: SRTM elevation per 5 km cell as a WebGL2 block model.
 // The map passes in whatever values its 2D layer shows; this module only draws them.
 
+import { t, cityName } from './i18n.js?v=20261028-lang';
+
 const css = getComputedStyle(document.documentElement);
 const token = (name) => css.getPropertyValue(name).trim();
 const hexRgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16) / 255);
@@ -153,7 +155,7 @@ export async function createRelief({ host, geo, cells, onPick }) {
   const canvas = document.createElement('canvas');
   canvas.className = 'relief-canvas';
   canvas.tabIndex = 0;
-  canvas.setAttribute('aria-label', 'Трёхмерная карта: рельеф SRTM и выбранный слой. Нажмите на ячейку, чтобы увидеть детали.');
+  canvas.setAttribute('aria-label', t('relief.aria'));
   const labels = document.createElement('div');
   labels.className = 'relief-labels';
   labels.setAttribute('aria-hidden', 'true');
@@ -290,7 +292,7 @@ export async function createRelief({ host, geo, cells, onPick }) {
 
   const cityEls = geo.cities.map((c) => {
     const e = document.createElement('span');
-    e.className = 'relief-city'; e.textContent = c.name; labels.append(e);
+    e.className = 'relief-city'; e.textContent = cityName(c.name); labels.append(e);
     return { el: e, x: c.x, z: c.y, h: heightAt(c.x, c.y) };
   });
   const marker = document.createElement('span');
@@ -506,6 +508,10 @@ export async function createRelief({ host, geo, cells, onPick }) {
     },
     setBasemap(useSatellite) { state.useSat = useSatellite; },
     // points: [{x, y, hit}] in map km; drawn on the relief surface.
+    relabel() {
+      canvas.setAttribute('aria-label', t('relief.aria'));
+      cityEls.forEach((c, k) => { c.el.textContent = cityName(geo.cities[k].name); });
+    },
     setMarkers(points) {
       const data = new Float32Array(Math.max(4, points.length * 4));
       points.forEach((p, i) => { data.set([p.x, heightAt(p.x, p.y), p.y, p.hit ? 1 : 0], i * 4); });
