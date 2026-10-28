@@ -2,3 +2,4 @@
 dist/alerts/** -text
 dist/upgrade/** -text
 dist/quality/** -text
+dist/v6/** -text
