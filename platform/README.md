@@ -71,7 +71,12 @@ does not support fetching the map assets.
   `satellite.json`. It also textures the 3D relief. Rebuild with
   `.venv\Scripts\python.exe scripts\build_satellite_asset.py`; raw tiles and
   their SHA-256 records stay in `data/real/public_predictors/satellite/raw/`.
-  Over the image, cells below 0.03% are transparent.
+  Over the image, cells below 0.03% are transparent. Zooming in past about
+  1.2 px per km, the 2D map adds Esri World Imagery tiles (up to level 17,
+  about 1 m), warped from Web Mercator onto the equal-area map one tile at a
+  time with an affine transform from projected corners; the forecast becomes
+  a light veil with 5 km cell borders. Without a connection the 1 km image
+  stays. The 3D view still uses the 1 km texture.
 - For a model date the map marks possible ignition points: cells at or above
   the alert threshold (rings, and a list sorted by probability) and the
   observed new-fire events of that day (diamonds; yellow when the same cell

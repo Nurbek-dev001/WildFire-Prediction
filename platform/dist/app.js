@@ -146,7 +146,7 @@ function detailData(){
 async function openDetail(i){
   if(!detail){
     $('loading').hidden=false;$('loading').lastElementChild.textContent='Загружаем детальный снимок…';
-    try{detailRequest=detailRequest||import('./detail.js?v=20261027-detail').then(({createDetail})=>createDetail({host:$('map-shell'),geo,cells,onSelect:selectCell}));detail=await detailRequest}
+    try{detailRequest=detailRequest||import('./detail.js?v=20261028-tiles3').then(({createDetail})=>createDetail({host:$('map-shell'),geo,cells,onSelect:selectCell}));detail=await detailRequest}
     catch(error){detailRequest=null;console.error('Detail view unavailable',error);toast('Детальный снимок недоступен: '+error.message);return}
     finally{syncLayer()}
   }
@@ -192,7 +192,7 @@ async function setView(view){
     $('view-3d').disabled=true;
     $('loading').hidden=false;$('loading').lastElementChild.textContent='Загружаем рельеф SRTM…';
     try{
-      reliefRequest=reliefRequest||import('./relief3d.js?v=20261027-detail').then(({createRelief})=>createRelief({host:$('map-shell'),geo,cells,onPick:i=>{if(i>=0)selectCell(i);else{state.selected=-1;updateCell();syncRelief()}}}));
+      reliefRequest=reliefRequest||import('./relief3d.js?v=20261028-tiles3').then(({createRelief})=>createRelief({host:$('map-shell'),geo,cells,onPick:i=>{if(i>=0)selectCell(i);else{state.selected=-1;updateCell();syncRelief()}}}));
       relief=await reliefRequest;
       if(satellite)relief.setSatellite(satellite.img,satellite.extent);
       relief.setBasemap(state.basemap==='satellite'&&!!satellite);renderPoints();
@@ -208,6 +208,51 @@ async function setView(view){
   syncLayer();
   if(view==='3d')syncRelief();else scheduleDraw();
 }
+// Zoomed in, the 1 km basemap blurs. Esri World Imagery tiles (Web Mercator) are then warped onto
+// the equal-area map one tile at a time with an affine transform from three projected corners;
+// across one 256 px tile the projection is linear to well under a pixel. Needs the network;
+// without it the 1 km image stays underneath.
+const TILE_MIN_SCALE=1.2,tileCache=new Map();let laea=null,laeaRequest=null,tilesShown=false;
+function loadLaea(){return laeaRequest||=new Promise((resolve,reject)=>{const s=document.createElement('script');s.src='./vendor/proj4.js';s.onload=()=>{laea=window.proj4('+proj=laea +lat_0=48 +lon_0=67 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs','EPSG:4326');resolve();scheduleDraw()};s.onerror=reject;document.head.append(s)}).catch(e=>console.warn('Projection unavailable',e))}
+function tileImage(z,x,y){
+  const key=`${z}/${x}/${y}`;let img=tileCache.get(key);
+  if(!img){img=new Image();img.onload=scheduleDraw;img.src=`https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${z}/${y}/${x}`;tileCache.set(key,img);if(tileCache.size>400)tileCache.delete(tileCache.keys().next().value)}
+  return img;
+}
+function drawTiles(v,dpr){
+  if(v.s<TILE_MIN_SCALE)return false;
+  if(!laea){loadLaea();return false}
+  const screen=(lon,lat)=>{const [mx,my]=laea.inverse([lon,lat]);return [mx/1000*v.s+v.x,-my/1000*v.s+v.y]};
+  const corners=[[0,0],[width,0],[0,height],[width,height]].map(([sx,sy])=>{const [wx,wy]=toWorld(sx,sy);return laea.forward([wx*1000,-wy*1000])});
+  const lons=corners.map(c=>c[0]),lats=corners.map(c=>c[1]),latc=(Math.min(...lats)+Math.max(...lats))/2;
+  // Level 17 (about 1 m) has imagery across the country; deeper levels are often blank in the steppe.
+  const z=Math.max(5,Math.min(17,Math.round(Math.log2(156543.03*Math.cos(latc*Math.PI/180)*v.s*dpr/1000))));
+  const n=2**z,tx=lon=>Math.floor((lon+180)/360*n),ty=lat=>{const r=lat*Math.PI/180;return Math.floor((1-Math.log(Math.tan(r)+1/Math.cos(r))/Math.PI)/2*n)};
+  const lonOf=x=>x/n*360-180,latOf=y=>Math.atan(Math.sinh(Math.PI*(1-2*y/n)))*180/Math.PI;
+  const x0=tx(Math.min(...lons)),x1=tx(Math.max(...lons)),y0=ty(Math.max(...lats)),y1=ty(Math.min(...lats));
+  if((x1-x0+1)*(y1-y0+1)>160)return false;
+  ctx.save();
+  for(let y=y0;y<=y1;y++)for(let x=x0;x<=x1;x++){
+    // Until a tile arrives, stretch the matching part of a cached coarser tile over its place.
+    let img=tileImage(z,x,y),sx=0,sy=0,sw=256;
+    for(let d=1;d<=5&&(!img.complete||!img.naturalWidth);d++){const up=tileCache.get(`${z-d}/${x>>d}/${y>>d}`);if(up?.complete&&up.naturalWidth){img=up;sw=256/2**d;sx=(x-((x>>d)<<d))*sw;sy=(y-((y>>d)<<d))*sw}}
+    if(!img.complete||!img.naturalWidth)continue;
+    const [ax,ay]=screen(lonOf(x),latOf(y)),[bx,by]=screen(lonOf(x+1),latOf(y)),[cx,cy]=screen(lonOf(x),latOf(y+1));
+    ctx.setTransform(dpr*(bx-ax)/256,dpr*(by-ay)/256,dpr*(cx-ax)/256,dpr*(cy-ay)/256,dpr*ax,dpr*ay);
+    ctx.drawImage(img,sx,sy,sw,sw,0,0,256.6,256.6);
+  }
+  ctx.restore();
+  return true;
+}
+// Thin 5 km cell borders for close zoom, only for the cells in view.
+function drawCellOutlines(v){
+  const [wx0,wy0]=toWorld(0,0),[wx1,wy1]=toWorld(width,height);
+  const c0=Math.floor(wx0/5),c1=Math.ceil(wx1/5),r0=Math.floor(-wy1/5),r1=Math.ceil(-wy0/5);
+  if((c1-c0)*(r1-r0)>4000)return;
+  ctx.lineWidth=1/v.s;ctx.strokeStyle='rgba(255,254,250,.4)';ctx.beginPath();
+  for(let r=r0;r<=r1;r++)for(let c=c0;c<=c1;c++){if(cellByKey.get(`${r},${c}`)===undefined)continue;ctx.rect(c*5,-(r+1)*5,5,5)}
+  ctx.stroke();
+}
 function scheduleDraw(){cancelAnimationFrame(renderFrame);renderFrame=requestAnimationFrame(draw)}
 function draw(){
   const dpr=Math.min(devicePixelRatio||1,2),v=view();
@@ -219,7 +264,10 @@ function draw(){
     const e=satellite.extent;ctx.imageSmoothingEnabled=true;
     ctx.drawImage(satellite.img,e.x0,e.y0,e.x1-e.x0,e.y1-e.y0);ctx.fillStyle='rgba(246,247,241,.55)';ctx.fillRect(e.x0,e.y0,e.x1-e.x0,e.y1-e.y0);
     ctx.save();ctx.clip(boundary,'evenodd');ctx.drawImage(satellite.img,e.x0,e.y0,e.x1-e.x0,e.y1-e.y0);ctx.restore();
+    tilesShown=drawTiles(v,dpr);
+    if(tilesShown){const outside=new Path2D();outside.rect(-3500,-2500,7000,5000);outside.addPath(boundary);ctx.fillStyle='rgba(246,247,241,.5)';ctx.fill(outside,'evenodd')}
   }else{
+    tilesShown=false;
     // Quiet cartographic reference grid, independent of the study cell lattice.
     ctx.lineWidth=.6/v.s;ctx.strokeStyle='#e1e6d7';
     for(let x=-3500;x<3500;x+=250){ctx.beginPath();ctx.moveTo(x,-2500);ctx.lineTo(x,2500);ctx.stroke()}
@@ -230,7 +278,10 @@ function draw(){
     if(missingVisible)hatch.setTransform(new DOMMatrix().scale(1/v.s));
     ctx.fillStyle=missingVisible?hatch:`rgb(${LAND})`;ctx.strokeStyle='#c0cbb0';ctx.lineWidth=1.2/v.s;ctx.fill(boundary,'evenodd');ctx.stroke(boundary);
   }
-  ctx.save();ctx.clip(boundary,'evenodd');ctx.imageSmoothingEnabled=false;if(raster)ctx.drawImage(raster,-1500,-835,2965,1660);ctx.restore();
+  // Over sharp tiles the forecast is a light veil with cell outlines, so the ground stays readable.
+  ctx.save();ctx.clip(boundary,'evenodd');ctx.imageSmoothingEnabled=false;if(tilesShown)ctx.globalAlpha=Math.max(.12,Math.min(.42,4/v.s));if(raster)ctx.drawImage(raster,-1500,-835,2965,1660);ctx.restore();
+  if(tilesShown&&v.s>8)drawCellOutlines(v);
+  $('satellite-credit').textContent=tilesShown?'Снимок: Esri, Maxar, Earthstar Geographics':'Снимок: NASA Blue Marble · GIBS';
   if(state.lines){ctx.lineWidth=(sat?.8:.6)/v.s;ctx.strokeStyle=sat?'rgba(255,254,250,.55)':'#7f946b77';for(let i=0;i<regionPaths.length;i++){if(i===state.region){ctx.fillStyle='#ffffff10';ctx.fill(regionPaths[i],'evenodd')}ctx.stroke(regionPaths[i])}}
   ctx.lineWidth=(sat?1.6:1)/v.s;ctx.strokeStyle=sat?'#fffefa':'#aebd98';ctx.stroke(boundary);
   if(state.region>=0){ctx.lineWidth=1.7/v.s;ctx.strokeStyle=sat?'#fffefa':'#627e50';ctx.stroke(regionPaths[state.region])}
@@ -242,7 +293,7 @@ function draw(){
     ctx.font=`${city.name==='Астана'?'600':'500'} ${state.zoom>1.5?13:12}px 'Golos Text','Segoe UI',sans-serif`;ctx.lineWidth=3.5;ctx.strokeStyle='#fffefaee';ctx.strokeText(city.name,x+8,y-.5);ctx.fillStyle='#193d35';ctx.fillText(city.name,x+8,y-.5);
   }
   if(state.selected>=0&&!$('cell-card').hidden){const c=cells[state.selected],x=(c.col+.5)*5*v.s+v.x,y=-(c.row+.5)*5*v.s+v.y;ctx.beginPath();ctx.arc(x,y,9,0,Math.PI*2);ctx.strokeStyle='#fffefb';ctx.lineWidth=5;ctx.stroke();ctx.strokeStyle='#193d35';ctx.lineWidth=1.8;ctx.stroke();ctx.fillStyle='#193d35';ctx.beginPath();ctx.arc(x,y,3,0,Math.PI*2);ctx.fill();}
-  const km=Math.round((64/v.s)/50)*50;$('scale-label').textContent=(km||Math.round(64/v.s))+' км';
+  const span=64/v.s,km=Math.round(span/50)*50;$('scale-label').textContent=km?km+' км':span>=1?Math.round(span)+' км':Math.max(1,Math.round(span*1000/10)*10)+' м';
 }
 function resize(){const r=canvas.getBoundingClientRect();width=r.width;height=r.height;const dpr=Math.min(devicePixelRatio||1,2);canvas.width=Math.round(width*dpr);canvas.height=Math.round(height*dpr);const narrow=width<600;baseScale=Math.min((width-(narrow?16:80))/2965,(height-(narrow?150:200))/1660);scheduleDraw()}
 function allowedDate(day){return /^\d{4}-\d{2}-\d{2}$/.test(day)&&(state.mode==='real'&&manifest?.ready?manifest.available_days.includes(day):day>='2015-01-01'&&day<='2022-12-31')}
@@ -257,7 +308,7 @@ function updateCell(){
   const c=cells[state.selected],p=values[state.selected];$('cell-card').hidden=false;$('cell-region').textContent=geo.regions[c.region].label+(c.region===13||c.region===15?'':' область');$('cell-coordinates').textContent=c.lat.toLocaleString('ru-RU',{minimumFractionDigits:3,maximumFractionDigits:3})+'° с. ш., '+c.lon.toLocaleString('ru-RU',{minimumFractionDigits:3,maximumFractionDigits:3})+'° в. д.';$('cell-area').textContent=c.area.toLocaleString('ru',{maximumFractionDigits:2})+' км²';$('cell-id').textContent=`g5000_${c.row}_${c.col}`;$('cell-elevation').textContent=relief?nf.format(Math.round(relief.elevation[state.selected]))+' м над морем':'';
   const hist=state.layer==='history',real=state.mode==='real'&&!hist;$('cell-probability').textContent=hist?nf.format(p):Number.isFinite(p)?pf(p):'—';$('cell-category').textContent=hist?'Детекций VIIRS\nза '+state.year+' год':real?(Number.isFinite(p)?'Калиброванная\nвероятность':'Нет прогноза'):p>=.05?'Высокая\nв демо-сценарии':p>=.02?'Повышенная\nв демо-сценарии':p>=.005?'Умеренная\nв демо-сценарии':'Низкая\nв демо-сценарии';$('cell-category').style.whiteSpace='pre-line';$('probability-meter').style.width=(Number.isFinite(p)&&(!hist||p>0)?(classOf(p,hist?HISTORY_BOUNDS:forecastBounds())+1)/7*100:0)+'%';$('cell-context').textContent=hist?'Номинальная и высокая уверенность; до объединения в события':real?'Первое спутниковое обнаружение за сутки; нет данных = пропуск':'Условная вероятность нового очага за сутки';$('factor-title').textContent=hist?'Наблюдения по годам':real?'Источник прогноза':'Факторы демо-сценария';$('card-disclaimer').textContent=hist?'Спутниковые детекции не равны числу отдельных пожаров.':real?'Ретроспективный результат модели. Пустые ячейки исключены или не имеют обязательных данных.':'Иллюстрация интерфейса. Значения не рассчитаны обученной моделью.';
   const wrap=$('cell-factors');wrap.replaceChildren();
-  if(real){const note=document.createElement('p');note.className='empty-history';const profile=activeProfile(manifest,state.alertProfile);note.textContent=`${modelLabel(manifest.model)} · цель ${state.day} UTC. Режим: ${profile.label}; порог ${probability(profile.threshold)}. Признаки: ${modelInputs(manifest)}. Их вклад не следует интерпретировать как причинность.`;wrap.append(note);if(events&&pointsActive()){const n=dayEvents().filter(e=>e.cell===state.selected).length,seen=document.createElement('p');seen.className='empty-history seen-note';seen.textContent=n?`Реальный новый очаг VIIRS в этой ячейке в этот день: да${n>1?` (${n})`:''}. Метки раскрыты после оценки модели.`:'Нового очага VIIRS в этой ячейке в этот день не обнаружено; это не доказывает отсутствие огня.';wrap.append(seen)}const selected=state.selected;populationNote(`g5000_${c.row}_${c.col}`).then(text=>{if(state.selected===selected&&state.mode==="real"&&text){const exposure=document.createElement("p");exposure.className="empty-history";exposure.textContent=text;wrap.append(exposure)}}).catch(()=>{});if(Number.isFinite(p))$('cell-category').textContent=p>=riskThreshold()?'Предупреждение\nпо выбранному порогу':'Ниже выбранного\nпорога';return}
+  if(real){const note=document.createElement('p');note.className='empty-history';const profile=activeProfile(manifest,state.alertProfile);note.textContent=`${modelLabel(manifest.model)} · цель ${state.day} UTC. Режим: ${profile.label}; порог ${probability(profile.threshold)}. Признаки: ${modelInputs(manifest)}. Их вклад не следует интерпретировать как причинность.`;wrap.append(note);if(events&&pointsActive()){const n=dayEvents().filter(e=>e.cell===state.selected).length,seen=document.createElement('p');seen.className='empty-history seen-note';seen.textContent=n?`Реальный новый очаг VIIRS в этой ячейке в этот день: да${n>1?` (${n})`:''}. Метки раскрыты после оценки модели.`:'Нового очага VIIRS в этой ячейке в этот день не обнаружено; это не доказывает отсутствие огня.';wrap.append(seen)}const selected=state.selected;populationNote(`g5000_${c.row}_${c.col}`).then(text=>{if(state.selected===selected&&state.mode==="real"&&text&&!wrap.querySelector(".pop-note")){const exposure=document.createElement("p");exposure.className="empty-history pop-note";exposure.textContent=text;wrap.append(exposure)}}).catch(()=>{});if(Number.isFinite(p))$('cell-category').textContent=p>=riskThreshold()?'Предупреждение\nпо выбранному порогу':'Ниже выбранного\nпорога';return}
   const historyYears=[state.year-1,state.year,state.year+1].filter(y=>y>=2015&&y<=2022);
   const factors=hist?historyYears.map(y=>[String(y),history[state.selected*8+y-2015],Math.max(1,...historyYears.map(z=>history[state.selected*8+z-2015]))]):['Сухость','Тепло','Ветер'].map((name,j)=>[name,Math.round(scenario(c,state.day).factors[j]*100),100]);
   for(const [name,n,max] of factors){const row=document.createElement('div');row.className='factor';row.innerHTML=`<span>${name}</span><span class="factor-track"><i style="width:${n/max*100}%"></i></span><span class="factor-value">${n}</span>`;wrap.append(row)}
@@ -323,7 +374,7 @@ function syncLayer(){
   $('map-hint').textContent=state.view==='3d'?'Тяните — вращать · колесо — масштаб · Shift — сдвиг · клик — ячейка':hist?'Детекции VIIRS не равны отдельным пожарам':'Нажмите на карту, чтобы изучить ячейку';
 }
 function setLayer(layer){state.layer=layer;syncLayer();makeRaster()}
-function zoomAt(factor,x=width/2,y=height/2){const [wx,wy]=toWorld(x,y);state.zoom=Math.max(.7,Math.min(12,state.zoom*factor));const s=baseScale*state.zoom;state.panX=x-width/2-(wx-centerX)*s;state.panY=y-height/2-(wy-centerY)*s;scheduleDraw()}
+function zoomAt(factor,x=width/2,y=height/2){const [wx,wy]=toWorld(x,y);state.zoom=Math.max(.7,Math.min(4000,state.zoom*factor));const s=baseScale*state.zoom;state.panX=x-width/2-(wx-centerX)*s;state.panY=y-height/2-(wy-centerY)*s;scheduleDraw()}
 function reset(){state.zoom=1;state.panX=0;state.panY=0;state.region=-1;relief?.reset();makeRaster()}
 function download(){
   if(state.mode==='real'&&state.layer==='forecast'&&(!state.realValues||state.noEligibleForecast)){toast('Для этой даты нет прогноза.');return}
@@ -340,7 +391,7 @@ function download(){
 }
 
 $('nav-data').onclick=dataDialog;$('nav-method').onclick=methodDialog;$('nav-map').onclick=e=>{e.preventDefault();if($('info-dialog').open)$('info-dialog').close();reset()};$('view-2d').onclick=()=>setView('2d');$('view-3d').onclick=()=>setView('3d');$('close-dialog').onclick=()=>$('info-dialog').close();$('info-dialog').addEventListener('click',e=>{if(e.target===$('info-dialog')){const r=$('info-dialog').getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)$('info-dialog').close()}});$('holdout-button').onclick=()=>manifest?.ready?showDialog('РЕАЛЬНЫЕ МЕТРИКИ',evaluation(manifest)):showDialog('ЗАКРЫТАЯ ТЕСТОВАЯ ВЫБОРКА','<h2>2023–2024 остаются закрытыми.</h2><p>Архивы скачаны и проверены по контрольным суммам. Наблюдения из этих файлов не прочитаны и не используются на карте, для выбора модели, калибровки или демонстрации.</p><p>Финальная оценка выполняется только после фиксации модели, признаков и порогов. В эту платформу включены исторические наблюдения только за 2015–2022 годы.</p>');
-$('demo-mode').onclick=()=>setMode('demo');$('real-mode').onclick=()=>setMode('real');$('return-demo').onclick=()=>setMode('demo');$('forecast-layer').onclick=()=>setLayer('forecast');$('history-layer').onclick=()=>setLayer('history');$('history-year').onchange=e=>{state.year=Number(e.target.value);syncLayer();makeRaster()};$('region-search').oninput=renderRegions;$('open-detail').onclick=()=>state.selected>=0&&openDetail(state.selected);$('close-detail').onclick=closeDetail;$('detail-past').onchange=()=>detail?.refresh(detailData());for(const [id,key] of [['detail-esri','esri'],['detail-s2','s2']])$(id).onclick=()=>{detail?.setSource(key);$('detail-esri').setAttribute('aria-pressed',String(key==='esri'));$('detail-s2').setAttribute('aria-pressed',String(key==='s2'))};$('basemap-satellite').onclick=()=>{state.basemap='satellite';syncBasemap()};$('basemap-scheme').onclick=()=>{state.basemap='scheme';syncBasemap()};$('show-predicted').onchange=e=>{state.showPredicted=e.target.checked;syncRelief();scheduleDraw()};$('show-observed').onchange=e=>{state.showObserved=e.target.checked;renderPoints();scheduleDraw()};$('region-lines').onchange=e=>{state.lines=e.target.checked;relief?.setLines(state.lines);scheduleDraw()};$('high-only').onchange=e=>{state.highOnly=e.target.checked;makeRaster()};$('forecast-date').onchange=e=>setDate(e.target.value);$('previous-day').onclick=()=>changeDay(-1);$('next-day').onclick=()=>changeDay(1);$('zoom-in').onclick=()=>state.view==='3d'?relief.zoom(1.4):zoomAt(1.4);$('zoom-out').onclick=()=>state.view==='3d'?relief.zoom(1/1.4):zoomAt(1/1.4);$('reset-map').onclick=reset;$('close-card').onclick=()=>{state.selected=-1;$('cell-card').hidden=true;relief?.setSelected(-1);scheduleDraw()};$('export-button').onclick=download;
+$('demo-mode').onclick=()=>setMode('demo');$('real-mode').onclick=()=>setMode('real');$('return-demo').onclick=()=>setMode('demo');$('forecast-layer').onclick=()=>setLayer('forecast');$('history-layer').onclick=()=>setLayer('history');$('history-year').onchange=e=>{state.year=Number(e.target.value);syncLayer();makeRaster()};$('region-search').oninput=renderRegions;$('open-detail').onclick=()=>state.selected>=0&&openDetail(state.selected);$('close-detail').onclick=closeDetail;$('detail-past').onchange=()=>detail?.refresh(detailData());for(const [id,key] of [['detail-esri','esri'],['detail-s2','s2']])$(id).onclick=()=>{detail?.setSource(key);$('detail-esri').setAttribute('aria-pressed',String(key==='esri'));$('detail-s2').setAttribute('aria-pressed',String(key==='s2'))};$('basemap-satellite').onclick=()=>{state.basemap='satellite';syncBasemap()};$('basemap-scheme').onclick=()=>{state.basemap='scheme';syncBasemap()};$('show-predicted').onchange=e=>{state.showPredicted=e.target.checked;syncRelief();scheduleDraw()};$('show-observed').onchange=e=>{state.showObserved=e.target.checked;renderPoints();scheduleDraw()};$('region-lines').onchange=e=>{state.lines=e.target.checked;relief?.setLines(state.lines);scheduleDraw()};$('high-only').onchange=e=>{state.highOnly=e.target.checked;makeRaster()};$('forecast-date').onchange=e=>setDate(e.target.value);$('previous-day').onclick=()=>changeDay(-1);$('next-day').onclick=()=>changeDay(1);$('zoom-in').onclick=()=>state.view==='3d'?relief.zoom(1.4):zoomAt(2);$('zoom-out').onclick=()=>state.view==='3d'?relief.zoom(1/1.4):zoomAt(.5);$('reset-map').onclick=reset;$('close-card').onclick=()=>{state.selected=-1;$('cell-card').hidden=true;relief?.setSelected(-1);scheduleDraw()};$('export-button').onclick=download;
 $('alert-profile').onchange=e=>{state.alertProfile=e.target.value;syncLayer();makeRaster()};
 $('today-button').onclick=async()=>showDialog('ТЕКУЩИЕ ДАННЫЕ',await readiness());
 $('quality-button').onclick=async()=>showDialog('ПРОВЕРКА КАЧЕСТВА',await quality());
@@ -349,7 +400,7 @@ canvas.addEventListener('pointerdown',e=>{if(e.button!==0)return;drag={x:e.clien
 canvas.addEventListener('pointermove',e=>{if(!drag)return;const dx=e.clientX-drag.x,dy=e.clientY-drag.y;if(Math.hypot(dx,dy)>4)drag.moved=true;if(drag.moved){state.panX=drag.px+dx;state.panY=drag.py+dy;canvas.style.cursor='grabbing';scheduleDraw()}});
 canvas.addEventListener('pointerup',e=>{if(!drag)return;if(!drag.moved){const r=canvas.getBoundingClientRect(),[x,y]=toWorld(e.clientX-r.left,e.clientY-r.top);ctx.save();ctx.setTransform(1,0,0,1,0,0);const inside=ctx.isPointInPath(boundary,x,y,'evenodd');ctx.restore();const index=cellByKey.get(`${Math.floor(-y/5)},${Math.floor(x/5)}`);if(inside&&index!==undefined)selectCell(index);else toast('Выберите ячейку внутри границы Казахстана.')}drag=null;canvas.style.cursor='crosshair'});
 canvas.addEventListener('pointercancel',()=>{drag=null;canvas.style.cursor='crosshair'});
-canvas.addEventListener('wheel',e=>{e.preventDefault();const r=canvas.getBoundingClientRect();zoomAt(e.deltaY<0?1.12:1/1.12,e.clientX-r.left,e.clientY-r.top)},{passive:false});
+canvas.addEventListener('wheel',e=>{e.preventDefault();const r=canvas.getBoundingClientRect();zoomAt(Math.exp(-Math.max(-300,Math.min(300,e.deltaY))*.0025),e.clientX-r.left,e.clientY-r.top)},{passive:false});
 canvas.addEventListener('keydown',e=>{if(!geo)return;if(e.key==='+'||e.key==='='){e.preventDefault();zoomAt(1.4)}else if(e.key==='-'){e.preventDefault();zoomAt(1/1.4)}else if(e.key==='Escape'){state.selected=-1;updateCell();scheduleDraw()}else if(e.key==='Enter'){e.preventDefault();selectCell(cellByKey.get('36,20')??0)}else if(e.key.startsWith('Arrow')){e.preventDefault();if(state.selected<0){selectCell(cellByKey.get('36,20')??0);return}const c=cells[state.selected],row=c.row+(e.key==='ArrowUp'?1:e.key==='ArrowDown'?-1:0),col=c.col+(e.key==='ArrowRight'?1:e.key==='ArrowLeft'?-1:0),i=cellByKey.get(`${row},${col}`);if(i!==undefined)selectCell(i)}});
 async function init(){try{const responses=await Promise.all([fetch('./assets/geography.json'),fetch('./assets/cells.bin'),fetch('./assets/forecast-manifest.json')]);if(responses.some(r=>!r.ok))throw Error('Не удалось получить файлы карты.');[geo,manifest]=await Promise.all([responses[0].json(),responses[2].json()]);validateManifest(manifest);await loadOperatingPolicy(manifest);await loadUpgrade(manifest);const buffer=await responses[1].arrayBuffer();if(buffer.byteLength!==geo.count*geo.record_bytes)throw Error('Неполный файл сетки.');const data=new DataView(buffer);cells=[];history=new Uint16Array(geo.count*8);cellByKey=new Map();for(let i=0;i<geo.count;i++){const p=i*34,c={row:data.getInt16(p,true),col:data.getInt16(p+2,true),area:data.getFloat32(p+4,true),lon:data.getFloat32(p+8,true),lat:data.getFloat32(p+12,true),region:data.getUint16(p+16,true)};cells.push(c);cellByKey.set(`${c.row},${c.col}`,i);for(let y=0;y<8;y++)history[i*8+y]=data.getUint16(p+18+y*2,true)}boundary=pathFrom(geo.outline);regionPaths=geo.regions.map(r=>pathFrom(r.rings));$('loading').hidden=true;renderTimeline();resize();setMode('demo');new ResizeObserver(resize).observe($('map-shell'));loadSatellite().catch(e=>{console.warn('Satellite basemap unavailable',e);state.basemap='scheme';$('basemap-satellite').disabled=true;syncBasemap()});loadEvents().catch(e=>console.warn('Observed events unavailable',e));if(manifest.ready){state.day=manifest.available_days.includes('2024-07-15')?'2024-07-15':manifest.available_days[0];$('holdout-button').textContent='Метрики · тест 2023–2024';state.autoReal=true;setMode('real')}document.fonts.ready.then(scheduleDraw)}catch(e){$('loading').lastElementChild.textContent='Не удалось загрузить карту. Обновите страницу.';console.error(e)}}
 init();

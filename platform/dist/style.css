@@ -205,6 +205,7 @@ select:disabled { opacity: 1; color: var(--ink); }
 .map-scale { display: grid; justify-items: end; gap: 2px; }
 .map-scale i { width: 64px; height: 6px; border: 1.5px solid var(--ink-soft); border-top: 0; }
 .workspace.is-3d .map-scale { display: none; }
+.workspace.is-satellite .map-foot { padding: var(--s1) var(--s2); border-radius: var(--r-md); background: rgb(255 254 250 / 85%); color: var(--ink-soft); }
 .attribution { display: flex; gap: var(--s3); flex-wrap: wrap; justify-content: flex-end; }
 .attribution a { color: inherit; }
 .map-hint { color: var(--ink-soft); }
