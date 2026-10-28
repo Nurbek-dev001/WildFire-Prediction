@@ -12,6 +12,8 @@ import gzip
 import http.client
 import time
 import urllib.request
+from collections.abc import Iterator
+from typing import Any
 
 import pandas as pd
 
@@ -30,12 +32,13 @@ def _varint(buf: bytes, i: int) -> tuple[int, int]:
         shift += 7
 
 
-def _fields(buf: bytes):
+def _fields(buf: bytes) -> Iterator[tuple[int, int, Any]]:
     """Yield (field number, wire type, value) for one protobuf message."""
     i = 0
     while i < len(buf):
         key, i = _varint(buf, i)
         field, wire = key >> 3, key & 7
+        value: Any
         if wire == 0:
             value, i = _varint(buf, i)
         elif wire == 1:
@@ -58,7 +61,7 @@ def _packed(buf: bytes) -> list[int]:
     return out
 
 
-def _value(buf: bytes):
+def _value(buf: bytes) -> Any:
     import struct
 
     for field, _, v in _fields(buf):
