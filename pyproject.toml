@@ -29,6 +29,32 @@ filterwarnings = ["ignore:X does not have valid feature names:UserWarning"]
 [tool.ruff]
 line-length = 100
 target-version = "py311"
+# These files are pinned by SHA-256 in frozen release and test records under runs/
+# (public_hindcast source registry, model_stack_v5, independent_2025, model_v6).
+# Reformatting them would break the integrity checks that guard those results, so
+# they are kept byte-for-byte and left out of lint and format.
+extend-exclude = [
+  "scripts/acquire_ndvi_2025_direct.py",
+  "scripts/develop_model_v6.py",
+  "scripts/evaluate_independent_2025.py",
+  "src/wildfire_kz/calibration/__init__.py",
+  "src/wildfire_kz/data/http_range.py",
+  "src/wildfire_kz/data/public_predictors.py",
+  "src/wildfire_kz/data/public_study.py",
+  "src/wildfire_kz/data/range_cache.py",
+  "src/wildfire_kz/evaluation/__init__.py",
+  "src/wildfire_kz/events/__init__.py",
+  "src/wildfire_kz/fire_weather.py",
+  "src/wildfire_kz/independent.py",
+  "src/wildfire_kz/model_upgrade.py",
+  "src/wildfire_kz/models/__init__.py",
+  "src/wildfire_kz/public_evaluation.py",
+  "src/wildfire_kz/public_experiment.py",
+  "src/wildfire_kz/public_explanation.py",
+  "src/wildfire_kz/stacked_model.py",
+  "WildFire-Prediction",
+  "redesign-shots",
+]
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP"]
 ignore = ["E501"]
@@ -39,3 +65,24 @@ ignore_missing_imports = true
 check_untyped_defs = true
 disallow_untyped_defs = true
 warn_unused_ignores = true
+# Hash-pinned modules (see [tool.ruff] extend-exclude): their code cannot change, so
+# their pre-existing typing gaps are accepted rather than fixed.
+[[tool.mypy.overrides]]
+module = [
+  "wildfire_kz.calibration",
+  "wildfire_kz.data.http_range",
+  "wildfire_kz.data.public_predictors",
+  "wildfire_kz.data.public_study",
+  "wildfire_kz.data.range_cache",
+  "wildfire_kz.evaluation",
+  "wildfire_kz.events",
+  "wildfire_kz.fire_weather",
+  "wildfire_kz.independent",
+  "wildfire_kz.model_upgrade",
+  "wildfire_kz.models",
+  "wildfire_kz.public_evaluation",
+  "wildfire_kz.public_experiment",
+  "wildfire_kz.public_explanation",
+  "wildfire_kz.stacked_model",
+]
+ignore_errors = true

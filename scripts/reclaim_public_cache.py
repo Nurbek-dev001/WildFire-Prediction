@@ -80,7 +80,12 @@ def archive(path: Path) -> int:
 
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument("--include-final", action="store_true")
-parser.add_argument("--through-year", type=int, choices=[2024,2025], help="Include newly acquired predictor caches after frozen-model checks")
+parser.add_argument(
+    "--through-year",
+    type=int,
+    choices=[2024, 2025],
+    help="Include newly acquired predictor caches after frozen-model checks",
+)
 args = parser.parse_args()
 maximum = 2022
 if args.include_final or args.through_year:

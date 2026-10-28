@@ -182,9 +182,10 @@ def evaluate() -> None:
     pd.DataFrame(rows).to_csv(DEST / "metrics.csv", index=False)
     draws = cluster_draws(frame, 1000, 100000, 30, 42)
     y, w = frame.label.to_numpy(), frame.weight.to_numpy()
-    by_cluster = lambda values: np.bincount(
-        draws.codes, weights=values, minlength=draws.multiplicities.shape[1]
-    )
+
+    def by_cluster(values):
+        return np.bincount(draws.codes, weights=values, minlength=draws.multiplicities.shape[1])
+
     positive = draws.multiplicities @ by_cluster(w * y)
     total = draws.multiplicities @ by_cluster(w)
     estimates = {}
