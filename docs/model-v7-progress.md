@@ -141,3 +141,18 @@ with GFS inputs, alert threshold 4.50% (2024–2025 precision 6.63%, recall 8.76
 H2 (weather for the target day; as-issued 1-day-lead forecasts exist only from 2024),
 H4 (snow-off, dryness, NDVI anomaly), H5, then H6 (calibration on two years, isotonic and
 beta against sigmoid, tuned boosting), which is where the release criteria are decided.
+
+## Daily forecasts for the prospective test
+
+`scripts/forecast_daily.py` issues frozen v6 and frozen v7 for the next UTC day on the full
+grid, with the inputs that exist at issue time: S-NPP detections from NASA GIBS (D-1 to 21 UTC),
+ERA5 through D-7, NDVI through D-12, GFS 18 UTC runs for D-2..D. Payloads and a hash-chained,
+append-only log are in `runs/forecast_live/` (`log.jsonl`; each entry carries the previous
+entry's hash, the payload hashes and the input record). One entry per day, the first issue
+stands. An entry counts for the 2027 test only if issued before 06:00 UTC of D (`on_time`).
+Windows Task Scheduler runs `scripts/forecast_daily.cmd` at 23:40, 01:40 and 03:40 UTC.
+
+Checks: a replay of 2026-10-15 reproduces the registered v6 map byte for byte, and the H3 and
+H2 inputs equal v7's development features exactly (4,334 rows of 2026-10-15; two 2025 days).
+The log proves order, not time, to anyone outside this machine: pushing it daily (or any
+external timestamp) is what makes the 2027 comparison verifiable.
