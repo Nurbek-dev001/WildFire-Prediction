@@ -1,0 +1,764 @@
+"""Model v7 development: the brief is docs/steppe-prediction-accuracy-prompt-v4-2026-10-29.md.
+
+Commands run in order; each later command checks that the protocol is unchanged:
+  protocol  - write and hash the pre-declared plan before any experiment
+  samples   - one feature table per year 2015–2025 and the 2026 reassessment rows: the
+              existing design-weighted rows, v6's 37 inputs rebuilt by the registered
+              code, and the H1 flag
+  h1        - rolling-origin test of H1 against the v6 recipe on the primary risk set
+  h3        - yesterday's fires (causal 21 UTC cutoff), same engine for later hypotheses
+The final test is prospective (1 March – 31 October 2027) and needs a release frozen first.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import struct
+import sys
+from datetime import UTC, datetime
+from functools import cache
+from pathlib import Path
+
+import joblib
+import numpy as np
+import pandas as pd
+from sklearn.metrics import average_precision_score, precision_recall_curve, roc_auc_score
+from xgboost import XGBClassifier
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "src"))
+sys.path.insert(0, str(ROOT / "scripts"))
+import test_2026 as t26  # noqa: E402
+
+from wildfire_kz import model_upgrade as mu  # noqa: E402
+from wildfire_kz.calibration import fit_sigmoid  # noqa: E402
+from wildfire_kz.data import checksum, dump_json, public_predictors, public_study  # noqa: E402
+
+RUN = ROOT / "runs/model_v7"
+BRIEF = ROOT / "docs/steppe-prediction-accuracy-prompt-v4-2026-10-29.md"
+ORIGINS = [2020, 2021, 2022, 2023, 2024, 2025]
+# Persistent heat sources (H1): distinct active days of a cell, counted causally.
+HEAT_DAYS = 30
+HEAT_WINDOW = (366, 2)
+HEAT_YEARS_BACK = 3
+PRECISION_FLOOR = (
+    0.06104854900784197  # v6's 2022 precision floor, frozen in runs/model_v6/frozen.json
+)
+RELIABILITY_EDGES = [0, 1e-4, 3e-4, 1e-3, 3e-3, 1e-2, 3e-2, 1.0]
+V5, V6, OLD = t26.V5, t26.V6, mu.OLD
+IND, T26 = ROOT / "runs/independent_2025", t26.RUN
+TABLES = [f"{y}_train" for y in range(2015, 2022)] + [f"{y}_evaluation" for y in range(2019, 2025)]
+CELL = [
+    "cell_fire_30d",
+    "cell_fire_365d",
+    "cell_days_since_fire",
+    "cell_month_climatology",
+    "nbr15_month_climatology",
+]
+META = ["cell_index", "cell_id", "day", "label", "weight", "x", "y_coord", "landcover"]
+EPOCH = pd.Timestamp("1970-01-01", tz="UTC")
+
+
+def log(message: str) -> None:
+    print(datetime.now(UTC).isoformat(), message, flush=True)
+
+
+def protocol() -> None:
+    RUN.mkdir(parents=True, exist_ok=True)
+    path = RUN / "protocol.json"
+    if path.exists():
+        raise FileExistsError("The v7 protocol is already registered and immutable")
+    dump_json(
+        path,
+        {
+            "synthetic": False,
+            "registered_utc": datetime.now(UTC).isoformat(),
+            "brief": {"path": str(BRIEF.relative_to(ROOT)), "sha256": checksum(BRIEF)},
+            "purpose": "Next-day new-fire forecast for Kazakhstan that finds more real new fires than v6 at no lower precision, with calibrated values, on a risk set without persistent industrial heat sources",
+            "years_already_seen": {
+                "2015-2022": "development of v1-v6",
+                "2023-2024": "reassessment of v1-v5 and an audit that informed v6",
+                "2025": "independent test of v5",
+                "2026-01-01..2026-10-15": "test of v6; its error analysis informed this protocol",
+            },
+            "target": "first S-NPP VIIRS nominal/high detection of an event linked within 2 km and 48 hours, 5 km LAEA cell, next day (unchanged from v1-v6)",
+            "risk_set": {
+                "base": "prior-year vegetated cover, frozen industrial cell list, no detection in the previous 48 hours (unchanged)",
+                "h1_exclusion": f"also excluded on day D: cells with at least {HEAT_DAYS} distinct active days in [D-{HEAT_WINDOW[0]}, D-{HEAT_WINDOW[1]}], or with at least {HEAT_DAYS} active days in any of the {HEAT_YEARS_BACK} complete calendar years before D's year. Active day = any S-NPP nominal/high detection in the cell. Causal: uses only detections known before D. N chosen before this protocol from the 2015-2022 distribution of active days per cell-year (99th percentile 10, 99.9th 172); no model output was used.",
+                "primary_metrics_risk_set": "base + h1_exclusion for every candidate, including references",
+            },
+            "data": {
+                "rows": "the existing design-weighted samples: runs/public_hindcast/features/{2015..2021}_train and {2019..2024}_evaluation; 2025 the registered independent sample (runs/independent_2025/months) with features rebuilt by the same public adapter as the 2026 test",
+                "labels": "2015-2025 standard-processing S-NPP archive as in the existing samples; 2026 NASA GIBS NRT for the reassessment only",
+                "weights": "inverse inclusion probability of the sampling design; all metrics weighted",
+            },
+            "validation": {
+                "scheme": "rolling origin, expanding window. At origin Y: fit on train rows of years < Y-1, calibrate on the evaluation rows of Y-1, evaluate on the evaluation rows of Y. Fit tables: *_train for 2015-2021, *_evaluation for 2022-2024 (no train tables exist for those years).",
+                "origins": ORIGINS,
+                "reassessment": "2026-01-01..2026-10-15 on the registered test_2026 sample, labelled 'reassessment', never 'independent test'",
+            },
+            "references": {
+                "v6_recipe": "v6's 37 inputs and XGBoost parameters, refit at each origin with the same fit/calibration years as every candidate; trained on the base risk set",
+                "v6_frozen": "the released v6 at origins 2022-2025, where it has not seen the evaluation year (reported, not used by the rule)",
+            },
+            "metrics": {
+                "selection": "mean weighted average precision across origins on the primary risk set",
+                "operating_point": "recall at the highest-recall threshold whose evaluation-year precision is not below the v6 recipe's precision at its own calibrated threshold",
+                "calibrated_threshold": f"lowest threshold on the calibration year with precision >= {PRECISION_FLOOR} (v6's frozen floor); used for the reported precision and recall at a fixed threshold",
+                "calibration": f"Brier skill score against the evaluation-year base rate; reliability on bins {RELIABILITY_EDGES}",
+                "ranking": "weighted ROC-AUC; estimated daily capture in the top 0.1% and 1% of eligible cells",
+                "user": "share of first detections with an alert within 10 km on the same or the previous day (reported, not used by the rule)",
+            },
+            "selection_rule": "A candidate qualifies only if at every origin its AP is higher than the v6 recipe's and its recall at the v6 recipe's precision is not lower. Among qualifiers the highest mean AP is chosen. If none qualifies, no v7 is released.",
+            "release_criteria": [
+                "Brier skill score > 0 at every origin",
+                "in every reliability bin with >= 100 positives, observed/shown within 1/1.5 and 1.5",
+                "no region with recall more than 2 percentage points below the v6 recipe without an explanation",
+            ],
+            "uncertainty": "1000 paired 100 km x 30 day block bootstrap draws, seed 42",
+            "subgroups": [
+                "region",
+                "month",
+                "land cover class",
+                "ndvi_missing",
+                "settlement distance quartile",
+            ],
+            "hypotheses": {
+                "H1": "Exclude persistent heat sources from labels and risk set. Expect higher AP on the primary risk set and no calibrated values near 99%. Refuted if AP of the v6 recipe trained on the cleaned set is not higher at most origins.",
+                "H2": "Weather for the target day. As-issued 1-day-lead forecasts (Open-Meteo Previous Runs API, all four variables) exist only from 2024; the instant archive from 2021 is near-analysis. Plan: train on reanalysis of day D-1 and D, serve with as-issued forecasts at origin 2025 and the 2026 reassessment; the reanalysis-at-D score is an upper bound reported separately and never used for selection. Refuted if the forecast-served model does not beat the 7-day-lag model at origin 2025.",
+                "H3": "Fire history with a 1-day lag instead of 2, plus counts in 5/15/55 km and distance to yesterday's nearest detection. Expect higher recall during burning waves. Refuted if AP does not rise at most origins.",
+                "H4": "Snow-off date, soil moisture, NDVI anomaly against the cell's prior-year climatology, dry-spell length, days since harvest on cropland. Refuted if AP does not rise at most origins.",
+                "H5": "Day of week, public holidays, distance to roads and fields. Refuted if AP does not rise or it duplicates cell_month_climatology.",
+                "H6": "After features: tuned gradient boosting on the rolling origins, physical monotone constraints, calibration on the two years before the origin; compare isotonic, beta and Platt. Ensembles only if they pass the rule at every origin.",
+                "H7": "Report how many false alerts are fires in neighbouring cells or on the next day. Does not change the target.",
+            },
+            "order": "H1 first and kept if accepted; then H3, H2, H4, H5 one at a time on the same origins and base candidate; H6 last; H7 reported throughout",
+            "leakage_rules": [
+                "every input for day D is available before 00 UTC of D; its actual latency is recorded",
+                "no scaling, imputation, climatology or exclusion list fitted with the evaluation year",
+                "cell climatologies at an origin use only years before that origin",
+                "negatives sampled by the existing design with inverse-probability weights",
+            ],
+            "release": "If a candidate passes: refit on 2015-2024, calibrate on 2025 (or the two-year scheme if H6 adopts it), freeze and hash before 2027-03-01.",
+            "final_test": "Prospective, once: 2027-03-01..2027-10-31, NASA GIBS S-NPP NRT labels, opened only after the period ends; v7 versus v6 on the same full-grid cell-days; the same metrics and bootstrap.",
+            "amendments": "Any change is a dated file in runs/model_v7/amendments/, written before the affected result is seen.",
+            "resources": "at most two processes with OPENBLAS_NUM_THREADS=1, OMP_NUM_THREADS=2, MKL_NUM_THREADS=1; disk budget checked before each download",
+            "locked": "the 18 hash-pinned source files and all v5/v6 artifacts are read-only",
+        },
+    )
+    dump_json(RUN / "protocol.sha256.json", {"sha256": checksum(path)})
+    log(f"protocol registered {checksum(path)}")
+
+
+def check_protocol() -> None:
+    proof = json.loads((RUN / "protocol.sha256.json").read_text())
+    if checksum(RUN / "protocol.json") != proof["sha256"]:
+        raise PermissionError("Protocol changed after registration")
+
+
+def fast_guard() -> None:
+    """The legacy year guard re-hashes the frozen release on every call; check once per input."""
+    original = public_study.permitted
+
+    @cache
+    def once(years: tuple, release_path: Path | None) -> None:
+        original(list(years), release_path)
+
+    def cached(years, release_path=None):
+        once(tuple(years), release_path)
+
+    public_study.permitted = cached
+    public_predictors.permitted = cached
+
+
+def detections() -> tuple[pd.DataFrame, pd.DataFrame]:
+    """All-confidence history (as the frozen models use) and nominal/high active days (H1)."""
+    history = mu.load_history(2024, V5 / "release.json")
+    strong = []
+    for year in range(2014, 2025):
+        f = pd.read_parquet(
+            ROOT / f"data/real/normalized/detections_{year}.parquet",
+            columns=["cell_id", "timestamp", "confidence"],
+        )
+        strong.append(f[f.confidence.isin(["n", "h"])])
+    columns = ["cell_id", "timestamp", "confidence"]
+    raw25 = pd.read_parquet(IND / "detections_2025.parquet", columns=columns)
+    raw26 = pd.read_parquet(T26 / "detections_2026.parquet", columns=columns)
+    extra = pd.concat([raw25, raw26], ignore_index=True)
+    extra["day"] = extra.timestamp.dt.floor("D")
+    history = pd.concat([history, extra[["cell_id", "day"]]], ignore_index=True).drop_duplicates()
+    strong.append(extra[extra.confidence.isin(["n", "h"])])
+    both = pd.concat(strong, ignore_index=True)
+    both["day"] = both.timestamp.dt.floor("D")
+    return history, both[["cell_id", "day"]].drop_duplicates()
+
+
+class HeatRule:
+    """H1: persistent heat sources from nominal/high active days known before the target day."""
+
+    def __init__(self, strong: pd.DataFrame, index: pd.Series):
+        cells = strong.cell_id.map(index)
+        keep = cells.notna().to_numpy()
+        self.n = len(index)
+        day_no = (strong.day[keep] - EPOCH).dt.days.to_numpy()
+        cell = cells[keep].to_numpy(dtype=np.int64)
+        order = np.argsort(day_no, kind="stable")
+        day_no, cell = day_no[order], cell[order]
+        cuts = np.flatnonzero(np.diff(day_no)) + 1
+        self.active = {
+            int(d[0]): c for d, c in zip(np.split(day_no, cuts), np.split(cell, cuts), strict=True)
+        }
+        years = (pd.to_datetime(day_no, unit="D")).year.to_numpy()
+        self.annual = {
+            int(y): np.bincount(cell[years == y], minlength=self.n) for y in np.unique(years)
+        }
+
+    def flag(self, keys: pd.DataFrame) -> np.ndarray:
+        target = (keys.day - EPOCH).dt.days.to_numpy()
+        year = keys.day.dt.year.to_numpy()
+        ci = keys.cell_index.to_numpy()
+        out = np.zeros(len(keys), dtype=bool)
+        first, last = HEAT_WINDOW
+        for t in np.unique(target):
+            idx = np.flatnonzero(target == t)
+            counts = np.zeros(self.n, dtype=np.int32)
+            for d in range(t - first, t - last + 1):
+                a = self.active.get(d)
+                if a is not None:
+                    counts[a] += 1
+            y = int(year[idx[0]])
+            past = np.zeros(self.n, dtype=bool)
+            for back in range(1, HEAT_YEARS_BACK + 1):
+                if y - back in self.annual:
+                    past |= self.annual[y - back] >= HEAT_DAYS
+            out[idx] = (counts[ci[idx]] >= HEAT_DAYS) | past[ci[idx]]
+        return out
+
+
+def regions(ids: pd.Index) -> np.ndarray:
+    rows = struct.iter_unpack("<hhfffH8H", (ROOT / "platform/dist/assets/cells.bin").read_bytes())
+    return pd.Series({f"g5000_{r[0]}_{r[1]}": r[5] for r in rows}).reindex(ids).to_numpy()
+
+
+def extend(frame, history, cells, heat, region) -> pd.DataFrame:
+    """v6's neighbourhood and cell history, the H1 flag and the region of each row."""
+    f = mu.augment(frame, mu.FireHistory(history), V5 / "release.json")
+    for name, values in cells.features(f).items():
+        f[name] = values
+    f["heat_source"] = heat.flag(f)
+    f["region"] = region[f.cell_index.to_numpy()]
+    return f
+
+
+def write(name: str, f: pd.DataFrame, gate: dict) -> None:
+    features = json.loads((V6 / "frozen.json").read_text())["features"]
+    cols = [c for c in META if c in f] + ["region", "heat_source", "ndvi_missing", *features]
+    out = f[list(dict.fromkeys(cols))].reset_index(drop=True)
+    path = RUN / f"samples/{name}.parquet"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    out.to_parquet(path, index=False)
+    dump_json(
+        path.with_suffix(".sha256.json"), {"sha256": checksum(path), "rows": len(out), **gate}
+    )
+    log(
+        f"{name}: {len(out)} rows, {int(out.label.sum())} positives, {int(out.heat_source.sum())} heat rows"
+    )
+
+
+def scored(frame: pd.DataFrame, which: str) -> np.ndarray:
+    run = V5 if which == "v5" else V6
+    model, cal = joblib.load(run / "model.joblib"), joblib.load(run / "calibrator.joblib")
+    raw = model["estimator"].predict_proba(frame[model["features"]])[:, 1]
+    return mu.published_probability(cal.predict(raw))
+
+
+def samples() -> None:
+    check_protocol()
+    fast_guard()
+    t26.verify_v6()
+    ids = pd.Index(public_predictors.geography()[0].cell_id)
+    index = pd.Series(np.arange(len(ids)), index=ids)
+    region = regions(ids)
+    history, strong = detections()
+    heat = HeatRule(strong, index)
+    cells = t26.CellHistory(
+        history.assign(cell=history.cell_id.map(index))
+        .dropna(subset=["cell"])
+        .astype({"cell": np.int64}),
+        len(ids),
+    )
+    log("history ready")
+
+    for name in TABLES:
+        if (RUN / f"samples/{name}.parquet").exists():
+            continue
+        base = pd.read_parquet(OLD / f"features/{name}.parquet")
+        gate = {"base_table_sha256": checksum(OLD / f"features/{name}.parquet")}
+        f = extend(base, history, cells, heat, region)
+        if name == "2015_train":
+            # The one v6 development table still on disk: rebuilt features must equal it.
+            old = pd.read_parquet(V6 / "features/2015_train.parquet")
+            for c in CELL + mu.HISTORY:
+                if not np.array_equal(old[c].to_numpy(), f[c].to_numpy().astype(old[c].dtype)):
+                    raise ValueError(f"Rebuilt {c} differs from v6 development")
+            gate["matches_v6_development_features"] = True
+        write(name, f, gate)
+
+    # 2025 and 2026: registered samples, inputs rebuilt by the registered 2026 test code.
+    for name, source, column, model in [
+        ("2025_evaluation", IND / "months", "probability", "v5"),
+        ("2026_reassessment", T26 / "months", "p_v6", "v6"),
+    ]:
+        if (RUN / f"samples/{name}.parquet").exists():
+            continue
+        parts, worst = [], 0.0
+        for month in sorted(source.glob("*.parquet")):
+            rows = pd.read_parquet(month)
+            keys = rows[["day", "label", "weight", "q"]].assign(
+                cell_index=rows.cell_id.map(index).to_numpy()
+            )
+            frame = t26.feature_frame(keys)
+            frame = frame[frame.required_features_valid].reset_index(drop=True)
+            f = extend(frame, history, cells, heat, region)
+            registered = rows.set_index(["cell_id", "day"])[column]
+            mine = pd.Series(
+                scored(f, model), index=pd.MultiIndex.from_frame(f[["cell_id", "day"]])
+            )
+            common = registered.index.intersection(mine.index)
+            gap = float(np.abs(registered[common].to_numpy() - mine[common].to_numpy()).max())
+            worst = max(worst, gap)
+            log(
+                f"{name} {month.stem}: {len(f)} of {len(rows)} rows rebuilt, "
+                f"max |p - registered {model}| = {gap:.3g}"
+            )
+            parts.append(f[f.set_index(["cell_id", "day"]).index.isin(registered.index)])
+        f = pd.concat(parts, ignore_index=True)
+        write(
+            name,
+            f,
+            {
+                "source": str(source.relative_to(ROOT)),
+                "registered_column": column,
+                "max_abs_gap": worst,
+            },
+        )
+
+
+# ---------- rolling-origin experiments ----------
+PARAMS = {
+    "learning_rate": 0.06252287916406217,
+    "max_depth": 5,
+    "min_child_weight": 6.440260565429631,
+    "n_estimators": 314,
+    "reg_alpha": 0.006789053271698486,
+    "reg_lambda": 0.14742753159914673,
+}
+DRAWS = 1000
+
+
+def sample(name: str) -> pd.DataFrame:
+    return pd.read_parquet(RUN / f"samples/{name}.parquet")
+
+
+def fit_table(year: int) -> str:
+    return f"{year}_train" if year <= 2021 else f"{year}_evaluation"
+
+
+@cache
+def industrial() -> frozenset:
+    return frozenset(json.loads((OLD / "industrial_cells.json").read_text())["cell_ids"])
+
+
+def primary(frame: pd.DataFrame) -> pd.DataFrame:
+    """Primary risk set: base rules (frozen industrial list) plus the H1 exclusion."""
+    keep = ~frame.cell_id.isin(industrial()) & ~frame.heat_source
+    return frame.loc[keep.to_numpy()].reset_index(drop=True)
+
+
+def capture(frame: pd.DataFrame, score: np.ndarray) -> dict[str, float]:
+    """Estimated share of positives inside each day's top k% of eligible cells (as in v6)."""
+    out = {}
+    f = frame[["day", "label", "weight"]].assign(score=score)
+    for name, share in {"top_0.1pct": 0.001, "top_1pct": 0.01}.items():
+        hit = 0.0
+        for _, g in f.groupby("day"):
+            g = g.sort_values("score", ascending=False)
+            inside = g.weight.cumsum().to_numpy() <= share * g.weight.sum()
+            hit += g.label.to_numpy()[inside].sum()
+        out[name] = float(hit / f.label.sum())
+    return out
+
+
+def recall_at(y, p, w, precision_floor: float) -> float:
+    precision, recall, _ = precision_recall_curve(y, p, sample_weight=w)
+    ok = precision[:-1] >= precision_floor
+    return float(recall[:-1][ok].max()) if ok.any() else 0.0
+
+
+def at_threshold(y, p, w, threshold: float) -> tuple[float, float]:
+    alert = p >= threshold
+    tp, fp, fn = (w * (alert & y)).sum(), (w * (alert & ~y)).sum(), (w * (~alert & y)).sum()
+    return float(tp / max(tp + fp, 1e-12)), float(tp / max(tp + fn, 1e-12))
+
+
+def reliability(y, p, w) -> list[dict]:
+    b = np.clip(
+        np.searchsorted(RELIABILITY_EDGES, p, side="right") - 1, 0, len(RELIABILITY_EDGES) - 2
+    )
+    rows = []
+    for i in range(len(RELIABILITY_EDGES) - 1):
+        m = b == i
+        weight = float(w[m].sum())
+        rows.append(
+            {
+                "low": RELIABILITY_EDGES[i],
+                "high": RELIABILITY_EDGES[i + 1],
+                "predicted": float((p[m] * w[m]).sum() / weight) if weight else None,
+                "observed": float((y[m] * w[m]).sum() / weight) if weight else None,
+                "positives": int(y[m].sum()),
+            }
+        )
+    return rows
+
+
+def metrics(frame: pd.DataFrame, p: np.ndarray, threshold: float) -> dict:
+    y, w = frame.label.to_numpy() == 1, frame.weight.to_numpy()
+    base = float((w * y).sum() / w.sum())
+    brier = float((w * (p - y) ** 2).sum() / w.sum())
+    precision, recall = at_threshold(y, p, w, threshold)
+    return {
+        "rows": len(frame),
+        "positives": int(y.sum()),
+        "ap": float(average_precision_score(y, p, sample_weight=w)),
+        "roc_auc": float(roc_auc_score(y, p, sample_weight=w)),
+        **capture(frame, p),
+        "brier": brier,
+        "bss": 1 - brier / (base * (1 - base)),
+        "threshold": threshold,
+        "precision": precision,
+        "recall": recall,
+        "max_value": float(p.max()),
+    }
+
+
+def clusters(frame: pd.DataFrame) -> np.ndarray:
+    """100 km x 30 day blocks, as in every earlier release test."""
+    key = pd.DataFrame(
+        {
+            "x": np.floor(frame.x / 100_000),
+            "y": np.floor(frame.y_coord / 100_000),
+            "t": (frame.day.dt.dayofyear - 1) // 30,
+        }
+    )
+    return key.groupby(["x", "y", "t"]).ngroup().to_numpy()
+
+
+def train(fit: pd.DataFrame, features: list[str]) -> XGBClassifier:
+    clf = XGBClassifier(
+        **PARAMS, objective="binary:logistic", tree_method="hist", random_state=42, n_jobs=4
+    )
+    clf.fit(fit[features], fit.label, sample_weight=fit.weight.to_numpy())
+    return clf
+
+
+def calibrate(clf, cal: pd.DataFrame, features: list[str], year: int):
+    raw = clf.predict_proba(cal[features])[:, 1]
+    calibration, _ = fit_sigmoid(cal, raw, year)
+    p = mu.published_probability(calibration.predict(raw))
+    point = mu.operating_point(cal.label.to_numpy(), p, cal.weight.to_numpy(), PRECISION_FLOOR)
+    return calibration, point["threshold"]
+
+
+def h1() -> None:
+    """H1: does training without persistent heat sources beat the v6 recipe on the clean risk set?"""
+    check_protocol()
+    out = RUN / "experiments/h1"
+    out.mkdir(parents=True, exist_ok=True)
+    features = json.loads((V6 / "frozen.json").read_text())["features"]
+    frozen = joblib.load(V6 / "model.joblib"), joblib.load(V6 / "calibrator.joblib")
+    frozen_threshold = json.loads((V6 / "frozen.json").read_text())["threshold"]
+    rows, boot, rel = [], {}, {}
+    for origin in ORIGINS:
+        fit_all = pd.concat(
+            [sample(fit_table(y)) for y in range(2015, origin - 1)], ignore_index=True
+        )
+        fit_clean = fit_all.loc[
+            (~fit_all.cell_id.isin(industrial()) & ~fit_all.heat_source).to_numpy()
+        ]
+        cal = primary(sample(f"{origin - 1}_evaluation"))
+        test = primary(sample(f"{origin}_evaluation"))
+        y, w = test.label.to_numpy() == 1, test.weight.to_numpy()
+        scores = {}
+        for name, fit in [("v6_recipe", fit_all), ("h1_clean", fit_clean)]:
+            clf = train(fit, features)
+            calibration, threshold = calibrate(clf, cal, features, origin - 1)
+            p = mu.published_probability(
+                calibration.predict(clf.predict_proba(test[features])[:, 1])
+            )
+            scores[name] = (p, threshold)
+        if origin >= 2022:
+            raw = frozen[0]["estimator"].predict_proba(test[features])[:, 1]
+            scores["v6_frozen"] = (
+                mu.published_probability(frozen[1].predict(raw)),
+                frozen_threshold,
+            )
+        ref_p, ref_t = scores["v6_recipe"]
+        ref_precision, _ = at_threshold(y, ref_p, w, ref_t)
+        for name, (p, threshold) in scores.items():
+            rows.append(
+                {
+                    "origin": origin,
+                    "model": name,
+                    **metrics(test, p, threshold),
+                    "recall_at_v6_recipe_precision": recall_at(y, p, w, ref_precision),
+                }
+            )
+            rel[f"{origin}/{name}"] = reliability(y, p, w)
+            log(
+                f"{origin} {name} ap={rows[-1]['ap']:.5f} recall@ref={rows[-1]['recall_at_v6_recipe_precision']:.4f} bss={rows[-1]['bss']:.4f}"
+            )
+
+        # Paired block bootstrap: h1_clean minus v6_recipe on the same resampled rows.
+        group = clusters(test)
+        rng = np.random.default_rng(42)
+        cand_p = scores["h1_clean"][0]
+        draws = {"ap": [], "recall_at_v6_recipe_precision": []}
+        for _ in range(DRAWS):
+            counts = np.bincount(
+                rng.integers(0, group.max() + 1, group.max() + 1), minlength=group.max() + 1
+            )
+            m = counts[group] * w
+            keep = m > 0
+            yy, mm = y[keep], m[keep]
+            if yy.sum() == 0:
+                continue
+            draws["ap"].append(
+                average_precision_score(yy, cand_p[keep], sample_weight=mm)
+                - average_precision_score(yy, ref_p[keep], sample_weight=mm)
+            )
+            floor, _ = at_threshold(yy, ref_p[keep], mm, ref_t)
+            draws["recall_at_v6_recipe_precision"].append(
+                recall_at(yy, cand_p[keep], mm, floor) - recall_at(yy, ref_p[keep], mm, floor)
+            )
+        boot[str(origin)] = {
+            k: [float(np.quantile(v, 0.025)), float(np.quantile(v, 0.975))]
+            for k, v in draws.items()
+        }
+        log(f"{origin} bootstrap {boot[str(origin)]}")
+        pd.DataFrame(rows).to_csv(out / "metrics.csv", index=False)
+
+    table = pd.DataFrame(rows)
+    wins = 0
+    for origin in ORIGINS:
+        c = table[(table.origin == origin) & (table.model == "h1_clean")].iloc[0]
+        r = table[(table.origin == origin) & (table.model == "v6_recipe")].iloc[0]
+        wins += int(c.ap > r.ap)
+    decision = {
+        "hypothesis": "H1",
+        "rule": json.loads((RUN / "protocol.json").read_text())["hypotheses"]["H1"],
+        "origins_where_clean_ap_higher": wins,
+        "origins": len(ORIGINS),
+        "accepted": wins > len(ORIGINS) / 2,
+        "paired_bootstrap_95": boot,
+        "evaluation_risk_set": "primary (frozen industrial list and H1 exclusion removed)",
+    }
+    dump_json(out / "decision.json", decision)
+    dump_json(out / "reliability.json", rel)
+    log(f"H1 decision: {decision['accepted']} ({wins}/{len(ORIGINS)})")
+
+
+# ---------- H3: yesterday's fires ----------
+H3 = ["h3_yday_15km", "h3_yday_55km", "h3_d2_15km", "h3_d2_55km", "h3_yday_distance_km"]
+# A forecast issued at 00 UTC of D sees D-1 detections only after S-NPP NRT latency (about
+# 3 hours), so D-1 counts stop at 21:00 UTC; the night pass runs 19-23 UTC.
+YDAY_CUTOFF_HOUR = 21
+
+
+def timed_detections(index: pd.Series) -> pd.DataFrame:
+    """All-confidence detections with acquisition time, 2014–2026, as cell index and day."""
+    frames = [
+        pd.read_parquet(
+            ROOT / f"data/real/normalized/detections_{y}.parquet", columns=["cell_id", "timestamp"]
+        )
+        for y in range(2014, 2025)
+    ]
+    for path in [IND / "detections_2025.parquet", T26 / "detections_2026.parquet"]:
+        frames.append(pd.read_parquet(path, columns=["cell_id", "timestamp"]))
+    d = pd.concat(frames, ignore_index=True)
+    d["cell"] = d.cell_id.map(index)
+    d = d.dropna(subset=["cell"])
+    return pd.DataFrame(
+        {
+            "cell": d.cell.to_numpy(dtype=np.int64),
+            "day_no": (d.timestamp.dt.floor("D") - EPOCH).dt.days.to_numpy(),
+            "early": d.timestamp.dt.hour.to_numpy() < YDAY_CUTOFF_HOUR,
+        }
+    )
+
+
+def h3_features() -> None:
+    """Counts of active cells yesterday (before the cutoff) and the day before, and distance."""
+    from scipy.ndimage import distance_transform_edt, uniform_filter
+
+    check_protocol()
+    fast_guard()
+    ids = pd.Index(public_predictors.geography()[0].cell_id)
+    index = pd.Series(np.arange(len(ids)), index=ids)
+    _, gr, gc, shape = t26._grid()
+    d = timed_detections(index)
+    early = {int(k): g.cell.unique() for k, g in d[d.early].groupby("day_no")}
+    full = {int(k): g.cell.unique() for k, g in d.groupby("day_no")}
+    empty = np.empty(0, dtype=np.int64)
+
+    def image(cells: np.ndarray) -> np.ndarray:
+        img = np.zeros(shape, dtype=np.float32)
+        img[gr[cells], gc[cells]] = 1
+        return img
+
+    out_dir = RUN / "features_h3"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    for name in [*TABLES, "2025_evaluation", "2026_reassessment"]:
+        path = out_dir / f"{name}.parquet"
+        if path.exists():
+            continue
+        f = sample(name)[["cell_index", "day"]]
+        target = (f.day - EPOCH).dt.days.to_numpy()
+        ci = f.cell_index.to_numpy()
+        out = {c: np.zeros(len(f), dtype=np.float32) for c in H3}
+        for t in np.unique(target):
+            idx = np.flatnonzero(target == t)
+            r, c = gr[ci[idx]], gc[ci[idx]]
+            one, two = image(early.get(int(t) - 1, empty)), image(full.get(int(t) - 2, empty))
+            for img, tag in [(one, "yday"), (two, "d2")]:
+                for size, km in [(3, 15), (11, 55)]:
+                    total = uniform_filter(img, size=size, mode="constant") * size * size
+                    out[f"h3_{tag}_{km}km"][idx] = np.rint(total[r, c])
+            if one.any():
+                distance = distance_transform_edt(one == 0) * 5
+                out["h3_yday_distance_km"][idx] = np.minimum(distance[r, c], 200)
+            else:
+                out["h3_yday_distance_km"][idx] = 200
+        pd.DataFrame(out).to_parquet(path, index=False)
+        dump_json(
+            path.with_suffix(".sha256.json"),
+            {"sha256": checksum(path), "sample_sha256": checksum(RUN / f"samples/{name}.parquet")},
+        )
+        log(f"h3 features {name}")
+
+
+def loaded(name: str, extras: tuple[str, ...]) -> pd.DataFrame:
+    f = sample(name)
+    for extra in extras:
+        f = pd.concat([f, pd.read_parquet(RUN / f"features_{extra}/{name}.parquet")], axis=1)
+    return f
+
+
+def experiment(tag: str, candidates: dict[str, list[str]], extras: tuple[str, ...]) -> None:
+    """One hypothesis on the rolling origins: each candidate against the v6 recipe.
+
+    Same fit/calibration/evaluation years and risk sets as H1; all rows used for fitting,
+    as v6 was fitted; metrics on the primary risk set.
+    """
+    check_protocol()
+    out = RUN / f"experiments/{tag}"
+    out.mkdir(parents=True, exist_ok=True)
+    v6_features = json.loads((V6 / "frozen.json").read_text())["features"]
+    models = {"v6_recipe": v6_features, **candidates}
+    rows, boot, rel = [], {}, {}
+    for origin in ORIGINS:
+        fit = pd.concat(
+            [loaded(fit_table(y), extras) for y in range(2015, origin - 1)], ignore_index=True
+        )
+        cal = primary(loaded(f"{origin - 1}_evaluation", extras))
+        test = primary(loaded(f"{origin}_evaluation", extras))
+        y, w = test.label.to_numpy() == 1, test.weight.to_numpy()
+        scores = {}
+        for name, features in models.items():
+            clf = train(fit, features)
+            calibration, threshold = calibrate(clf, cal, features, origin - 1)
+            p = mu.published_probability(
+                calibration.predict(clf.predict_proba(test[features])[:, 1])
+            )
+            scores[name] = (p, threshold)
+        ref_p, ref_t = scores["v6_recipe"]
+        ref_precision, _ = at_threshold(y, ref_p, w, ref_t)
+        for name, (p, threshold) in scores.items():
+            rows.append(
+                {
+                    "origin": origin,
+                    "model": name,
+                    **metrics(test, p, threshold),
+                    "recall_at_v6_recipe_precision": recall_at(y, p, w, ref_precision),
+                }
+            )
+            rel[f"{origin}/{name}"] = reliability(y, p, w)
+            log(
+                f"{tag} {origin} {name} ap={rows[-1]['ap']:.5f} "
+                f"recall@ref={rows[-1]['recall_at_v6_recipe_precision']:.4f} bss={rows[-1]['bss']:.4f}"
+            )
+        group = clusters(test)
+        n_groups = group.max() + 1
+        for name in candidates:
+            rng = np.random.default_rng(42)
+            cand_p = scores[name][0]
+            draws: dict[str, list[float]] = {"ap": [], "recall_at_v6_recipe_precision": []}
+            for _ in range(DRAWS):
+                counts = np.bincount(rng.integers(0, n_groups, n_groups), minlength=n_groups)
+                m = counts[group] * w
+                keep = m > 0
+                yy, mm = y[keep], m[keep]
+                if yy.sum() == 0:
+                    continue
+                draws["ap"].append(
+                    average_precision_score(yy, cand_p[keep], sample_weight=mm)
+                    - average_precision_score(yy, ref_p[keep], sample_weight=mm)
+                )
+                floor, _ = at_threshold(yy, ref_p[keep], mm, ref_t)
+                draws["recall_at_v6_recipe_precision"].append(
+                    recall_at(yy, cand_p[keep], mm, floor) - recall_at(yy, ref_p[keep], mm, floor)
+                )
+            boot[f"{origin}/{name}"] = {
+                k: [float(np.quantile(v, 0.025)), float(np.quantile(v, 0.975))]
+                for k, v in draws.items()
+            }
+            log(f"{tag} {origin} {name} bootstrap {boot[f'{origin}/{name}']}")
+        pd.DataFrame(rows).to_csv(out / "metrics.csv", index=False)
+
+    table = pd.DataFrame(rows)
+    decisions = {}
+    for name in candidates:
+        wins = sum(
+            int(
+                table[(table.origin == o) & (table.model == name)].ap.iloc[0]
+                > table[(table.origin == o) & (table.model == "v6_recipe")].ap.iloc[0]
+            )
+            for o in ORIGINS
+        )
+        decisions[name] = {"origins_with_higher_ap": wins, "accepted": wins > len(ORIGINS) / 2}
+    dump_json(
+        out / "decision.json",
+        {
+            "hypothesis": tag.upper(),
+            "rule": json.loads((RUN / "protocol.json").read_text())["hypotheses"][tag.upper()],
+            "candidates": decisions,
+            "origins": len(ORIGINS),
+            "paired_bootstrap_95": boot,
+            "evaluation_risk_set": "primary (frozen industrial list and H1 exclusion removed)",
+        },
+    )
+    dump_json(out / "reliability.json", rel)
+    log(f"{tag} decisions {decisions}")
+
+
+def h3() -> None:
+    h3_features()
+    v6_features = json.loads((V6 / "frozen.json").read_text())["features"]
+    experiment("h3", {"h3_yesterday": v6_features + H3}, ("h3",))
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("command", choices=["protocol", "samples", "h1", "h3"])
+    a = parser.parse_args()
+    {"protocol": protocol, "samples": samples, "h1": h1, "h3": h3}[a.command]()
