@@ -9,6 +9,7 @@ Commands run in order; each later command checks that the protocol is unchanged:
   h3        - yesterday's fires (causal 21 UTC cutoff), same engine for later hypotheses
   h2        - upper bound: reanalysis of the target day (never used for selection)
   h2_served - fitted on reanalysis, served with as-issued GFS forecasts (2025, 2026)
+  h6_calibration - sigmoid, beta and isotonic calibration on one or two prior years
 The final test is prospective (1 March – 31 October 2027) and needs a release frozen first.
 """
 
@@ -896,9 +897,163 @@ def h2_served() -> None:
     )
 
 
+# ---------- H6 (calibration part): which calibration gives values that mean a chance ----------
+def calibration_rows(year: int, extras: tuple[str, ...]) -> pd.DataFrame:
+    """Design-weighted rows of one year; the evaluation table where it exists."""
+    name = f"{year}_evaluation" if year >= 2019 else f"{year}_train"
+    return primary(loaded(name, extras))
+
+
+class Calibrator:
+    """Weighted sigmoid (Platt on the logit), beta (Kull et al.) or isotonic calibration.
+
+    `isotonic_interp` joins the centres of the isotonic steps with straight lines: values stay
+    calibrated, and the map keeps the model's own order instead of ties inside each step.
+    """
+
+    def __init__(self, method: str):
+        self.method = method
+
+    @staticmethod
+    def _design(raw: np.ndarray, method: str) -> np.ndarray:
+        p = np.clip(raw, 1e-7, 1 - 1e-7)
+        if method == "sigmoid":
+            return np.log(p / (1 - p)).reshape(-1, 1)
+        return np.column_stack([np.log(p), -np.log(1 - p)])
+
+    def fit(self, raw: np.ndarray, y: np.ndarray, w: np.ndarray) -> Calibrator:
+        from sklearn.isotonic import IsotonicRegression
+        from sklearn.linear_model import LogisticRegression
+
+        if self.method.startswith("isotonic"):
+            self.model = IsotonicRegression(out_of_bounds="clip", y_min=0, y_max=1)
+            self.model.fit(raw, y, sample_weight=w)
+            if self.method == "isotonic_interp":
+                step = self.model.predict(raw)
+                frame = pd.DataFrame({"x": raw * w, "w": w, "v": step})
+                blocks = frame.groupby("v").agg(x=("x", "sum"), w=("w", "sum")).reset_index()
+                self.knots = ((blocks.x / blocks.w).to_numpy(), blocks.v.to_numpy())
+        else:
+            self.model = LogisticRegression(C=1e10, max_iter=2000)
+            self.model.fit(self._design(raw, self.method), y, sample_weight=w)
+        return self
+
+    def predict(self, raw: np.ndarray) -> np.ndarray:
+        if self.method == "isotonic":
+            return self.model.predict(raw)
+        if self.method == "isotonic_interp":
+            # Beyond the end knots the end segments continue (capped to [0, 1]), so the
+            # highest-risk cells keep their order instead of sharing the top step's value.
+            x, v = self.knots
+            out = np.interp(raw, x, v)
+            if len(x) > 1:
+                low, high = raw < x[0], raw > x[-1]
+                out[low] = v[0] + (raw[low] - x[0]) * (v[1] - v[0]) / (x[1] - x[0])
+                out[high] = v[-1] + (raw[high] - x[-1]) * (v[-1] - v[-2]) / (x[-1] - x[-2])
+            return np.clip(out, 0, 1)
+        return self.model.predict_proba(self._design(raw, self.method))[:, 1]
+
+
+def reliability_spread(rows: list[dict], minimum: int = 100) -> float:
+    """Largest observed/shown ratio (or its inverse) over bins with enough positives."""
+    worst = 1.0
+    for r in rows:
+        if r["positives"] >= minimum and r["predicted"] and r["observed"]:
+            ratio = r["observed"] / r["predicted"]
+            worst = max(worst, ratio, 1 / ratio)
+    return worst
+
+
+def h6_calibration() -> None:
+    check_protocol()
+    out = RUN / "experiments/h6_calibration"
+    out.mkdir(parents=True, exist_ok=True)
+    v6_features = json.loads((V6 / "frozen.json").read_text())["features"]
+    models = {"v6_recipe": v6_features, "h3_yesterday": v6_features + H3}
+    # one year: fit < Y-1, calibrate Y-1 (as H1-H3); two years: fit < Y-2, calibrate Y-2..Y-1.
+    schemes = {"one_year": 1, "two_years": 2}
+    rows, rel = [], {}
+    for origin in ORIGINS:
+        test = primary(loaded(evaluation_name(origin), ("h3",)))
+        y, w = test.label.to_numpy() == 1, test.weight.to_numpy()
+        for scheme, years in schemes.items():
+            fit = pd.concat(
+                [loaded(fit_table(t), ("h3",)) for t in range(2015, origin - years)],
+                ignore_index=True,
+            )
+            cal = pd.concat(
+                [calibration_rows(t, ("h3",)) for t in range(origin - years, origin)],
+                ignore_index=True,
+            )
+            cy, cw = cal.label.to_numpy() == 1, cal.weight.to_numpy().astype(float)
+            # Each calibration year carries equal total weight, whatever its sample size.
+            for t in range(origin - years, origin):
+                sel = (cal.day.dt.year == t).to_numpy()
+                cw[sel] = cw[sel] / cw[sel].sum()
+            for name, features in models.items():
+                clf = train(fit, features)
+                raw_cal = clf.predict_proba(cal[features])[:, 1]
+                raw_test = clf.predict_proba(test[features])[:, 1]
+                for method in ["sigmoid", "beta", "isotonic", "isotonic_interp"]:
+                    c = Calibrator(method).fit(raw_cal, cy, cw)
+                    pc = mu.published_probability(c.predict(raw_cal))
+                    p = mu.published_probability(c.predict(raw_test))
+                    point = mu.operating_point(cy, pc, cw, PRECISION_FLOOR)
+                    m = metrics(test, p, point["threshold"])
+                    r = reliability(y, p, w)
+                    key = f"{origin}/{scheme}/{name}/{method}"
+                    rel[key] = r
+                    rows.append(
+                        {
+                            "origin": origin,
+                            "scheme": scheme,
+                            "model": name,
+                            "method": method,
+                            **m,
+                            "reliability_spread": reliability_spread(r),
+                            "mean_shown": float((p * w).sum() / w.sum()),
+                            "observed_rate": float((y * w).sum() / w.sum()),
+                        }
+                    )
+                    log(
+                        f"h6 {key} ap={m['ap']:.5f} bss={m['bss']:.4f} "
+                        f"spread=x{rows[-1]['reliability_spread']:.2f}"
+                    )
+        pd.DataFrame(rows).to_csv(out / "metrics.csv", index=False)
+    table = pd.DataFrame(rows)
+    summary = (
+        table.groupby(["scheme", "model", "method"])
+        .agg(
+            mean_bss=("bss", "mean"),
+            min_bss=("bss", "min"),
+            origins_bss_positive=("bss", lambda s: int((s > 0).sum())),
+            worst_spread=("reliability_spread", "max"),
+            mean_ap=("ap", "mean"),
+        )
+        .reset_index()
+    )
+    summary.to_csv(out / "summary.csv", index=False)
+    passing = summary[(summary.min_bss > 0) & (summary.worst_spread <= 1.5)]
+    dump_json(
+        out / "decision.json",
+        {
+            "hypothesis": "H6 (calibration part)",
+            "criteria": "BSS > 0 at every origin and every reliability bin with >= 100 positives within x1.5",
+            "passing": passing.to_dict("records"),
+            "best_by_mean_bss": summary.sort_values("mean_bss", ascending=False)
+            .head(3)
+            .to_dict("records"),
+        },
+    )
+    dump_json(out / "reliability.json", rel)
+    log(f"h6 summary\n{summary.to_string()}")
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("command", choices=["protocol", "samples", "h1", "h3", "h2", "h2_served"])
+    parser.add_argument(
+        "command", choices=["protocol", "samples", "h1", "h3", "h2", "h2_served", "h6_calibration"]
+    )
     a = parser.parse_args()
     {
         "protocol": protocol,
@@ -907,4 +1062,5 @@ if __name__ == "__main__":
         "h3": h3,
         "h2": h2,
         "h2_served": h2_served,
+        "h6_calibration": h6_calibration,
     }[a.command]()

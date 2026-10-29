@@ -82,6 +82,32 @@ served with the GFS 18 UTC run of D-1, `src/wildfire_kz/data/gfs_forecasts.py`, 
 interpolated to the ERA5 cells) needs GFS for 2024-2025; the download is resumable and
 limited by the connection (0.05-0.5 MB/s).
 
+## H6, calibration part
+
+Base models v6 recipe and v6 + H3, each calibrated by four methods on one prior year (fit
+< Y-1) or two prior years (fit < Y-2, the two years weighted equally). Metrics at all six
+origins on the primary risk set. Brier skill is against the evaluation year's own base rate,
+which no forecast knows in advance, so even small positive values are meaningful.
+
+| Scheme, model, method | BSS > 0 at | Mean BSS | Worst reliability gap | Mean AP |
+|---|---|---|---|---|
+| one year, v6 recipe, sigmoid (as v6) | 1 of 6 | −0.031 | ×5.93 | 0.0195 |
+| two years, v6 + H3, sigmoid | 1 of 6 | −0.062 | ×3.75 | 0.0206 |
+| two years, v6 + H3, beta | 1 of 6 | −0.016 | ×2.51 | 0.0204 |
+| **two years, v6 + H3, isotonic** | **6 of 6** | **+0.008** | **×1.66** | 0.0180 |
+| two years, v6 + H3, isotonic joined by lines | 5 of 6 | +0.004 | ×1.66 | 0.0195 |
+
+- **Two-year isotonic calibration is the first to give positive Brier skill at every origin**
+  (+0.004 to +0.014), and shown and observed rates agree within ×1.66 in every bin with at
+  least 100 fires (v6: ×4-6). The two bins over ×1.5 are the lowest bin in 2022 (0.002% shown,
+  0.001% observed) and the top bin in 2024 (6.7% shown, 4.5% observed; 2024 had a third fewer
+  fires than 2023).
+- Its cost is ranking: AP 0.0180 against 0.0206 with sigmoid, because cells inside an
+  isotonic step tie. Joining the step centres by lines recovers most of it (0.0195) at the
+  price of one origin with negative skill.
+- No variant meets the release criteria in full yet (×1.5). Calibration is the release
+  decision; it is rechecked once H2 (served) and H4 are in the model.
+
 ## Next, in protocol order
 
 H2 (weather for the target day; as-issued 1-day-lead forecasts exist only from 2024),
