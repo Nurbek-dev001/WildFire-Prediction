@@ -108,6 +108,34 @@ which no forecast knows in advance, so even small positive values are meaningful
 - No variant meets the release criteria in full yet (×1.5). Calibration is the release
   decision; it is rechecked once H2 (served) and H4 are in the model.
 
+## H2 served with as-issued forecasts (origin 2025)
+
+Fitted on reanalysis, calibrated on 2024 and evaluated on 2025 with the GFS 18 UTC run of the
+previous day: AP 0.0215 (v6 recipe 0.0167, + H3 0.0189, reanalysis upper bound 0.0237);
+recall at the v6 recipe precision 4.36% (v6 recipe 1.46%). About 70% of the upper bound's
+gain survives real forecasts. H2 accepted.
+
+## v7 candidate and freeze
+
+v6 inputs + H3 + H2, fit < Y-2 on reanalysis, isotonic on Y-2..Y-1 with the inputs of those
+years (GFS from 2024), against the v6 recipe.
+
+| Origin | AP v6 recipe → v7 | Recall at v6 recipe precision | BSS v7 (v6 recipe) | Reliability gap v7 (v6 recipe) |
+|---|---|---|---|---|
+| 2020 | 0.0198 → **0.0282** | 0.14% → **7.37%** | **+0.017** (−0.056) | ×1.26 (×5.93) |
+| 2021 | 0.0146 → **0.0176** | 5.03% → **9.51%** | **+0.009** (−0.031) | ×1.35 (×2.40) |
+| 2022 | 0.0152 → **0.0214** | 5.56% → **13.03%** | **+0.013** (−0.066) | ×1.53 (×2.68) |
+| 2023 | 0.0236 → 0.0182 | 5.39% → 0.19% | +0.002 (−0.013) | ×1.29 (×1.96) |
+| 2024, GFS | 0.0270 → 0.0210 | 5.32% → **13.50%** | −0.015 (+0.002) | ×1.43 (×2.25) |
+| 2025, GFS | 0.0167 → **0.0212** | 1.46% → **5.63%** | **+0.001** (−0.021) | ×1.63 (×1.71) |
+
+The candidate does not meet the selection rule (2023 and 2024). Amendment
+2026-10-29-02, written after these results: no release under the rule, v6 stays the map
+default, and the candidate is frozen as a challenger for the prospective 2027 test, which
+scores both models on the same days. Frozen 2026-10-29: fit 2015–2023, isotonic on 2024–2025
+with GFS inputs, alert threshold 4.50% (2024–2025 precision 6.63%, recall 8.76%).
+`runs/model_v7/release.json`.
+
 ## Next, in protocol order
 
 H2 (weather for the target day; as-issued 1-day-lead forecasts exist only from 2024),

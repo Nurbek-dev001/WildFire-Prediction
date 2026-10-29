@@ -10,6 +10,8 @@ Commands run in order; each later command checks that the protocol is unchanged:
   h2        - upper bound: reanalysis of the target day (never used for selection)
   h2_served - fitted on reanalysis, served with as-issued GFS forecasts (2025, 2026)
   h6_calibration - sigmoid, beta and isotonic calibration on one or two prior years
+  v7_candidate - v6 + H3 + H2 with two-year isotonic, against the v6 recipe
+  freeze    - the v7 release: fit 2015-2023, isotonic on 2024-2025 with GFS inputs
 The final test is prospective (1 March – 31 October 2027) and needs a release frozen first.
 """
 
@@ -1049,10 +1051,155 @@ def h6_calibration() -> None:
     log(f"h6 summary\n{summary.to_string()}")
 
 
+# ---------- v7 candidate and release ----------
+def v7_features() -> list[str]:
+    return json.loads((V6 / "frozen.json").read_text())["features"] + H3 + H2
+
+
+def weather_inputs(year: int) -> tuple[str, ...]:
+    """As-issued GFS where the archive has it (2024+), reanalysis before."""
+    return ("h3", "h2gfs") if year >= 2024 else ("h3", "h2era5")
+
+
+def isotonic_two_years(raw: np.ndarray, cal: pd.DataFrame):
+    from sklearn.isotonic import IsotonicRegression
+
+    w = cal.weight.to_numpy().astype(float)
+    for t in cal.day.dt.year.unique():
+        sel = (cal.day.dt.year == t).to_numpy()
+        w[sel] = w[sel] / w[sel].sum()
+    iso = IsotonicRegression(out_of_bounds="clip", y_min=0, y_max=1)
+    iso.fit(raw, cal.label.to_numpy(), sample_weight=w)
+    return iso, w
+
+
+def v7_candidate() -> None:
+    """v6 + H3 + H2 with two-year isotonic calibration against the v6 recipe at every origin."""
+    check_protocol()
+    out = RUN / "experiments/v7_candidate"
+    out.mkdir(parents=True, exist_ok=True)
+    features, v6_features = v7_features(), json.loads((V6 / "frozen.json").read_text())["features"]
+    rows = []
+    for origin in ORIGINS:
+        test = primary(loaded(evaluation_name(origin), weather_inputs(origin)))
+        y, w = test.label.to_numpy() == 1, test.weight.to_numpy()
+        # Reference: the v6 recipe exactly as in H1-H3 (fit < Y-1, sigmoid on Y-1).
+        fit_ref = pd.concat(
+            [loaded(fit_table(t), ("h3",)) for t in range(2015, origin - 1)], ignore_index=True
+        )
+        ref = train(fit_ref, v6_features)
+        cal_ref = primary(loaded(evaluation_name(origin - 1), ("h3",)))
+        calibration, ref_t = calibrate(ref, cal_ref, v6_features, origin - 1)
+        ref_p = mu.published_probability(
+            calibration.predict(ref.predict_proba(test[v6_features])[:, 1])
+        )
+        ref_precision, _ = at_threshold(y, ref_p, w, ref_t)
+        # Candidate: fit < Y-2 on reanalysis, isotonic on Y-2..Y-1 with the inputs of those years.
+        fit = pd.concat(
+            [loaded(fit_table(t), ("h3", "h2era5")) for t in range(2015, origin - 2)],
+            ignore_index=True,
+        )
+        clf = train(fit, features)
+        cal = pd.concat(
+            [calibration_rows(t, weather_inputs(t)) for t in (origin - 2, origin - 1)],
+            ignore_index=True,
+        )
+        iso, cw = isotonic_two_years(clf.predict_proba(cal[features])[:, 1], cal)
+        pc = mu.published_probability(iso.predict(clf.predict_proba(cal[features])[:, 1]))
+        threshold = mu.operating_point(cal.label.to_numpy(), pc, cw, PRECISION_FLOOR)["threshold"]
+        p = mu.published_probability(iso.predict(clf.predict_proba(test[features])[:, 1]))
+        for name, score, t in [("v6_recipe", ref_p, ref_t), ("v7", p, threshold)]:
+            rel_rows = reliability(y, score, w)
+            rows.append(
+                {
+                    "origin": origin,
+                    "model": name,
+                    "inputs": "gfs" if origin >= 2024 and name == "v7" else "reanalysis",
+                    **metrics(test, score, t),
+                    "recall_at_v6_recipe_precision": recall_at(y, score, w, ref_precision),
+                    "reliability_spread": reliability_spread(rel_rows),
+                }
+            )
+            log(
+                f"v7 {origin} {name} ap={rows[-1]['ap']:.5f} "
+                f"recall@ref={rows[-1]['recall_at_v6_recipe_precision']:.4f} "
+                f"bss={rows[-1]['bss']:.4f} spread=x{rows[-1]['reliability_spread']:.2f}"
+            )
+        pd.DataFrame(rows).to_csv(out / "metrics.csv", index=False)
+
+
+def freeze() -> None:
+    """Release: fit 2015–2023 on reanalysis, isotonic on 2024–2025 with as-issued GFS inputs."""
+    check_protocol()
+    if (RUN / "release.json").exists():
+        raise FileExistsError("The v7 release is frozen and immutable")
+    features = v7_features()
+    fit = pd.concat(
+        [loaded(fit_table(t), ("h3", "h2era5")) for t in range(2015, 2024)], ignore_index=True
+    )
+    clf = train(fit, features)
+    cal = pd.concat(
+        [calibration_rows(t, weather_inputs(t)) for t in (2024, 2025)], ignore_index=True
+    )
+    raw = clf.predict_proba(cal[features])[:, 1]
+    iso, cw = isotonic_two_years(raw, cal)
+    point = mu.operating_point(
+        cal.label.to_numpy(), mu.published_probability(iso.predict(raw)), cw, PRECISION_FLOOR
+    )
+    joblib.dump({"estimator": clf, "features": features}, RUN / "model.joblib", compress=3)
+    joblib.dump(iso, RUN / "calibrator.joblib", compress=3)
+    dump_json(
+        RUN / "frozen.json",
+        {
+            "synthetic": False,
+            "model": "xgboost_v7",
+            "features": features,
+            "threshold": point["threshold"],
+            "calibration_metrics": point,
+            "precision_floor": PRECISION_FLOOR,
+            "fit_years": [2015, 2023],
+            "calibration": "isotonic, 2024 and 2025 weighted equally, primary risk set",
+            "weather": "fit on ERA5 reanalysis of the target day; served with the GFS 18 UTC run of the previous day (1°, src/wildfire_kz/data/gfs_forecasts.py)",
+            "yesterday_cutoff_utc_hour": YDAY_CUTOFF_HOUR,
+            "risk_set": "frozen industrial list, no detection in 48 h, H1 persistent heat-source rule",
+            "test_used_for_selection": False,
+            "operational_validation": False,
+            "transport": "float16 before metrics",
+        },
+    )
+    artifacts = ["model.joblib", "calibrator.joblib", "frozen.json", "protocol.json"]
+    dump_json(
+        RUN / "release.json",
+        {
+            "synthetic": False,
+            "frozen_utc": datetime.now(UTC).isoformat(),
+            "prospective_test": "2027-03-01..2027-10-31, labels opened after it ends",
+            "labels_used": "2015-2025",
+            "artifacts": {a: checksum(RUN / a) for a in artifacts},
+            "code": {
+                str(Path(f).relative_to(ROOT)): checksum(Path(f))
+                for f in [__file__, ROOT / "src/wildfire_kz/data/gfs_forecasts.py"]
+            },
+        },
+    )
+    log(f"v7 frozen: threshold {point['threshold']:.6f}, calibration {point}")
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "command", choices=["protocol", "samples", "h1", "h3", "h2", "h2_served", "h6_calibration"]
+        "command",
+        choices=[
+            "protocol",
+            "samples",
+            "h1",
+            "h3",
+            "h2",
+            "h2_served",
+            "h6_calibration",
+            "v7_candidate",
+            "freeze",
+        ],
     )
     a = parser.parse_args()
     {
@@ -1063,4 +1210,6 @@ if __name__ == "__main__":
         "h2": h2,
         "h2_served": h2_served,
         "h6_calibration": h6_calibration,
+        "v7_candidate": v7_candidate,
+        "freeze": freeze,
     }[a.command]()
