@@ -7,6 +7,8 @@ Commands run in order; each later command checks that the protocol is unchanged:
               code, and the H1 flag
   h1        - rolling-origin test of H1 against the v6 recipe on the primary risk set
   h3        - yesterday's fires (causal 21 UTC cutoff), same engine for later hypotheses
+  h2        - upper bound: reanalysis of the target day (never used for selection)
+  h2_served - fitted on reanalysis, served with as-issued GFS forecasts (2025, 2026)
 The final test is prospective (1 March – 31 October 2027) and needs a release frozen first.
 """
 
@@ -14,6 +16,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import struct
 import sys
 from datetime import UTC, datetime
@@ -354,7 +357,7 @@ PARAMS = {
     "reg_alpha": 0.006789053271698486,
     "reg_lambda": 0.14742753159914673,
 }
-DRAWS = 1000
+DRAWS = int(os.environ.get("V7_DRAWS", "1000"))  # 0 = point estimates only, a preview
 
 
 def sample(name: str) -> pd.DataFrame:
@@ -654,11 +657,19 @@ def loaded(name: str, extras: tuple[str, ...]) -> pd.DataFrame:
     return f
 
 
-def experiment(tag: str, candidates: dict[str, list[str]], extras: tuple[str, ...]) -> None:
+def experiment(
+    tag: str,
+    candidates: dict[str, list[str]],
+    extras: tuple[str, ...],
+    rule: str | None = None,
+    origins: list[int] = ORIGINS,
+    eval_extras: tuple[str, ...] | None = None,
+) -> None:
     """One hypothesis on the rolling origins: each candidate against the v6 recipe.
 
     Same fit/calibration/evaluation years and risk sets as H1; all rows used for fitting,
-    as v6 was fitted; metrics on the primary risk set.
+    as v6 was fitted; metrics on the primary risk set. `eval_extras` swaps inputs for the
+    calibration and evaluation rows only (forecasts served to a model fitted on reanalysis).
     """
     check_protocol()
     out = RUN / f"experiments/{tag}"
@@ -666,12 +677,14 @@ def experiment(tag: str, candidates: dict[str, list[str]], extras: tuple[str, ..
     v6_features = json.loads((V6 / "frozen.json").read_text())["features"]
     models = {"v6_recipe": v6_features, **candidates}
     rows, boot, rel = [], {}, {}
-    for origin in ORIGINS:
+    served = eval_extras or extras
+    origins = [int(o) for o in os.environ.get("V7_ORIGINS", ",".join(map(str, origins))).split(",")]
+    for origin in origins:
         fit = pd.concat(
             [loaded(fit_table(y), extras) for y in range(2015, origin - 1)], ignore_index=True
         )
-        cal = primary(loaded(f"{origin - 1}_evaluation", extras))
-        test = primary(loaded(f"{origin}_evaluation", extras))
+        cal = primary(loaded(evaluation_name(origin - 1), served))
+        test = primary(loaded(evaluation_name(origin), served))
         y, w = test.label.to_numpy() == 1, test.weight.to_numpy()
         scores = {}
         for name, features in models.items():
@@ -699,7 +712,7 @@ def experiment(tag: str, candidates: dict[str, list[str]], extras: tuple[str, ..
             )
         group = clusters(test)
         n_groups = group.max() + 1
-        for name in candidates:
+        for name in candidates if DRAWS else []:
             rng = np.random.default_rng(42)
             cand_p = scores[name][0]
             draws: dict[str, list[float]] = {"ap": [], "recall_at_v6_recipe_precision": []}
@@ -733,16 +746,20 @@ def experiment(tag: str, candidates: dict[str, list[str]], extras: tuple[str, ..
                 table[(table.origin == o) & (table.model == name)].ap.iloc[0]
                 > table[(table.origin == o) & (table.model == "v6_recipe")].ap.iloc[0]
             )
-            for o in ORIGINS
+            for o in origins
         )
-        decisions[name] = {"origins_with_higher_ap": wins, "accepted": wins > len(ORIGINS) / 2}
+        decisions[name] = {"origins_with_higher_ap": wins, "accepted": wins > len(origins) / 2}
     dump_json(
         out / "decision.json",
         {
-            "hypothesis": tag.upper(),
-            "rule": json.loads((RUN / "protocol.json").read_text())["hypotheses"][tag.upper()],
+            "hypothesis": rule or tag.upper(),
+            "rule": json.loads((RUN / "protocol.json").read_text())["hypotheses"][
+                rule or tag.upper()
+            ],
             "candidates": decisions,
-            "origins": len(ORIGINS),
+            "origins": origins,
+            "fit_inputs": list(extras),
+            "evaluation_inputs": list(served),
             "paired_bootstrap_95": boot,
             "evaluation_risk_set": "primary (frozen industrial list and H1 exclusion removed)",
         },
@@ -757,8 +774,137 @@ def h3() -> None:
     experiment("h3", {"h3_yesterday": v6_features + H3}, ("h3",))
 
 
+# ---------- H2: weather for the target day ----------
+H2 = [
+    "h2_tmax_d0",
+    "h2_tmin_d0",
+    "h2_rh_d0",
+    "h2_wind_d0",
+    "h2_precip_d0",
+    "h2_vpd_d0",
+    "h2_tmax_d1",
+    "h2_rh_d1",
+    "h2_wind_d1",
+    "h2_precip_d1",
+    "h2_precip_3d",
+]
+WEATHER = ROOT / "data/real/public_predictors/weather"
+GFS = ROOT / "data/real/public_predictors/gfs"
+DAILY = ["tmax", "tmin", "rh", "wind", "precip"]
+
+
+class Weather:
+    """Daily weather on the ERA5 window: reanalysis (era5) or as-issued GFS forecasts (gfs)."""
+
+    def __init__(self, source: str):
+        self.source = source
+        self.years: dict[int, dict[str, np.ndarray]] = {}
+        with np.load(WEATHER / "2024.npz") as z:
+            self.ny, self.nx = (
+                z["native_cell_y"].astype(np.int64),
+                z["native_cell_x"].astype(np.int64),
+            )
+
+    def day(self, day: pd.Timestamp) -> dict[str, np.ndarray] | None:
+        if self.source == "gfs":
+            path = GFS / f"{day.date()}.npz"
+            if not path.exists():
+                return None
+            with np.load(path) as z:
+                return {k: z[k] for k in DAILY}
+        if day.year not in self.years:
+            path = WEATHER / f"{day.year}.npz"
+            if not path.exists():
+                return None
+            with np.load(path) as z:
+                self.years[day.year] = {k: z[k].copy() for k in DAILY}
+        values = self.years[day.year]
+        k = day.dayofyear - 1
+        if k >= values["tmax"].shape[2]:
+            return None
+        return {name: values[name][:, :, k] for name in DAILY}
+
+
+def h2_features(source: str, names: list[str]) -> None:
+    """Weather of the target day D and of D-1, and precipitation over D-2..D."""
+    check_protocol()
+    weather = Weather(source)
+    out_dir = RUN / f"features_h2{source}"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    for name in names:
+        path = out_dir / f"{name}.parquet"
+        if path.exists():
+            continue
+        f = sample(name)[["cell_index", "day"]]
+        ci = f.cell_index.to_numpy()
+        out = {c: np.full(len(f), np.nan, dtype=np.float32) for c in H2}
+        for day, idx in f.groupby("day").indices.items():
+            y, x = weather.ny[ci[idx]], weather.nx[ci[idx]]
+            today, yesterday, before = (weather.day(day - pd.Timedelta(days=k)) for k in (0, 1, 2))
+            if today is not None:
+                for v in DAILY:
+                    out[f"h2_{v}_d0"][idx] = today[v][y, x]
+                t, rh = today["tmax"][y, x], today["rh"][y, x]
+                out["h2_vpd_d0"][idx] = 0.6108 * np.exp(17.27 * t / (t + 237.3)) * (1 - rh / 100)
+            if yesterday is not None:
+                for v in ["tmax", "rh", "wind", "precip"]:
+                    out[f"h2_{v}_d1"][idx] = yesterday[v][y, x]
+            if today is not None and yesterday is not None and before is not None:
+                out["h2_precip_3d"][idx] = (
+                    today["precip"][y, x] + yesterday["precip"][y, x] + before["precip"][y, x]
+                )
+        pd.DataFrame(out).to_parquet(path, index=False)
+        dump_json(
+            path.with_suffix(".sha256.json"),
+            {
+                "sha256": checksum(path),
+                "source": source,
+                "sample_sha256": checksum(RUN / f"samples/{name}.parquet"),
+                "rows_with_target_day_weather": int(np.isfinite(out["h2_tmax_d0"]).sum()),
+            },
+        )
+        log(f"h2 {source} features {name}")
+
+
+def evaluation_name(year: int) -> str:
+    return "2026_reassessment" if year == 2026 else f"{year}_evaluation"
+
+
+def h2() -> None:
+    """Upper bound: reanalysis of D and D-1 at every origin (never used for selection)."""
+    h2_features("era5", [*TABLES, "2025_evaluation", "2026_reassessment"])
+    v6_features = json.loads((V6 / "frozen.json").read_text())["features"]
+    experiment(
+        "h2_upper",
+        {"h3_yesterday": v6_features + H3, "h2_reanalysis": v6_features + H3 + H2},
+        ("h3", "h2era5"),
+        rule="H2",
+    )
+
+
+def h2_served() -> None:
+    """Operational: trained on reanalysis, calibrated and evaluated with as-issued forecasts."""
+    h2_features("gfs", ["2024_evaluation", "2025_evaluation", "2026_reassessment"])
+    v6_features = json.loads((V6 / "frozen.json").read_text())["features"]
+    experiment(
+        "h2_served",
+        {"h3_yesterday": v6_features + H3, "h2_forecast": v6_features + H3 + H2},
+        ("h3", "h2era5"),
+        rule="H2",
+        origins=[2025, 2026],
+        eval_extras=("h3", "h2gfs"),
+    )
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("command", choices=["protocol", "samples", "h1", "h3"])
+    parser.add_argument("command", choices=["protocol", "samples", "h1", "h3", "h2", "h2_served"])
     a = parser.parse_args()
-    {"protocol": protocol, "samples": samples, "h1": h1, "h3": h3}[a.command]()
+    {
+        "protocol": protocol,
+        "samples": samples,
+        "h1": h1,
+        "h3": h3,
+        "h2": h2,
+        "h2_served": h2_served,
+    }[a.command]()

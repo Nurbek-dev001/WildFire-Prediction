@@ -61,6 +61,27 @@ Paired block bootstrap (95%), H3 minus v6 recipe, AP: 2020 +0.0017..+0.0099;
   criterion yet. Frozen v6, calibrated on 2022 with heat sources included, is slightly
   positive on 2022–2024.
 
+## H2 upper bound: reanalysis of the target day
+
+Not operational (the weather of day D is not known at 00 UTC of D) and never used for
+selection; it shows how much forecast weather can be worth. Point estimates; the 1000-draw
+bootstrap is still to run.
+
+| Origin | AP: v6 recipe / + H3 / + weather of D | Recall at v6 recipe precision: v6 recipe / + weather of D |
+|---|---|---|
+| 2020 | 0.0198 / 0.0243 / **0.0292** | 0.14% / **6.39%** |
+| 2021 | 0.0146 / 0.0158 / **0.0171** | 5.03% / **10.01%** |
+| 2022 | 0.0152 / 0.0160 / **0.0169** | 5.56% / **8.80%** |
+| 2023 | 0.0236 / 0.0179 / **0.0281** | 5.39% / **9.69%** |
+| 2024 | 0.0270 / 0.0192 / 0.0238 | 5.32% / **17.17%** |
+| 2025 | 0.0167 / 0.0189 / **0.0237** | 1.46% / **6.82%** |
+
+Weather of the target day roughly doubles to triples recall at the working precision at
+every origin, and raises AP at five of six. The operational test (trained on reanalysis,
+served with the GFS 18 UTC run of D-1, `src/wildfire_kz/data/gfs_forecasts.py`, 1°
+interpolated to the ERA5 cells) needs GFS for 2024-2025; the download is resumable and
+limited by the connection (0.05-0.5 MB/s).
+
 ## Next, in protocol order
 
 H2 (weather for the target day; as-issued 1-day-lead forecasts exist only from 2024),
