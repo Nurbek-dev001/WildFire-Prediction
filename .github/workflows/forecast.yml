@@ -98,9 +98,6 @@ jobs:
             data/real/public_predictors/gfs
             data/real/public_predictors/vegetation
           key: forecast-state-${{ github.run_id }}
-      - name: Publish the record
-        if: always()
-        run: python scripts/push_forecast_log.py --status "${{ github.event_name }}:${{ steps.forecast.outcome }}"
       - name: Verify the site
         if: steps.forecast.outcome == 'success'
         run: node platform/scripts/verify-live-assets.mjs
@@ -111,8 +108,17 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           if [ -z "$CLOUDFLARE_API_TOKEN" ]; then echo "::notice::Cloudflare secrets not set; site not deployed"; exit 0; fi
-          npx --yes wrangler@3.99.0 pages project create "$PAGES_PROJECT" --production-branch main 2>/dev/null || true
-          npx --yes wrangler@3.99.0 pages deploy platform/dist --project-name "$PAGES_PROJECT" --branch main --commit-dirty=true
+          set -o pipefail
+          {
+            npx --yes wrangler@3.99.0 pages project create "$PAGES_PROJECT" --production-branch main || true
+            npx --yes wrangler@3.99.0 pages deploy platform/dist --project-name "$PAGES_PROJECT" --branch main --commit-dirty=true
+          } 2>&1 | tee -a runs/forecast_live/runs.log
+      - name: Publish the record
+        if: always()
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: python scripts/push_forecast_log.py --status "${{ github.event_name }}:${{ steps.forecast.outcome }}:${{ job.status }}"
       - name: Fail when the forecast failed
         if: steps.forecast.outcome != 'success'
         run: exit 1

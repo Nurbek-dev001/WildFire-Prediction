@@ -71,12 +71,15 @@ def push(status: str | None) -> None:
     if (LIVE / "forecasts").exists():
         shutil.copytree(LIVE / "forecasts", TREE / "forecasts", dirs_exist_ok=True)
     if status:
-        tail = (
-            (LIVE / "runs.log").read_text(encoding="utf-8", errors="replace").splitlines()[-40:]
-            if (LIVE / "runs.log").exists()
-            else []
-        )
-        (TREE / "status.json").write_text(
+        # STATUS_FILE and STATUS_LOG let the bot workflow record its own run beside the forecast's.
+        source = Path(os.environ.get("STATUS_LOG", LIVE / "runs.log"))
+        text = source.read_text(encoding="utf-8", errors="replace") if source.exists() else ""
+        # Secrets never reach the branch, even if a tool printed one.
+        for name in ("TELEGRAM_TOKEN", "CLOUDFLARE_API_TOKEN", "CLOUDFLARE_ACCOUNT_ID"):
+            if os.environ.get(name):
+                text = text.replace(os.environ[name], "***")
+        tail = text.splitlines()[-60:]
+        (TREE / os.environ.get("STATUS_FILE", "status.json")).write_text(
             json.dumps(
                 {
                     "finished_utc": datetime.now(UTC).isoformat(timespec="seconds"),
