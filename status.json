@@ -1,13 +1,29 @@
 {
-  "finished_utc": "2026-10-30T07:11:49+00:00",
+  "finished_utc": "2026-10-30T07:14:27+00:00",
   "outcome": "push:failure",
-  "run": "41018397407",
+  "run": "41018686852",
   "runner": "Linux",
   "output_tail": [
-    "2026-10-30T07:11:21+00:00 2026-10-30: inputs",
-    "2026-10-30T07:11:21+00:00 2026-10-30: features",
-    "2026-10-30T07:11:45+00:00 2026-10-30: scoring",
-    "2026-10-30T07:11:46+00:00 2026-10-30: health {'detections_d1': 947, 'era5_lag_days': 7, 'ndvi_age_days': 13, 'ndvi_cover_eligible': 0.7294, 'eligible_share': 0.9974}",
-    "2026-10-30T07:11:46+00:00 replay 2026-10-30: equals the issued forecast: {'v6': False, 'v7': False}"
+    "2026-10-30T07:14:07+00:00 2026-10-30: inputs",
+    "2026-10-30T07:14:07+00:00 2026-10-30: features",
+    "2026-10-30T07:14:24+00:00 2026-10-30: scoring",
+    "2026-10-30T07:14:25+00:00 2026-10-30: health {'detections_d1': 947, 'era5_lag_days': 7, 'ndvi_age_days': 13, 'ndvi_cover_eligible': 0.7294, 'eligible_share': 0.9974}",
+    "2026-10-30T07:14:25+00:00 replay 2026-10-30: equals the issued forecast: {'v6': False, 'v7': False}",
+    "2026-10-30T07:14:25+00:00 replay 2026-10-30 v6: 0 of 109838 cells differ, max 0.00e+00; coverage differs in 0",
+    "2026-10-30T07:14:25+00:00 replay 2026-10-30 v7: 0 of 109838 cells differ, max 0.00e+00; coverage differs in 0",
+    "Traceback (most recent call last):",
+    "  File \"/home/runner/work/WildFire-Prediction/WildFire-Prediction/scripts/publish_forecasts.py\", line 249, in <module>",
+    "    r = publish()",
+    "        ^^^^^^^^^",
+    "  File \"/home/runner/work/WildFire-Prediction/WildFire-Prediction/scripts/publish_forecasts.py\", line 228, in publish",
+    "    \"development\": development_v7(),",
+    "                   ^^^^^^^^^^^^^^^^",
+    "  File \"/home/runner/work/WildFire-Prediction/WildFire-Prediction/scripts/publish_forecasts.py\", line 36, in development_v7",
+    "    with (folder / \"metrics.csv\").open(encoding=\"utf-8\") as stream:",
+    "         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
+    "  File \"/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/pathlib.py\", line 1013, in open",
+    "    return io.open(self, mode, buffering, encoding, errors, newline)",
+    "           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
+    "FileNotFoundError: [Errno 2] No such file or directory: '/home/runner/work/WildFire-Prediction/WildFire-Prediction/runs/model_v7/experiments/v7_candidate/metrics.csv'"
   ]
 }
