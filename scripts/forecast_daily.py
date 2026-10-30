@@ -725,6 +725,16 @@ def check(target: date, out_dir: Path, f: pd.DataFrame) -> None:
             for k in ("v6", "v7")
         }
         log(f"replay {target}: equals the issued forecast: {same}")
+        for k in ("v6", "v7"):
+            mine = fl.decode((out_dir / f"{k}.f16.gz").read_bytes())
+            theirs = fl.decode((LIVE / issued["models"][k]["payload"]).read_bytes())
+            both = np.isfinite(mine) & np.isfinite(theirs)
+            diff = np.abs(mine[both] - theirs[both])
+            log(
+                f"replay {target} {k}: {int((diff > 0).sum())} of {int(both.sum())} cells differ, "
+                f"max {float(diff.max()) if diff.size else 0:.2e}; coverage differs in "
+                f"{int((np.isfinite(mine) != np.isfinite(theirs)).sum())}"
+            )
     registered = t26.V6 / f"site_assets/predictions/{target}.f16.gz"
     if registered.exists():
         same = registered.read_bytes() == (out_dir / "v6.f16.gz").read_bytes()

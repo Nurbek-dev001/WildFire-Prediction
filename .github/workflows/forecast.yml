@@ -87,7 +87,7 @@ jobs:
           set -o pipefail
           mkdir -p runs/forecast_live
           python scripts/forecast_daily.py $args 2>&1 | tee -a runs/forecast_live/runs.log
-          python scripts/publish_forecasts.py
+          python scripts/publish_forecasts.py 2>&1 | tee -a runs/forecast_live/runs.log
       - name: Save downloaded inputs
         if: always()
         uses: actions/cache/save@v4
