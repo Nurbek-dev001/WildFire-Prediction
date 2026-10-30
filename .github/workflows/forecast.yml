@@ -58,6 +58,8 @@ jobs:
           git archive FETCH_HEAD -- platform | tar -x
           git config user.name "wildfire-forecast-bot"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+      - name: Code in the form its releases recorded
+        run: python scripts/cloud_code_paths.py
       - name: Forecast log
         run: python scripts/push_forecast_log.py --pull
       - name: Restore downloaded inputs
