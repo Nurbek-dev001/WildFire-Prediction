@@ -1,7 +1,7 @@
 // 3D relief layer for the main map: SRTM elevation per 5 km cell as a WebGL2 block model.
 // The map passes in whatever values its 2D layer shows; this module only draws them.
 
-import { t, cityName } from './i18n.js?v=20261030-live';
+import { t, cityName } from './i18n.js?v=20261030-3d';
 
 const css = getComputedStyle(document.documentElement);
 const token = (name) => css.getPropertyValue(name).trim();
@@ -145,7 +145,9 @@ void main() {
 }`;
 
 // host: positioned element to draw into. cells: decoded cells.bin records. onPick(index) on click.
-export async function createRelief({ host, geo, cells, onPick }) {
+// onLost: the GPU dropped the WebGL context (sleep, driver reset, too many tabs); the relief is
+// then dead and the caller builds a new one.
+export async function createRelief({ host, geo, cells, onPick, onLost = () => {} }) {
   const [eb, emeta] = await Promise.all([
     fetch('./assets/elevation.i16').then((r) => { if (!r.ok) throw Error('Нет файла высот'); return r.arrayBuffer(); }),
     fetch('./assets/elevation.json').then((r) => r.json()),
@@ -162,6 +164,12 @@ export async function createRelief({ host, geo, cells, onPick }) {
   host.append(canvas, labels);
   const gl = canvas.getContext('webgl2', { antialias: true, alpha: true });
   if (!gl) { canvas.remove(); labels.remove(); throw Error('WebGL 2 недоступен в этом браузере'); }
+  canvas.addEventListener('webglcontextlost', (e) => {
+    e.preventDefault();
+    cancelAnimationFrame(frameId); frameId = 0;
+    canvas.remove(); labels.remove();
+    onLost();
+  }, { once: true });
 
   const program = (vs, fs) => {
     const p = gl.createProgram();
@@ -530,5 +538,6 @@ export async function createRelief({ host, geo, cells, onPick }) {
       if (on && !frameId) frameId = requestAnimationFrame(frame);
     },
     focus() { canvas.focus(); },
+    destroy() { cancelAnimationFrame(frameId); frameId = 0; canvas.remove(); labels.remove(); gl.getExtension('WEBGL_lose_context')?.loseContext(); },
   };
 }

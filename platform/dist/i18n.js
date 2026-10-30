@@ -351,6 +351,7 @@ export const DICT = {
   'toast.noForecast': L('Для этой даты нет прогноза.', 'There is no forecast for this date.', 'Бұл күнге болжам жоқ.'),
   'toast.exported': L(({ n }) => `Экспортировано ${n} ячеек`, ({ n }) => `Exported ${n} cells`, ({ n }) => `${n} ұяшық экспортталды`),
   'toast.outside': L('Выберите ячейку внутри границы Казахстана.', 'Choose a cell inside the border of Kazakhstan.', 'Қазақстан шекарасының ішіндегі ұяшықты таңдаңыз.'),
+  'toast.3dlost': L('Видеокарта сбросила 3D. Карта вернулась в 2D, нажмите 3D ещё раз.', 'The graphics card reset 3D. The map is back in 2D; press 3D again.', 'Бейнекарта 3D-ны тоқтатты. Карта 2D-ға оралды, 3D-ны қайта басыңыз.'),
   'toast.no3d': L(({ e }) => `3D недоступно: ${e}`, ({ e }) => `3D unavailable: ${e}`, ({ e }) => `3D қолжетімсіз: ${e}`),
   'toast.noDetail': L(({ e }) => `Детальный снимок недоступен: ${e}`, ({ e }) => `Detailed imagery unavailable: ${e}`, ({ e }) => `Толық сурет қолжетімсіз: ${e}`),
 

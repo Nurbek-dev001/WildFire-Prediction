@@ -1,9 +1,9 @@
-import {loadUpgrade} from './upgrade-results.js?v=20261030-live';
-import {t,num,pctText,onLang,bindSwitch,regionName,cityName,coords,longDate,weekday} from './i18n.js?v=20261030-live';
-import {populationNote,readiness,quality} from './quality.js?v=20261030-live';
-import {probability,modelLabel,modelInputs,loadForecast,validateManifest,sources,methodology,evaluation} from './model-results.js?v=20261030-live';
+import {loadUpgrade} from './upgrade-results.js?v=20261030-3d';
+import {t,num,pctText,onLang,bindSwitch,regionName,cityName,coords,longDate,weekday} from './i18n.js?v=20261030-3d';
+import {populationNote,readiness,quality} from './quality.js?v=20261030-3d';
+import {probability,modelLabel,modelInputs,loadForecast,validateManifest,sources,methodology,evaluation} from './model-results.js?v=20261030-3d';
 import {loadOperatingPolicy,activeProfile,profileMetrics} from './operating-policy.js';
-import {isV6,isV7,loadV6,loadLive} from './model-v6.js?v=20261030-live';
+import {isV6,isV7,loadV6,loadLive} from './model-v6.js?v=20261030-3d';
 const $ = id => document.getElementById(id);
 const nf = {format:v=>num(v)};
 const df = {format:d=>longDate(d)};
@@ -167,7 +167,7 @@ function detailData(){
 async function openDetail(i){
   if(!detail){
     $('loading').hidden=false;$('loading').lastElementChild.textContent=t('loading.detail');
-    try{detailRequest=detailRequest||import('./detail.js?v=20261030-live').then(({createDetail})=>createDetail({host:$('map-shell'),geo,cells,onSelect:selectCell}));detail=await detailRequest}
+    try{detailRequest=detailRequest||import('./detail.js?v=20261030-3d').then(({createDetail})=>createDetail({host:$('map-shell'),geo,cells,onSelect:selectCell}));detail=await detailRequest}
     catch(error){detailRequest=null;console.error('Detail view unavailable',error);toast(t('toast.noDetail',{e:error.message}));return}
     finally{syncLayer()}
   }
@@ -206,13 +206,15 @@ function syncRelief(){
   relief.setSelected($('cell-card').hidden?-1:state.selected);
 }
 let reliefRequest=null;
+// The GPU can drop the WebGL context (sleep, driver reset); go back to 2D and rebuild 3D on the next click.
+function reliefLost(){relief=null;reliefRequest=null;if(state.view==='3d'){setView('2d');toast(t('toast.3dlost'))}}
 async function setView(view){
   if(!geo)return;
   if(view==='3d'&&!relief){
     $('view-3d').disabled=true;
     $('loading').hidden=false;$('loading').lastElementChild.textContent=t('loading.relief');
     try{
-      reliefRequest=reliefRequest||import('./relief3d.js?v=20261030-live').then(({createRelief})=>createRelief({host:$('map-shell'),geo,cells,onPick:i=>{if(i>=0)selectCell(i);else{state.selected=-1;updateCell();syncRelief()}}}));
+      reliefRequest=reliefRequest||import('./relief3d.js?v=20261030-3d').then(({createRelief})=>createRelief({host:$('map-shell'),geo,cells,onPick:i=>{if(i>=0)selectCell(i);else{state.selected=-1;updateCell();syncRelief()}},onLost:reliefLost}));
       relief=await reliefRequest;
       if(satellite)relief.setSatellite(satellite.img,satellite.extent);
       relief.setBasemap(state.basemap==='satellite'&&!!satellite);renderPoints();

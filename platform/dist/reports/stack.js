@@ -1,4 +1,4 @@
-import { $, t, pct, num, run, loadVerified, table, dotPanel, panelWidth } from './report.js?v=20261030-live';
+import { $, t, pct, num, run, loadVerified, table, dotPanel, panelWidth } from './report.js?v=20261030-3d';
 
 const LABEL = { xgboost_original: t('m.original'), xgboost_spatiotemporal: t('m.stack') };
 
