@@ -2,6 +2,14 @@
 
 **An Explainable Multisource ML Framework for Spatiotemporal Wildfire Risk Prediction and Mapping in Kazakhstan**
 
+## Status (1 November 2026)
+
+The platform runs: every night it issues the next-day forecast for Kazakhstan with the frozen
+models v6 (default) and v7 (challenger), puts it on the map and writes an alert bulletin.
+Final report (Russian): [docs/final-report.md](docs/final-report.md). Running it:
+[docs/operations.md](docs/operations.md). The prospective test of v6 against v7 runs from
+1 March to 31 October 2027 and is scored after the season.
+
 A reproducible Python research pipeline for **next-day new vegetation-fire occurrence hazard** on a 5 km equal-area grid. The historical project title retains “risk”; the implemented outcome contains no damage, exposure or vulnerability component.
 
 ```math
