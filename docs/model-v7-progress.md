@@ -177,3 +177,10 @@ external timestamp) is what makes the 2027 comparison verifiable.
   worktree and pushes it: the GitHub time of each push is the external timestamp.
 - Install once: `powershell -ExecutionPolicy Bypass -File scripts\install_forecast_schedule.ps1 -Push`.
 - `forecast_daily.py --status` summarises on-time, late and missed test days.
+
+## Baselines (2026-10-30)
+
+Climatology, persistence, FWI of D-1 and a simple logistic model on them, on the same rows:
+mean AP 0.0107, 0.0088, 0.0003, 0.0184; v6 recipe 0.0195, v7 0.0213. v7 beats the best of them
+at 5 of 6 origins, the v6 recipe at 4 of 6. On cropland v7 0.0311 against 0.0273; elsewhere
+v7 0.0198 against 0.0175. Details and the table by land type: docs/operations.md.

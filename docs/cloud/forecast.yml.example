@@ -1,0 +1,104 @@
+# INACTIVE. To run the nightly forecast in GitHub Actions instead of this PC, copy to
+# .github/workflows/forecast.yml on main and push a `forecast-inputs` branch with the frozen
+# inputs and model weights (~120 MB; they then live on GitHub). See docs/operations.md.
+name: Daily forecast
+# v6 and v7 for the next UTC day, issued in the cloud every night (see docs/forecast-cloud.md).
+# Three attempts; a run after a successful issue stops at once. The record goes to the
+# forecast-log branch, whose push time is the external timestamp of each forecast.
+on:
+  schedule:
+    - cron: '40 23 * * *'
+    - cron: '40 1 * * *'
+    - cron: '40 3 * * *'
+  workflow_dispatch:
+    inputs:
+      day:
+        description: 'Target UTC day, YYYY-MM-DD (empty: the next day)'
+        required: false
+      replay:
+        description: 'Recompute without a log entry'
+        type: boolean
+        default: false
+  # A push to forecast-trigger replays the latest logged day: a check of the cloud setup.
+  push:
+    branches: [forecast-trigger]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: daily-forecast
+  cancel-in-progress: false
+
+env:
+  # Code of the forecast until the redesign branch is merged into main.
+  CODE_REF: redesign/platform-ui
+  OPENBLAS_NUM_THREADS: '1'
+  PYTHONUTF8: '1'
+
+jobs:
+  forecast:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'push' && github.sha || env.CODE_REF }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: requirements-forecast.txt
+      - name: Install the pinned libraries
+        run: |
+          pip install -r requirements-forecast.txt
+          pip install --no-deps -e .
+          # The data helpers call curl.exe (Windows); curl on Linux takes the same arguments.
+          sudo ln -sf "$(command -v curl)" /usr/local/bin/curl.exe
+      - name: Frozen inputs and models
+        run: |
+          git fetch --depth 1 origin forecast-inputs
+          git archive FETCH_HEAD | tar -x
+          git config user.name "wildfire-forecast-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+      - name: Forecast log
+        run: python scripts/push_forecast_log.py --pull
+      - name: Restore downloaded inputs
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            runs/forecast_live/gibs
+            runs/forecast_live/weather
+            data/real/public_predictors/gfs
+            data/real/public_predictors/vegetation
+          key: forecast-state-${{ github.run_id }}
+          restore-keys: forecast-state-
+      - name: Forecast
+        id: forecast
+        continue-on-error: true
+        run: |
+          args=""
+          if [ "${{ github.event_name }}" = "push" ]; then
+            args="--replay --day $(python -c "import json;print(json.loads(open('runs/forecast_live/log.jsonl').read().splitlines()[-1])['target_day'])")"
+          elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            [ -n "${{ inputs.day }}" ] && args="--day ${{ inputs.day }}"
+            [ "${{ inputs.replay }}" = "true" ] && args="$args --replay"
+          fi
+          set -o pipefail
+          python scripts/forecast_daily.py $args 2>&1 | tee -a runs/forecast_live/runs.log
+      - name: Save downloaded inputs
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            runs/forecast_live/gibs
+            runs/forecast_live/weather
+            data/real/public_predictors/gfs
+            data/real/public_predictors/vegetation
+          key: forecast-state-${{ github.run_id }}
+      - name: Publish the record
+        if: always()
+        run: python scripts/push_forecast_log.py --status "${{ github.event_name }}:${{ steps.forecast.outcome }}"
+      - name: Fail when the forecast failed
+        if: steps.forecast.outcome != 'success'
+        run: exit 1

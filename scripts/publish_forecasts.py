@@ -60,6 +60,9 @@ def development_v7() -> dict:
     }
 
 
+LAND = ["лес", "степь", "кустарник", "пашня", "прочее"]
+
+
 def bulletin(day: str, values: dict[str, np.ndarray], thresholds: dict, heat: set[int]) -> Path:
     """Cells on alert by either model, outside persistent heat sources, highest v7 first."""
     raw = np.frombuffer((ASSETS / "cells.bin").read_bytes(), dtype=np.uint8).reshape(-1, 34)
@@ -71,6 +74,9 @@ def bulletin(day: str, values: dict[str, np.ndarray], thresholds: dict, heat: se
         for r in json.loads((ASSETS / "geography.json").read_text(encoding="utf-8"))["regions"]
     ]
     alert = {k: values[k] >= thresholds[k] for k in values}
+    path_land = LIVE / f"forecasts/{day}/land.u8"
+    codes = np.frombuffer(path_land.read_bytes(), dtype=np.uint8) if path_land.exists() else None
+    land = [LAND[c] for c in codes] if codes is not None else [""] * len(lon)
     cells = [i for i in np.flatnonzero(alert["v6"] | alert["v7"]) if int(i) not in heat]
     cells.sort(key=lambda i: -float(np.nan_to_num(values["v7"][i])))
     path = LIVE / f"bulletins/{day}.csv"
@@ -78,7 +84,9 @@ def bulletin(day: str, values: dict[str, np.ndarray], thresholds: dict, heat: se
     # BOM so that Excel opens the Cyrillic region names correctly.
     with path.open("w", encoding="utf-8-sig", newline="") as stream:
         w = csv.writer(stream)
-        w.writerow(["target_day", "region", "lat", "lon", "p_v7", "p_v6", "alert_v7", "alert_v6"])
+        w.writerow(
+            ["target_day", "region", "lat", "lon", "land", "p_v7", "p_v6", "alert_v7", "alert_v6"]
+        )
         for i in cells:
             w.writerow(
                 [
@@ -86,6 +94,7 @@ def bulletin(day: str, values: dict[str, np.ndarray], thresholds: dict, heat: se
                     labels[region[i]],
                     f"{lat[i]:.4f}",
                     f"{lon[i]:.4f}",
+                    land[i],
                     f"{values['v7'][i]:.5f}",
                     f"{values['v6'][i]:.5f}",
                     int(alert["v7"][i]),

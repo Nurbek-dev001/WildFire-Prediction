@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import hashlib
 import json
 import struct
 import sys
@@ -39,6 +40,7 @@ from wildfire_kz.data.gibs_fires import fetch_day  # noqa: E402
 LIVE = ROOT / "runs/forecast_live"
 LOG = LIVE / "log.jsonl"
 TEST = (date(2027, 3, 1), date(2027, 10, 31))
+LAND = ["forest", "grassland", "shrubland", "cropland", "other"]
 # Sealed inputs of the 2026 test end here; later days come only from the live feeds.
 SEALED_DETECTIONS, SEALED_NDVI = t26.END.date(), (t26.END - pd.Timedelta(days=12)).date()
 EPOCH = v7.EPOCH
@@ -58,14 +60,23 @@ def log(message: str) -> None:
 
 
 # ---------- releases ----------
-def verify_v7() -> dict:
-    release = json.loads((v7.RUN / "release.json").read_text())
+def code_matches(name: str, digest: str) -> bool:
+    """Releases were frozen on Windows: paths with backslashes, files as checked out there
+    (CRLF). On Linux the same commit has LF files, so they are compared in their Windows form."""
+    data = (ROOT / name.replace("\\", "/")).read_bytes()
+    windows = data.replace(b"\r\n", b"\n").replace(b"\n", b"\r\n")
+    return digest in {hashlib.sha256(data).hexdigest(), hashlib.sha256(windows).hexdigest()}
+
+
+def verify(folder: Path) -> dict:
+    """Every artifact byte for byte and every code file of a frozen release."""
+    release = json.loads((folder / "release.json").read_text())
     for name, digest in release["artifacts"].items():
-        if checksum(v7.RUN / name) != digest:
-            raise PermissionError(f"v7 artifact changed: {name}")
+        if checksum(folder / name) != digest:
+            raise PermissionError(f"{folder.name} artifact changed: {name}")
     for name, digest in release["code"].items():
-        if checksum(ROOT / name) != digest:
-            raise PermissionError(f"v7 code changed: {name}")
+        if not code_matches(name, digest):
+            raise PermissionError(f"{folder.name} code changed: {name}")
     return release
 
 
@@ -437,6 +448,105 @@ def strong_detections(live: pd.DataFrame) -> pd.DataFrame:
     return both.assign(day=both.timestamp.dt.floor("D"))[["cell_id", "day"]].drop_duplicates()
 
 
+# ---------- health ----------
+def check_versions() -> None:
+    """The frozen models are pickles of exact library versions; a silent upgrade could
+    change every probability, so a mismatch stops the forecast."""
+    from importlib.metadata import PackageNotFoundError, version
+
+    wrong = []
+    for line in (ROOT / "requirements-forecast.txt").read_text().splitlines():
+        if "==" in line and not line.startswith("#"):
+            name, pinned = line.split("==")
+            try:
+                found = version(name)
+            except PackageNotFoundError:
+                found = "missing"
+            if found != pinned:
+                wrong.append(f"{name} {found} (pinned {pinned})")
+    if wrong:
+        raise RuntimeError(
+            "Library versions differ from the frozen environment: " + "; ".join(wrong)
+        )
+
+
+def health(
+    target: date,
+    det_meta: dict,
+    era5_last: date,
+    ndvi_last: str | None,
+    f: pd.DataFrame,
+    eligible: np.ndarray,
+    gfs: dict[str, np.ndarray],
+    models: dict,
+) -> tuple[dict, list[str]]:
+    """Input and output checks against plausible ranges and the recent log; warnings only."""
+    season = 3 <= target.month <= 10
+    warnings = []
+    points = det_meta.get("points_last_day") or 0
+    if season and points == 0:
+        warnings.append("No S-NPP detections over Kazakhstan for D-1: feed gap or full cloud cover")
+    if det_meta.get("firms_days"):
+        warnings.append(f"FIRMS fallback used for {det_meta['firms_days']}")
+    ndvi_age = (target - date.fromisoformat(ndvi_last)).days if ndvi_last else None
+    if ndvi_age is None or ndvi_age > 26:
+        warnings.append(f"NDVI is {ndvi_age} days old (normal 12-19)")
+    ndvi_cover = float(np.isfinite(f.ndvi.to_numpy()[eligible]).mean()) if eligible.any() else 0.0
+    if season and ndvi_cover < 0.5:
+        warnings.append(f"NDVI covers only {ndvi_cover:.0%} of eligible cells")
+    limits = {
+        "tmax": (-60, 60),
+        "tmin": (-70, 50),
+        "rh": (0, 100),
+        "wind": (0, 60),
+        "precip": (0, 500),
+    }
+    for name, (lo, hi) in limits.items():
+        a = gfs[name]
+        if not np.isfinite(a).all() or a.min() < lo or a.max() > hi:
+            warnings.append(f"GFS {name} outside [{lo}, {hi}] or missing")
+    share = float(eligible.mean())
+    recent = [e for e in fl.read(LOG) if e["status"] == "issued"][-30:]
+    if recent:
+        typical = float(np.median([e["models"]["v6"]["finite_cells"] for e in recent]))
+        if eligible.sum() < 0.9 * typical:
+            warnings.append(f"Eligible cells {int(eligible.sum())} vs typical {typical:.0f}")
+        for name in ("v6", "v7"):
+            usual = float(np.median([e["models"][name]["mean_probability"] for e in recent]))
+            now = models[name]["mean_probability"]
+            if usual > 0 and not 0.2 <= now / usual <= 5:
+                warnings.append(f"{name} mean probability {now:.2e} vs recent median {usual:.2e}")
+    return {
+        "detections_d1": points,
+        "era5_lag_days": (target - era5_last).days,
+        "ndvi_age_days": ndvi_age,
+        "ndvi_cover_eligible": round(ndvi_cover, 4),
+        "eligible_share": round(share, 4),
+    }, warnings
+
+
+def notify(title: str, text: str) -> None:
+    """A Windows notification and a line in ALERTS.txt; silent where neither is available."""
+    LIVE.mkdir(parents=True, exist_ok=True)
+    with (LIVE / "ALERTS.txt").open("a", encoding="utf-8") as stream:
+        stream.write(f"{datetime.now(UTC).isoformat(timespec='seconds')} {title}: {text}\n")
+    if sys.platform != "win32":
+        return
+    import subprocess
+
+    script = (
+        "Add-Type -AssemblyName System.Windows.Forms;"
+        "$n=New-Object System.Windows.Forms.NotifyIcon;"
+        "$n.Icon=[System.Drawing.SystemIcons]::Warning;$n.Visible=$true;"
+        f"$n.ShowBalloonTip(30000,'{title}','{text[:250].replace(chr(39), '')}','Warning');"
+        "Start-Sleep -Seconds 30;$n.Dispose()"
+    )
+    subprocess.Popen(
+        ["powershell", "-NoProfile", "-WindowStyle", "Hidden", "-Command", script],
+        creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+    )
+
+
 def forecast(target: date, replay: bool = False) -> None:
     issued = datetime.now(UTC)
     if not replay and any(e["target_day"] == str(target) for e in fl.read(LOG)):
@@ -447,9 +557,10 @@ def forecast(target: date, replay: bool = False) -> None:
         raise RuntimeError(
             f"Too early: D-1 detections to 21 UTC and GFS 18 UTC exist after {earliest}"
         )
-    t26.verify_v6()
+    check_versions()
+    verify(t26.V6)
     mu.verify_release(t26.V5 / "release.json")
-    v7_release = verify_v7()
+    v7_release = verify(v7.RUN)
 
     log(f"{target}: inputs")
     detections, det_meta = live_detections(target - timedelta(days=1))
@@ -535,8 +646,17 @@ def forecast(target: date, replay: bool = False) -> None:
             "mean_probability": float(np.nanmean(p)),
         }
     # Heat sources in cells.bin order, as the map indexes cells.
+    with np.load(v7.GFS / f"{target}.npz") as z:
+        gfs_today = {k: z[k] for k in v7.DAILY}
+    checks, warnings = health(
+        target, det_meta, era5_last, ndvi_last, f, eligible, gfs_today, models
+    )
+    log(f"{target}: health {checks}" + (f"; warnings: {warnings}" if warnings else ""))
     heat_cells = np.flatnonzero(heat[order]).astype(int).tolist()
     (out_dir / "heat_cells.json").write_text(json.dumps(heat_cells))
+    # Dominant land cover per cell (cells.bin order): alerts on cropland are mostly stubble burning.
+    land = f[LAND].to_numpy().argmax(axis=1).astype("uint8")[order]
+    (out_dir / "land.u8").write_bytes(land.tobytes())
     if replay:
         check(target, out_dir, f)
         return
@@ -551,6 +671,9 @@ def forecast(target: date, replay: bool = False) -> None:
             "models": models,
             "heat_cells": len(heat_cells),
             "heat_cells_sha256": checksum(out_dir / "heat_cells.json"),
+            "land_sha256": checksum(out_dir / "land.u8"),
+            "health": checks,
+            "warnings": warnings,
             "inputs": {
                 "detections": det_meta,
                 "era5_last_day": str(era5_last),
@@ -566,6 +689,8 @@ def forecast(target: date, replay: bool = False) -> None:
         f"{target}: issued, on time {entry['on_time']}; alerts v6 {models['v6']['alert_cells']}, "
         f"v7 {models['v7']['alert_cells']} of {models['v6']['finite_cells']} cells"
     )
+    if warnings:
+        notify(f"Прогноз {target}: проверьте данные", "; ".join(warnings))
     import publish_forecasts
 
     publish_forecasts.publish()
@@ -591,11 +716,20 @@ def missed(target: date, error: BaseException) -> None:
 
 
 def check(target: date, out_dir: Path, f: pd.DataFrame) -> None:
-    """A replayed day must equal the registered v6 map and v7's development H3 rows."""
+    """A replayed day must equal its log entry, the registered v6 map and v7's H3 rows."""
+    issued = {e["target_day"]: e for e in fl.read(LOG) if e["status"] == "issued"}.get(str(target))
+    if issued:
+        same = {
+            k: checksum(out_dir / f"{k}.f16.gz") == issued["models"][k]["payload_sha256"]
+            for k in ("v6", "v7")
+        }
+        log(f"replay {target}: equals the issued forecast: {same}")
     registered = t26.V6 / f"site_assets/predictions/{target}.f16.gz"
     if registered.exists():
         same = registered.read_bytes() == (out_dir / "v6.f16.gz").read_bytes()
         log(f"replay {target}: v6 payload equals the registered map: {same}")
+    if not (v7.RUN / "samples/2026_reassessment.parquet").exists():
+        return  # development samples stay local; the cloud checks against the log only
     rows = v7.sample("2026_reassessment")
     sel = (rows.day == pd.Timestamp(target, tz="UTC")).to_numpy()
     if sel.any():
@@ -621,4 +755,5 @@ if __name__ == "__main__":
     except Exception as error:
         if not args.replay and fl.last_attempt(target, datetime.now(UTC)):
             missed(target, error)
+            notify(f"Прогноз {target} не выпущен", f"{type(error).__name__}: {error}")
         raise

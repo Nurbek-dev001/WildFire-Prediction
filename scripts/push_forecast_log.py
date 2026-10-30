@@ -1,23 +1,31 @@
-"""Publish the forecast log on its own branch, so every entry gets a timestamp outside this PC.
+"""Keep the forecast record on its own branch, so every entry gets a timestamp outside this machine.
 
-The branch `forecast-log` holds only the log, the map record of the daily forecasts and the
-latest alert bulletin; it shares no history with the code. It lives in a separate worktree
-(runs/forecast_live/git), so the checked-out branch is never touched. The GitHub push time
-of each commit is the external proof that a forecast existed before its day.
-Usage: push_forecast_log.py   (forecast_daily.cmd runs it when FORECAST_PUSH=1)
+The branch `forecast-log` holds the log, each day's payloads and heat-source list, the map
+record of the daily forecasts, the latest alert bulletin and the status of the last cloud run.
+It shares no history with the code and lives in a separate worktree (runs/forecast_live/git),
+so the checked-out branch is never touched. The GitHub push time of each commit is the external
+proof that a forecast existed before its day.
+Usage: push_forecast_log.py [--pull] [--status OUTCOME]
+  --pull     copy the log and payloads from the branch into runs/forecast_live (cloud start)
+  --status   also record the outcome of this run in status.json
 """
 
 from __future__ import annotations
 
+import argparse
+import json
+import os
 import shutil
 import subprocess
+from datetime import UTC, datetime
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-TREE = ROOT / "runs/forecast_live/git"
+LIVE = ROOT / "runs/forecast_live"
+TREE = LIVE / "git"
 BRANCH = "forecast-log"
 FILES = {
-    ROOT / "runs/forecast_live/log.jsonl": "log.jsonl",
+    LIVE / "log.jsonl": "log.jsonl",
     ROOT / "platform/dist/assets/forecast-live.json": "forecast-live.json",
     ROOT / "platform/dist/assets/bulletin-latest.csv": "bulletin-latest.csv",
 }
@@ -29,27 +37,81 @@ def git(*args: str, cwd: Path = ROOT) -> str:
     ).stdout.strip()
 
 
-def main() -> None:
-    if not TREE.exists():
-        known = git("branch", "--list", BRANCH) or git("ls-remote", "--heads", "origin", BRANCH)
-        if known:
-            git("fetch", "origin", BRANCH)
-            git("worktree", "add", str(TREE), BRANCH)
-        else:
-            git("worktree", "add", "--orphan", "-b", BRANCH, str(TREE))
+def worktree() -> None:
+    if TREE.exists():
+        return
+    if git("ls-remote", "--heads", "origin", BRANCH):
+        git("fetch", "origin", f"{BRANCH}:refs/remotes/origin/{BRANCH}")
+        if not git("branch", "--list", BRANCH):
+            git("branch", BRANCH, f"origin/{BRANCH}")
+        git("worktree", "add", str(TREE), BRANCH)
+    else:
+        git("worktree", "add", "--orphan", "-b", BRANCH, str(TREE))
+
+
+def pull() -> None:
+    worktree()
+    if (TREE / "log.jsonl").exists():
+        LIVE.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(TREE / "log.jsonl", LIVE / "log.jsonl")
+    if (TREE / "forecasts").exists():
+        shutil.copytree(TREE / "forecasts", LIVE / "forecasts", dirs_exist_ok=True)
+    print(
+        "forecast log: pulled",
+        len((LIVE / "log.jsonl").read_text().splitlines()) if (LIVE / "log.jsonl").exists() else 0,
+        "entries",
+    )
+
+
+def push(status: str | None) -> None:
+    worktree()
     for source, name in FILES.items():
         if source.exists():
             shutil.copyfile(source, TREE / name)
-    git("add", *FILES.values(), cwd=TREE)
+    if (LIVE / "forecasts").exists():
+        shutil.copytree(LIVE / "forecasts", TREE / "forecasts", dirs_exist_ok=True)
+    if status:
+        tail = (
+            (LIVE / "runs.log").read_text(encoding="utf-8", errors="replace").splitlines()[-40:]
+            if (LIVE / "runs.log").exists()
+            else []
+        )
+        (TREE / "status.json").write_text(
+            json.dumps(
+                {
+                    "finished_utc": datetime.now(UTC).isoformat(timespec="seconds"),
+                    "outcome": status,
+                    "run": os.environ.get("GITHUB_RUN_ID"),
+                    "runner": os.environ.get("RUNNER_OS", "local"),
+                    "output_tail": tail,
+                },
+                indent=2,
+            ),
+            encoding="utf-8",
+        )
+    git("add", "-A", ".", cwd=TREE)
     if not git("status", "--porcelain", cwd=TREE):
         print("forecast log: nothing new")
         return
-    last = (TREE / "log.jsonl").read_text(encoding="utf-8").splitlines()[-1]
-    day = last.split('"target_day": "')[1][:10]
-    git("commit", "-m", f"Forecast log through {day}", cwd=TREE)
+    log = TREE / "log.jsonl"
+    last = (
+        json.loads(log.read_text(encoding="utf-8").splitlines()[-1])["target_day"]
+        if log.exists()
+        else "-"
+    )
+    git(
+        "commit",
+        "-m",
+        f"Forecast log through {last}" + (f" ({status})" if status else ""),
+        cwd=TREE,
+    )
     git("push", "origin", BRANCH, cwd=TREE)
-    print(f"forecast log through {day} pushed to {BRANCH}")
+    print(f"forecast log through {last} pushed to {BRANCH}")
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--pull", action="store_true")
+    parser.add_argument("--status")
+    args = parser.parse_args()
+    pull() if args.pull else push(args.status)
