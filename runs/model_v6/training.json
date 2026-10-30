@@ -1,0 +1,18 @@
+{
+  "synthetic": false,
+  "training_years": [
+    2015,
+    2021
+  ],
+  "rows": 1250992,
+  "positives": 113442,
+  "params": {
+    "learning_rate": 0.06252287916406217,
+    "max_depth": 5,
+    "min_child_weight": 6.440260565429631,
+    "n_estimators": 314,
+    "reg_alpha": 0.006789053271698486,
+    "reg_lambda": 0.14742753159914673
+  },
+  "candidate": "R2_cell"
+}

@@ -1,0 +1,14 @@
+{
+  "winner": "xgboost",
+  "weighted_validation_ap": {
+    "catboost": 0.011023670060080506,
+    "logistic": 0.002107311478334652,
+    "random_forest": 0.008991093880241422,
+    "seasonal": 0.0017619361778546069,
+    "weather_logistic": 0.000889640906441602,
+    "xgboost": 0.019061498627156354
+  },
+  "selection_data_end": 2021,
+  "test_accessed": false,
+  "comparison_sha256": "073f383779604725e85b20fbfc6294e1c0698d8d14f9fd82153ff78bcf81aaba"
+}

@@ -1,0 +1,28 @@
+{
+  "selected": {
+    "name": "logistic_C1_blend0.5",
+    "weight": 0.5,
+    "threshold": 0.051042802631855,
+    "precision": 0.1010156915914918,
+    "recall": 0.0402072218356143,
+    "f1": 0.0575198488989328,
+    "average_precision": 0.0257963306709297
+  },
+  "baseline": {
+    "threshold": 0.10757676512002945,
+    "precision": 0.14864968376295687,
+    "recall": 0.01646949663651125,
+    "f1": 0.029653556429115668,
+    "average_precision": 0.019216503009943275
+  },
+  "selection_max_year": 2022,
+  "test_accessed": false,
+  "joint_criterion": {
+    "weight": 0.5,
+    "minimum_relative_recall": 1.1816283924843425,
+    "recall_2021": 0.0320111343075852,
+    "ap_2021": 0.0241360347964569,
+    "recall_2022": 0.05595650024715769,
+    "ap_2022": 0.01595648401871178
+  }
+}

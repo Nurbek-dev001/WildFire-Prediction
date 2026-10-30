@@ -1,0 +1,16 @@
+{
+  "synthetic": false,
+  "frozen_utc": "2026-10-29T16:15:41.062263+00:00",
+  "prospective_test": "2027-03-01..2027-10-31, labels opened after it ends",
+  "labels_used": "2015-2025",
+  "artifacts": {
+    "model.joblib": "9cb09dbbbefa026785966b61bec493b2ea0c67bb3d58cca9b7ad309b0e4db460",
+    "calibrator.joblib": "1b15397f7bff5c30279b9ca98b2aac36fcd0f4b660f7555380fd3e8ffb415366",
+    "frozen.json": "160f6844d37058d0c2910c34e7c82862fff07ef89f9b422a720653cf339ad4b3",
+    "protocol.json": "3bf2e3e59ca9d3421abd0155393fbcf42a44ef4f73ba5c7a9309459e66a9b73e"
+  },
+  "code": {
+    "scripts\\develop_model_v7.py": "2471fb9f760d1dea2188fa31f42becc1092b00f83c26187ebd452446590d634d",
+    "src\\wildfire_kz\\data\\gfs_forecasts.py": "34a9036db265b33d24547ca03a5388b225622a3ae4134322fe44bcb91d0427db"
+  }
+}

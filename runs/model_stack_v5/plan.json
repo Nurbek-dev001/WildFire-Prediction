@@ -1,0 +1,77 @@
+{
+  "synthetic": false,
+  "created_utc": "2026-10-23T10:36:58.746153+00:00",
+  "model": "original XGBoost plus learned chronological logistic stack and selected score blend",
+  "base_training_years": [
+    2015,
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021
+  ],
+  "meta_selection_training_years": [
+    2019,
+    2020
+  ],
+  "validation_years": [
+    2021,
+    2022
+  ],
+  "meta_final_training_years": [
+    2019,
+    2020,
+    2021
+  ],
+  "calibration_year": 2022,
+  "selection_max_year": 2022,
+  "selection_rule": "C selected on 2021; blend maximizes minimum relative recall gain across 2021 at precision>=0.10 and 2022 at original operating precision; AP must improve in both years",
+  "threshold_rule": "max 2022 weighted recall with precision no lower than original XGBoost 2022 operating precision",
+  "history_lag_days": 2,
+  "history_windows": [
+    [
+      7,
+      3
+    ],
+    [
+      7,
+      11
+    ],
+    [
+      30,
+      3
+    ],
+    [
+      30,
+      11
+    ],
+    [
+      90,
+      11
+    ],
+    [
+      365,
+      11
+    ]
+  ],
+  "meta_C_candidates": [
+    0.01,
+    0.1,
+    1
+  ],
+  "meta_blend_weights": [
+    1,
+    0.75,
+    0.5,
+    0.25
+  ],
+  "test_previously_reported": true,
+  "test_used_for_selection": false,
+  "transport": "float16 rounding before calibration operating-point evaluation and all final metrics",
+  "previous_failed_experiments": [
+    "model_upgrade_v3",
+    "model_upgrade_v4"
+  ],
+  "lineage": "OOF first-stage scores were produced by models fitted on years strictly earlier than each OOF year"
+}

@@ -1,0 +1,9 @@
+{
+  "qualified": [
+    "R2_cell",
+    "R3_cell_weather"
+  ],
+  "selected": "R2_cell",
+  "rule": "A candidate qualifies only if, in each of 2020, 2021 and 2022, its AP exceeds the reference AP and its top-1% capture is at least the reference's. The qualifier with the highest mean AP is selected. If none qualifies, no new model is released.",
+  "test_years_accessed": false
+}

@@ -1,0 +1,61 @@
+{
+  "synthetic": false,
+  "registered_utc": "2026-10-28T09:53:02.250524+00:00",
+  "purpose": "Improve next-day new-fire ranking with cell-level fire history, multi-year fire climatology and Canadian FWI codes",
+  "development_years": [
+    2015,
+    2022
+  ],
+  "years_never_used_for_development": [
+    2023,
+    2024,
+    2025,
+    2026
+  ],
+  "previous_tests_already_used": {
+    "2023-2024": "reassessment benchmark",
+    "2025": "independent test, used 2026-10-25"
+  },
+  "new_features": {
+    "cell_history": "active cell-days in the same 5 km cell, windows ending at target minus 2 days: 30 d, 365 d, days since last active (capped 3650)",
+    "climatology": "share of complete prior years since 2014 with activity in the same calendar month: same cell, and any cell in the 15 km square",
+    "fire_weather": "Van Wagner FFMC, DMC, DC, ISI, BUI, FWI, dry days (<1 mm), 30 and 60 day precipitation; state through target minus 7 days, the same lag as existing weather features"
+  },
+  "candidates": {
+    "R0_base": 26,
+    "R1_history": 32,
+    "R2_cell": 37,
+    "R3_cell_weather": 46,
+    "R4_weather": 41
+  },
+  "model": {
+    "type": "XGBoost hist, NaN native, design weights",
+    "params": {
+      "learning_rate": 0.06252287916406217,
+      "max_depth": 5,
+      "min_child_weight": 6.440260565429631,
+      "n_estimators": 314,
+      "reg_alpha": 0.006789053271698486,
+      "reg_lambda": 0.14742753159914673
+    },
+    "seed": 42
+  },
+  "rolling_validation": {
+    "2020": "train 2015-2019 train tables, evaluate 2020 evaluation table",
+    "2021": "train 2015-2020 train tables, evaluate 2021 evaluation table",
+    "2022": "train 2015-2021 train tables, evaluate 2022 evaluation table"
+  },
+  "references": {
+    "2020": "original XGBoost out-of-fold",
+    "2021": "original XGBoost out-of-fold",
+    "2022": "current release v5 (base and meta trained before 2022)"
+  },
+  "metrics": [
+    "weighted average precision",
+    "weighted ROC-AUC",
+    "estimated daily capture in top 0.1% and 1% of cells"
+  ],
+  "selection_rule": "A candidate qualifies only if, in each of 2020, 2021 and 2022, its AP exceeds the reference AP and its top-1% capture is at least the reference's. The qualifier with the highest mean AP is selected. If none qualifies, no new model is released.",
+  "release_rule": "Selected features: XGBoost refit on 2015\u20132021 train tables, sigmoid calibration on 2022 excluding industrial cells, threshold = maximum 2022 recall at precision not below the current release's 2022 calibration precision; float16 transport; artifacts hashed before any 2026 label is read.",
+  "final_test": "2026 from 1 January to the last date with complete predictors and labels, fixed at freeze; labels from FIRMS SNPP (standard processing where published, otherwise NRT, declared before access); all positive cell-days and sampled negatives with known probabilities; v6 versus v5 on the same rows: precision and recall at frozen thresholds, AP, daily top-1% capture, 1000 paired 100 km x 30 day block bootstrap draws."
+}

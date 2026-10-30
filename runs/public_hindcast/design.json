@@ -1,0 +1,193 @@
+{
+  "synthetic": false,
+  "features": [
+    "tmax",
+    "tmin",
+    "wind",
+    "rh",
+    "precip",
+    "soil_moisture",
+    "precip_7d",
+    "precip_14d",
+    "temperature_7d",
+    "temperature_14d",
+    "ndvi",
+    "ndvi_missing",
+    "ndvi_age_days",
+    "forest",
+    "grassland",
+    "shrubland",
+    "cropland",
+    "other",
+    "elevation",
+    "slope",
+    "aspect_sin",
+    "aspect_cos",
+    "population_density",
+    "settlement_distance",
+    "month_sin",
+    "month_cos"
+  ],
+  "development_years": [
+    2015,
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021
+  ],
+  "validation_years": [
+    2019,
+    2020,
+    2021
+  ],
+  "selection_metric": "mean rolling weighted average precision",
+  "calibration_year": 2022,
+  "test_years": [
+    2023,
+    2024
+  ],
+  "optuna_attempts_per_ensemble": 5,
+  "pruner": "MedianPruner after first rolling fold, 5 startup trials",
+  "primary_study_completed": false,
+  "config": {
+    "seed": 42,
+    "output_dir": "C:\\Users\\nured\\Documents\\ChatGPT\\WildFire\\runs\\public_hindcast",
+    "data": {
+      "synthetic": false,
+      "sources": {
+        "boundary": {
+          "path": "C:\\Users\\nured\\Documents\\ChatGPT\\WildFire\\data\\real\\normalized\\boundary.parquet",
+          "source_id": "geoBoundaries/gbOpen/KAZ/ADM0",
+          "version": "9469f09592ced973a3448cf66b6100b741b64c0d",
+          "downloaded_at": "2026-10-16T12:17:35.328467+00:00",
+          "sha256": "f6cae6e5d8f9ef24abedc9c1ce38c71ced0a056c889db50a8cc36ef80ed472f7",
+          "url": "https://github.com/wmgeolab/geoBoundaries/raw/9469f09/releaseData/gbOpen/KAZ/ADM0/geoBoundaries-KAZ-ADM0.geojson"
+        },
+        "regions": {
+          "path": "C:\\Users\\nured\\Documents\\ChatGPT\\WildFire\\data\\real\\normalized\\regions.parquet",
+          "source_id": "geoBoundaries/gbOpen/KAZ/ADM1",
+          "version": "9469f09592ced973a3448cf66b6100b741b64c0d",
+          "downloaded_at": "2026-10-16T12:17:37.701395+00:00",
+          "sha256": "98401d92ee8bfab2f90f575f0c3fac752c6430c0ff392dad59eb367a62db7fd1",
+          "url": "https://github.com/wmgeolab/geoBoundaries/raw/9469f09/releaseData/gbOpen/KAZ/ADM1/geoBoundaries-KAZ-ADM1.geojson"
+        },
+        "detections": {
+          "path": "C:\\Users\\nured\\Documents\\ChatGPT\\WildFire\\data\\real\\normalized\\detections_development_calibration.parquet",
+          "source_id": "NASA/FIRMS/VIIRS_SNPP_SP/annual-country",
+          "version": "VIIRS standard processing; versions ['2']",
+          "downloaded_at": "2026-10-16T12:20:16.911729+00:00",
+          "sha256": "19c1d42ccfe12656381da33807f0e27f2e5a43265c043cd69ac26eed64d68ab8",
+          "url": "https://firms.modaps.eosdis.nasa.gov/data/country/viirs-snpp_2014_Kazakhstan.csv"
+        }
+      },
+      "sealed_detection_archives": {
+        "2023": {
+          "path": "C:\\Users\\nured\\Documents\\ChatGPT\\WildFire\\data\\real\\raw\\sealed_2023_2024\\viirs-snpp_2023_Kazakhstan.csv",
+          "source_id": "NASA/FIRMS/VIIRS_SNPP_SP/annual-country",
+          "version": "provider annual archive; content validation deferred to final evaluation",
+          "downloaded_at": "2026-10-16T12:21:37.606071+00:00",
+          "sha256": "3b66b8e11cf8ac537b43813cddae5f47b00336dd4e6b5efa8d1a3cc844753784",
+          "url": "https://firms.modaps.eosdis.nasa.gov/data/country/viirs-snpp_2023_Kazakhstan.csv"
+        },
+        "2024": {
+          "path": "C:\\Users\\nured\\Documents\\ChatGPT\\WildFire\\data\\real\\raw\\sealed_2023_2024\\viirs-snpp_2024_Kazakhstan.csv",
+          "source_id": "NASA/FIRMS/VIIRS_SNPP_SP/annual-country",
+          "version": "provider annual archive; content validation deferred to final evaluation",
+          "downloaded_at": "2026-10-16T12:21:42.670163+00:00",
+          "sha256": "5a3d8a92aeb3f654c1ff431a2b52e4eb44f7b1c16c42fa58fbcfaf36d819cfda",
+          "url": "https://firms.modaps.eosdis.nasa.gov/data/country/viirs-snpp_2024_Kazakhstan.csv"
+        }
+      },
+      "weather_mode": "era5_land_cumulative",
+      "historical_roads": false,
+      "publication_lag_days": 2,
+      "vegetation_fill_days": 32,
+      "weather_lag_days": 1,
+      "chunk_rows": 200000,
+      "cell_chunk_size": 256,
+      "maximum_evaluation_rows": 2000000
+    },
+    "grid": {
+      "crs": "+proj=laea +lat_0=48 +lon_0=67 +datum=WGS84 +units=m +no_defs",
+      "resolution_m": 5000,
+      "regional_resolution_m": 1000
+    },
+    "events": {
+      "radius_m": 2000.0,
+      "window_hours": 48.0,
+      "exclusion_hours": 48.0,
+      "sensitivity_radius_m": [
+        1000,
+        2000,
+        3000,
+        4000,
+        5000
+      ],
+      "sensitivity_hours": [
+        24,
+        48,
+        72
+      ],
+      "hotspot_min_days": 30
+    },
+    "sampling": {
+      "mode": "probability",
+      "negative_ratio": 10.0,
+      "minimum_negatives": 20
+    },
+    "splits": {
+      "start_year": 2015,
+      "development_end": 2021,
+      "validation_years": [
+        2019,
+        2020,
+        2021
+      ],
+      "calibration_year": 2022,
+      "test_years": [
+        2023,
+        2024
+      ],
+      "spatial_folds": 5,
+      "block_m": 100000,
+      "buffer_m": 25000,
+      "sensitivity_block_m": [
+        50000,
+        150000
+      ]
+    },
+    "models": {
+      "names": [
+        "logistic",
+        "random_forest",
+        "xgboost",
+        "catboost"
+      ],
+      "trials": 5,
+      "n_estimators_min": 100,
+      "n_estimators_max": 600,
+      "early_stopping_rounds": 30,
+      "threads": 8,
+      "seasonal_smoothing": 20.0
+    },
+    "evaluation": {
+      "bootstrap_resamples": 1000,
+      "bootstrap_block_days": 30,
+      "confidence_level": 0.95,
+      "reliability_bins": 10,
+      "top_fractions": [
+        0.05,
+        0.1,
+        0.2
+      ],
+      "map_quantiles": [
+        0.5,
+        0.8,
+        0.95
+      ],
+      "shap_rows": 500
+    }
+  }
+}

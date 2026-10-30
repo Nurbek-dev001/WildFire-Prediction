@@ -1,0 +1,22 @@
+{
+  "status": "frozen_before_final_evaluation",
+  "synthetic": false,
+  "frozen_utc": "2026-10-22T13:28:49.134846+00:00",
+  "model_file": "models.joblib",
+  "model_sha256": "31728c7fccf7d2af3098691373e38350972f975ac9b9d780c2c9398333c6aea7",
+  "artifact_hashes": {
+    "models.joblib": "31728c7fccf7d2af3098691373e38350972f975ac9b9d780c2c9398333c6aea7",
+    "calibrators.joblib": "cf2e79c1411a3d15de2847552220d91ef92fbb3f67d116969b83061b75c94710",
+    "frozen.json": "adc3a3544834753a7ec84bd57464f85b386f60b1c7e245957f0a7c8b760c9edf",
+    "selection.json": "8cc092b8ac8cbe38988da34e44c8695dd94196d450a6f60d48aa7bf957f9ac73",
+    "design.json": "01ec3d26e30162d5fe48433ae750cf140e8dbd509b86f568b15d5c43d03a3c67",
+    "source_registry.json": "baaf4611c757a5885b63626f3fa74f86a1dfc1c397413e7d7ca6f14928953f3c",
+    "training_sources.json": "d9c8127c244bc9a59c95e1026ea4f1fb29e72d80e7a8e64b42e82a8f964eca4c",
+    "training_complete.json": "a94f81da04d18fcac3fb80fe402307845eedaa6e6c35002d3919a1af85258e3c",
+    "tuning.json": "078bc974a707a90ffc093149f1630153d46ca553ae059cab5003cc0cdb15ffa1",
+    "comparison.csv": "073f383779604725e85b20fbfc6294e1c0698d8d14f9fd82153ff78bcf81aaba",
+    "industrial_cells.json": "d87280cd864f41421027050ab72d1d89a1ff6294306afc459ed9998bc8e25290",
+    "budget_amendment.json": "7bd33331a190575e6840e7378c7581caadc8a03464b4bb5fa3a4e1919c036d92"
+  },
+  "evaluation_code_sealed_utc": "2026-10-22T13:28:49.165050+00:00"
+}

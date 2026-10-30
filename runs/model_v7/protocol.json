@@ -1,0 +1,85 @@
+{
+  "synthetic": false,
+  "registered_utc": "2026-10-28T21:03:35.088327+00:00",
+  "brief": {
+    "path": "docs\\steppe-prediction-accuracy-prompt-v4-2026-10-29.md",
+    "sha256": "d65f63b052fde1433bce2a1ae8f746a497b8042271a378d3b60cffb285c71ef4"
+  },
+  "purpose": "Next-day new-fire forecast for Kazakhstan that finds more real new fires than v6 at no lower precision, with calibrated values, on a risk set without persistent industrial heat sources",
+  "years_already_seen": {
+    "2015-2022": "development of v1-v6",
+    "2023-2024": "reassessment of v1-v5 and an audit that informed v6",
+    "2025": "independent test of v5",
+    "2026-01-01..2026-10-15": "test of v6; its error analysis informed this protocol"
+  },
+  "target": "first S-NPP VIIRS nominal/high detection of an event linked within 2 km and 48 hours, 5 km LAEA cell, next day (unchanged from v1-v6)",
+  "risk_set": {
+    "base": "prior-year vegetated cover, frozen industrial cell list, no detection in the previous 48 hours (unchanged)",
+    "h1_exclusion": "also excluded on day D: cells with at least 30 distinct active days in [D-366, D-2], or with at least 30 active days in any of the 3 complete calendar years before D's year. Active day = any S-NPP nominal/high detection in the cell. Causal: uses only detections known before D. N chosen before this protocol from the 2015-2022 distribution of active days per cell-year (99th percentile 10, 99.9th 172); no model output was used.",
+    "primary_metrics_risk_set": "base + h1_exclusion for every candidate, including references"
+  },
+  "data": {
+    "rows": "the existing design-weighted samples: runs/public_hindcast/features/{2015..2021}_train and {2019..2024}_evaluation; 2025 the registered independent sample (runs/independent_2025/months) with features rebuilt by the same public adapter as the 2026 test",
+    "labels": "2015-2025 standard-processing S-NPP archive as in the existing samples; 2026 NASA GIBS NRT for the reassessment only",
+    "weights": "inverse inclusion probability of the sampling design; all metrics weighted"
+  },
+  "validation": {
+    "scheme": "rolling origin, expanding window. At origin Y: fit on train rows of years < Y-1, calibrate on the evaluation rows of Y-1, evaluate on the evaluation rows of Y. Fit tables: *_train for 2015-2021, *_evaluation for 2022-2024 (no train tables exist for those years).",
+    "origins": [
+      2020,
+      2021,
+      2022,
+      2023,
+      2024,
+      2025
+    ],
+    "reassessment": "2026-01-01..2026-10-15 on the registered test_2026 sample, labelled 'reassessment', never 'independent test'"
+  },
+  "references": {
+    "v6_recipe": "v6's 37 inputs and XGBoost parameters, refit at each origin with the same fit/calibration years as every candidate; trained on the base risk set",
+    "v6_frozen": "the released v6 at origins 2022-2025, where it has not seen the evaluation year (reported, not used by the rule)"
+  },
+  "metrics": {
+    "selection": "mean weighted average precision across origins on the primary risk set",
+    "operating_point": "recall at the highest-recall threshold whose evaluation-year precision is not below the v6 recipe's precision at its own calibrated threshold",
+    "calibrated_threshold": "lowest threshold on the calibration year with precision >= 0.06104854900784197 (v6's frozen floor); used for the reported precision and recall at a fixed threshold",
+    "calibration": "Brier skill score against the evaluation-year base rate; reliability on bins [0, 0.0001, 0.0003, 0.001, 0.003, 0.01, 0.03, 1.0]",
+    "ranking": "weighted ROC-AUC; estimated daily capture in the top 0.1% and 1% of eligible cells",
+    "user": "share of first detections with an alert within 10 km on the same or the previous day (reported, not used by the rule)"
+  },
+  "selection_rule": "A candidate qualifies only if at every origin its AP is higher than the v6 recipe's and its recall at the v6 recipe's precision is not lower. Among qualifiers the highest mean AP is chosen. If none qualifies, no v7 is released.",
+  "release_criteria": [
+    "Brier skill score > 0 at every origin",
+    "in every reliability bin with >= 100 positives, observed/shown within 1/1.5 and 1.5",
+    "no region with recall more than 2 percentage points below the v6 recipe without an explanation"
+  ],
+  "uncertainty": "1000 paired 100 km x 30 day block bootstrap draws, seed 42",
+  "subgroups": [
+    "region",
+    "month",
+    "land cover class",
+    "ndvi_missing",
+    "settlement distance quartile"
+  ],
+  "hypotheses": {
+    "H1": "Exclude persistent heat sources from labels and risk set. Expect higher AP on the primary risk set and no calibrated values near 99%. Refuted if AP of the v6 recipe trained on the cleaned set is not higher at most origins.",
+    "H2": "Weather for the target day. As-issued 1-day-lead forecasts (Open-Meteo Previous Runs API, all four variables) exist only from 2024; the instant archive from 2021 is near-analysis. Plan: train on reanalysis of day D-1 and D, serve with as-issued forecasts at origin 2025 and the 2026 reassessment; the reanalysis-at-D score is an upper bound reported separately and never used for selection. Refuted if the forecast-served model does not beat the 7-day-lag model at origin 2025.",
+    "H3": "Fire history with a 1-day lag instead of 2, plus counts in 5/15/55 km and distance to yesterday's nearest detection. Expect higher recall during burning waves. Refuted if AP does not rise at most origins.",
+    "H4": "Snow-off date, soil moisture, NDVI anomaly against the cell's prior-year climatology, dry-spell length, days since harvest on cropland. Refuted if AP does not rise at most origins.",
+    "H5": "Day of week, public holidays, distance to roads and fields. Refuted if AP does not rise or it duplicates cell_month_climatology.",
+    "H6": "After features: tuned gradient boosting on the rolling origins, physical monotone constraints, calibration on the two years before the origin; compare isotonic, beta and Platt. Ensembles only if they pass the rule at every origin.",
+    "H7": "Report how many false alerts are fires in neighbouring cells or on the next day. Does not change the target."
+  },
+  "order": "H1 first and kept if accepted; then H3, H2, H4, H5 one at a time on the same origins and base candidate; H6 last; H7 reported throughout",
+  "leakage_rules": [
+    "every input for day D is available before 00 UTC of D; its actual latency is recorded",
+    "no scaling, imputation, climatology or exclusion list fitted with the evaluation year",
+    "cell climatologies at an origin use only years before that origin",
+    "negatives sampled by the existing design with inverse-probability weights"
+  ],
+  "release": "If a candidate passes: refit on 2015-2024, calibrate on 2025 (or the two-year scheme if H6 adopts it), freeze and hash before 2027-03-01.",
+  "final_test": "Prospective, once: 2027-03-01..2027-10-31, NASA GIBS S-NPP NRT labels, opened only after the period ends; v7 versus v6 on the same full-grid cell-days; the same metrics and bootstrap.",
+  "amendments": "Any change is a dated file in runs/model_v7/amendments/, written before the affected result is seen.",
+  "resources": "at most two processes with OPENBLAS_NUM_THREADS=1, OMP_NUM_THREADS=2, MKL_NUM_THREADS=1; disk budget checked before each download",
+  "locked": "the 18 hash-pinned source files and all v5/v6 artifacts are read-only"
+}

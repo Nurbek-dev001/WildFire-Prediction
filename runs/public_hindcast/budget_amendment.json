@@ -1,0 +1,23 @@
+{
+  "recorded_utc": "2026-10-22T10:17:16.803741+00:00",
+  "reason": "User explicitly waived 50 attempts on 2026-10-22 before test access",
+  "user_request": "50 \u043f\u043e\u043f\u044b\u0442\u043e\u043a \u043d\u0435 \u043d\u0430\u0434\u043e, \u0432 \u044d\u0442\u043e\u043c \u043f\u0440\u043e\u0435\u043a\u0442\u0430 \u0434\u043e \u0438\u0434\u0435\u043b\u0430 \u0447\u0442\u043e \u043d\u0435 \u0445\u0432\u0430\u0442\u0430\u0435\u0442",
+  "old_fingerprint": "d2169b6a74d0c150383725d5699436eeebd2164d69746c73ef58e11777ce311e",
+  "new_fingerprint": "99b0578452f5015346df7fd4d7300f8b99507c9722d64d234f5cb7a5ede13828",
+  "old_budget": 50,
+  "new_budget": 5,
+  "retained_history": {
+    "random_forest": {
+      "COMPLETE": 14,
+      "PRUNED": 8,
+      "RUNNING": 1,
+      "FAIL": 0
+    }
+  },
+  "prior_registry_sha256": "e58b56523ac80d1e98fff783645383ee17df76708135fd6a77d6cf7f28e115cb",
+  "prior_history_sha256": "e30e557ca7cfac213d1f5c80ae4c55f8209f51facbc39848b1a2e51ab9eada5a",
+  "amendment_script_sha256": "c6533137716aba6f0737a97e60e09d9e3ac1b9eec754c53fac7532c07d7f6b5c",
+  "test_accessed": false,
+  "scientific_inputs_and_model_code_unchanged": true,
+  "note": "Retain excess RF trials; interrupted trials become FAIL on normal resume. Unequal search effort is reported; this is a limited practical comparison."
+}

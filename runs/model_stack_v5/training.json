@@ -1,0 +1,13 @@
+{
+  "synthetic": false,
+  "training_end": 2021,
+  "meta_rows": 773977,
+  "meta_positive_rows": 48331,
+  "base_rows": 1250660,
+  "rows": 773977,
+  "positives": 48331,
+  "baseline_sha256": "31728c7fccf7d2af3098691373e38350972f975ac9b9d780c2c9398333c6aea7",
+  "meta_C": 1.0,
+  "meta_weight": 0.5,
+  "model_sha256": "5a8b7196a9bf8a40371666ee718ab674dafba79af17a3ed52fe565b63e713643"
+}

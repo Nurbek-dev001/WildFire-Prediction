@@ -1,0 +1,15 @@
+{
+  "development_end": 2021,
+  "prior_mask_year": 2014,
+  "minimum_active_days": 30,
+  "nonvegetated_fraction": 0.8,
+  "cell_ids": [
+    "g5000_-21_120",
+    "g5000_-33_-200",
+    "g5000_-34_-33",
+    "g5000_-44_-209",
+    "g5000_-72_-253",
+    "g5000_4_-238"
+  ],
+  "outcomes_sha256": "acf6845c3db44451ac0d1b138b5fc41cf3fe526388b44895ec2e94677321e379"
+}
