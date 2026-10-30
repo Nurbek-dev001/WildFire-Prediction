@@ -11,7 +11,6 @@ on:
   workflow_dispatch:
 
 env:
-  PAGES_PROJECT: steppe-wildfire
   WRANGLER: wrangler@3.99.0
 
 jobs:
@@ -46,10 +45,9 @@ jobs:
             npx --yes $WRANGLER kv namespace create SUBS
             id=$(npx --yes $WRANGLER kv namespace list | python3 -c "import json,sys;print(next(n['id'] for n in json.load(sys.stdin) if n['title'].endswith('SUBS')))")
           fi
-          # The site address of the Pages project (name.pages.dev, or with a suffix if taken).
-          site=$(curl -fsS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
-            "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/pages/projects/$PAGES_PROJECT" \
-            | python3 -c "import json,sys;print('https://'+json.load(sys.stdin)['result']['subdomain'])")             || site="https://$PAGES_PROJECT.pages.dev"  # before the first site deploy
+          # The site is the steppe-wildfire Worker on the same workers.dev subdomain as the bot.
+          sub=$(curl -fsS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN"             "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/subdomain"             | python3 -c "import json,sys;print(json.load(sys.stdin)['result']['subdomain'])")
+          site="https://steppe-wildfire.$sub.workers.dev"
           sed -i "s|KV_NAMESPACE_ID|$id|; s|https://SITE_URL|$site|; s|ADMIN_CHAT_ID_VALUE|${ADMIN_CHAT_ID}|" wrangler.toml
           npx --yes $WRANGLER deploy | tee deploy.log
           printf '%s' "$TELEGRAM_TOKEN" | npx --yes $WRANGLER secret put TELEGRAM_TOKEN

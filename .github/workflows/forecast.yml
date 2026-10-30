@@ -2,7 +2,7 @@ name: Nightly forecast
 # v6 and v7 for the next UTC day, issued in the cloud every night (docs/cloud-setup.md).
 # Three attempts; a run after a successful issue stops at once. The record goes to the
 # forecast-log branch (its push time is the external timestamp of each forecast), the site to
-# Cloudflare Pages, and the Telegram bot reads the new bulletin from the site.
+# Cloudflare Workers static assets, and the Telegram bot reads the new bulletin from the site.
 on:
   schedule:
     - cron: '40 23 * * *'
@@ -31,7 +31,6 @@ concurrency:
 env:
   OPENBLAS_NUM_THREADS: '1'
   PYTHONUTF8: '1'
-  PAGES_PROJECT: steppe-wildfire
 
 jobs:
   forecast:
@@ -101,18 +100,16 @@ jobs:
       - name: Verify the site
         if: steps.forecast.outcome == 'success'
         run: node platform/scripts/verify-live-assets.mjs
-      - name: Deploy the site to Cloudflare Pages
-        if: steps.forecast.outcome == 'success' && github.event_name != 'push'
+      - name: Deploy the site to Cloudflare
+        if: steps.forecast.outcome == 'success'
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           if [ -z "$CLOUDFLARE_API_TOKEN" ]; then echo "::notice::Cloudflare secrets not set; site not deployed"; exit 0; fi
           set -o pipefail
-          {
-            npx --yes wrangler@3.99.0 pages project create "$PAGES_PROJECT" --production-branch main || true
-            npx --yes wrangler@3.99.0 pages deploy platform/dist --project-name "$PAGES_PROJECT" --branch main --commit-dirty=true
-          } 2>&1 | tee -a runs/forecast_live/runs.log
+          # Static assets on Workers (site/wrangler.toml): the same token that deploys the bot.
+          npx --yes wrangler@3.99.0 deploy --config site/wrangler.toml 2>&1 | tee -a runs/forecast_live/runs.log
       - name: Publish the record
         if: always()
         env:

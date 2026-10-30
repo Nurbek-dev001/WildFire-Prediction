@@ -1,0 +1,7 @@
+# The public site (platform/dist) as static assets on Cloudflare Workers, free plan.
+# Deployed by .github/workflows/forecast.yml after each nightly forecast.
+name = "steppe-wildfire"
+compatibility_date = "2024-12-01"
+
+[assets]
+directory = "../platform/dist"

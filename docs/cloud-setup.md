@@ -1,12 +1,12 @@
 # Облако: ночной прогноз, сайт и Telegram-бот
 
 После этой настройки компьютер больше не нужен. Каждую ночь GitHub Actions считает прогноз,
-обновляет сайт на Cloudflare Pages, а бот на Cloudflare Workers утром рассылает тревоги
+обновляет сайт на Cloudflare Workers, а бот на Cloudflare Workers утром рассылает тревоги
 подписчикам. Всё на бесплатных тарифах.
 
 ```
 23:40 UTC  GitHub Actions ─ прогноз v6 и v7 ─┬─ журнал → ветка forecast-log (отметка времени)
-(04:40 KZ)  (3 попытки до 03:40 UTC)         └─ сайт → Cloudflare Pages
+(04:40 KZ)  (3 попытки до 03:40 UTC)         └─ сайт → Cloudflare Workers
                                                        │ bulletin-latest.json
 каждые 2 мин 00–09 UTC  Cloudflare Worker ─────────────┘→ рассылка подписчикам в Telegram
 круглосуточно           Telegram → Worker: /today, /regions, геолокация, /settings
@@ -23,7 +23,6 @@
    `*.workers.dev` — выберите любой.
 3. Справа на странице **Workers & Pages** скопируйте **Account ID**.
 4. **My Profile → API Tokens → Create Token → Create Custom Token**, права уровня Account:
-   - Cloudflare Pages — Edit
    - Workers Scripts — Edit
    - Workers KV Storage — Edit
 
@@ -51,9 +50,8 @@
 
 ### 4. Первый запуск
 
-1. **Actions → Nightly forecast → Run workflow.** Через 10–20 минут сайт будет на
-   `https://steppe-wildfire.pages.dev` (если имя занято, Cloudflare добавит суффикс; адрес
-   виден в Cloudflare → Workers & Pages).
+1. **Actions → Nightly forecast → Run workflow.** Через 5–15 минут сайт будет на
+   `https://steppe-wildfire.<ваш-поддомен>.workers.dev` (виден в Cloudflare → Workers & Pages).
 2. **Actions → Telegram bot → Run workflow.** Бот подключится к сайту и Telegram.
 3. Откройте бота в Telegram → `/start` → выберите области.
 
@@ -84,8 +82,7 @@
 - **Проверить вручную:** Actions → Nightly forecast → Run workflow (с флагом *replay* —
   пересчёт без записи в журнал).
 - **Лимиты бесплатных тарифов:** GitHub Actions в приватном репозитории — 2000 минут в месяц
-  (прогноз тратит около 15 минут в сутки); Cloudflare Pages — 500 публикаций в месяц
-  (нужна одна в сутки); бот рассылает до 40 сообщений каждые 2 минуты — около 10 000 в утро.
+  (прогноз тратит около 15 минут в сутки); Cloudflare Workers — 100 000 запросов в сутки; бот рассылает до 40 сообщений каждые 2 минуты — около 10 000 в утро.
 
 ## Где лежат данные
 
@@ -95,5 +92,5 @@
 | замороженные модели и входные данные (~120 МБ) | ветка `forecast-inputs` | вы |
 | карты прошлых лет (~260 МБ) | ветка `site-assets` | вы |
 | журнал прогнозов, ежедневные карты | ветка `forecast-log` | вы |
-| сайт, сводка тревог | Cloudflare Pages | все (это сам продукт) |
+| сайт, сводка тревог | Cloudflare Workers | все (это сам продукт) |
 | подписчики бота | Cloudflare KV | только вы |
