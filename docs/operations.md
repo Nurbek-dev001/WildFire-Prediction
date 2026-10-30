@@ -16,6 +16,12 @@ it does not name the cell that will burn.
 
 ## Night schedule
 
+The forecast runs in the cloud (GitHub Actions, `.github/workflows/forecast.yml`); the site is
+on Cloudflare Pages and the Telegram bot on Cloudflare Workers: see
+[cloud-setup.md](cloud-setup.md). The local schedule below is only a fallback for a machine
+without the cloud; never run both, or two issuers race for the same log.
+
+
 `scripts/forecast_daily.cmd`, registered once with
 
 ```powershell
@@ -77,6 +83,5 @@ on a USB disk or, encrypted, in OneDrive.
 
 ## Not automated
 
-- Uploading the site: hosting is updated by hand (`platform/.openai/hosting.json`).
-- A cloud run: `docs/cloud/forecast.yml.example` is a ready GitHub Actions workflow, kept
-  inactive because it needs the frozen data and model weights uploaded to the repository.
+- The old ChatGPT hosting (`platform/.openai/hosting.json`) is updated by hand only; Cloudflare
+  Pages is updated every night.

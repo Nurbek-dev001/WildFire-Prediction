@@ -1,0 +1,14 @@
+# Cloudflare Pages: the page and daily records are always revalidated, so a new forecast and
+# new code reach visitors the same morning; versioned scripts and payloads stay cacheable.
+/
+  Cache-Control: no-cache
+/index.html
+  Cache-Control: no-cache
+/assets/forecast-live.json
+  Cache-Control: no-cache
+/assets/bulletin-latest.json
+  Cache-Control: no-cache
+/assets/bulletin-latest.csv
+  Cache-Control: no-cache
+/assets/forecast-manifest-v6.json
+  Cache-Control: no-cache

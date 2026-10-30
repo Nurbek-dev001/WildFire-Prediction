@@ -1,0 +1,8 @@
+{
+  "name": "steppe-wildfire-bot",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test test/bot.test.mjs"
+  }
+}

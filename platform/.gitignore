@@ -11,3 +11,4 @@ node_modules/
 # Daily forecast records change every night; the forecast-log branch keeps them.
 /dist/assets/forecast-live.json
 /dist/assets/bulletin-latest.csv
+/dist/assets/bulletin-latest.json

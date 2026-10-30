@@ -61,18 +61,37 @@ def development_v7() -> dict:
 
 
 LAND = ["лес", "степь", "кустарник", "пашня", "прочее"]
+# Region names in Kazakh, by the English name of geography.json (as the site's i18n.js).
+KAZAKH = {
+    "Pavlodar Region": "Павлодар",
+    "Jambyl Region": "Жамбыл",
+    "Kostanay Region": "Қостанай",
+    "Mangystau Region": "Маңғыстау",
+    "Karaganda Region": "Қарағанды",
+    "Kyzylorda Region": "Қызылорда",
+    "East Kazakhstan Region": "Шығыс Қазақстан",
+    "Aktobe Region": "Ақтөбе",
+    "Atyrau Region": "Атырау",
+    "South Kazakhstan Region": "Оңтүстік Қазақстан",
+    "Akmola Region": "Ақмола",
+    "Almaty Region": "Алматы облысы",
+    "North Kazakhstan Region": "Солтүстік Қазақстан",
+    "Almaty": "Алматы",
+    "West Kazakhstan Region": "Батыс Қазақстан",
+    "Astana": "Астана",
+}
 
 
-def bulletin(day: str, values: dict[str, np.ndarray], thresholds: dict, heat: set[int]) -> Path:
+def bulletin(
+    day: str, values: dict[str, np.ndarray], thresholds: dict, heat: set[int], entry: dict
+) -> Path:
     """Cells on alert by either model, outside persistent heat sources, highest v7 first."""
     raw = np.frombuffer((ASSETS / "cells.bin").read_bytes(), dtype=np.uint8).reshape(-1, 34)
     lon = raw[:, 8:12].copy().view("<f4").ravel()
     lat = raw[:, 12:16].copy().view("<f4").ravel()
     region = raw[:, 16:18].copy().view("<u2").ravel()
-    labels = [
-        r["label"]
-        for r in json.loads((ASSETS / "geography.json").read_text(encoding="utf-8"))["regions"]
-    ]
+    regions = json.loads((ASSETS / "geography.json").read_text(encoding="utf-8"))["regions"]
+    labels = [r["label"] for r in regions]
     alert = {k: values[k] >= thresholds[k] for k in values}
     path_land = LIVE / f"forecasts/{day}/land.u8"
     codes = np.frombuffer(path_land.read_bytes(), dtype=np.uint8) if path_land.exists() else None
@@ -101,6 +120,40 @@ def bulletin(day: str, values: dict[str, np.ndarray], thresholds: dict, heat: se
                     int(alert["v6"][i]),
                 ]
             )
+    # The same alerts for the Telegram bot, with region names in three languages.
+    dump_json(
+        ASSETS / "bulletin-latest.json",
+        {
+            "synthetic": False,
+            "target_day": day,
+            "issued_utc": entry["issued_utc"],
+            "on_time": entry["on_time"],
+            "warnings": entry.get("warnings", []),
+            "thresholds": thresholds,
+            "eligible_cells": entry["models"]["v6"]["finite_cells"],
+            "regions": [
+                {
+                    "ru": r["label"],
+                    "en": r["name"].replace(" Region", ""),
+                    "kk": KAZAKH.get(r["name"], r["label"]),
+                }
+                for r in regions
+            ],
+            "alerts": [
+                {
+                    "region": int(region[i]),
+                    "lat": round(float(lat[i]), 4),
+                    "lon": round(float(lon[i]), 4),
+                    "land": land[i],
+                    "p_v7": round(float(values["v7"][i]), 5),
+                    "p_v6": round(float(values["v6"][i]), 5),
+                    "v7": bool(alert["v7"][i]),
+                    "v6": bool(alert["v6"][i]),
+                }
+                for i in cells
+            ],
+        },
+    )
     return path
 
 
@@ -186,7 +239,8 @@ def publish() -> dict:
         }
         thresholds = {k: frozen[k]["threshold"] for k in assets}
         shutil.copyfile(
-            bulletin(last, values, thresholds, set(heat)), ASSETS / "bulletin-latest.csv"
+            bulletin(last, values, thresholds, set(heat), issued[-1]),
+            ASSETS / "bulletin-latest.csv",
         )
     return record
 

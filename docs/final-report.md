@@ -95,11 +95,10 @@
 
 ## 8. Запуск
 
+Прогноз, сайт и Telegram-бот работают в облаке: настройка один раз по
+[cloud-setup.md](cloud-setup.md), дальше компьютер не нужен.
+
 ```powershell
-# один раз: ночной выпуск по расписанию
-powershell -ExecutionPolicy Bypass -File scripts\install_forecast_schedule.ps1
 # раз в месяц: зашифрованная резервная копия на внешний диск
 powershell -ExecutionPolicy Bypass -File scripts\backup_evidence.ps1 -Destination E:\ -Encrypt
-# состояние журнала
-.venv\Scripts\python.exe scripts\forecast_daily.py --status
 ```

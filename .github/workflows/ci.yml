@@ -2,7 +2,7 @@ name: Research integrity
 on:
   push:
     # Data and record branches carry no code.
-    branches-ignore: [forecast-inputs, forecast-log, forecast-trigger]
+    branches-ignore: [forecast-inputs, site-assets, forecast-log, forecast-trigger]
   pull_request:
 jobs:
   checks:
@@ -20,3 +20,11 @@ jobs:
       - run: ruff check . && ruff format --check .
       - run: mypy src/wildfire_kz
       - run: pytest -q
+  bot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node --test bot/test/bot.test.mjs
