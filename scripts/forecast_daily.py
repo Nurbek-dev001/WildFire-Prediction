@@ -305,6 +305,7 @@ def gfs_day(day: date) -> None:
     if path.exists():
         return
     values = gfs_forecasts.daily(day)
+    path.parent.mkdir(parents=True, exist_ok=True)
     temporary = path.with_suffix(".working.npz")
     np.savez_compressed(temporary, **{k: np.asarray(v) for k, v in values.items()})  # type: ignore[arg-type]
     temporary.replace(path)
