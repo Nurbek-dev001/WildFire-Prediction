@@ -639,6 +639,10 @@ def forecast(target: date, replay: bool = False) -> None:
             "release_sha256": checksum(folder / "release.json"),
             "payload": f"forecasts/{target}/{name}.f16.gz",
             "payload_sha256": write_payload(out_dir / f"{name}.f16.gz", p[order]),
+            # gzip bytes differ between zlib builds (Windows, Linux); the values do not.
+            "values_sha256": hashlib.sha256(
+                np.asarray(p[order], dtype="<f2").tobytes()
+            ).hexdigest(),
             "format": fl.FORMAT,
             "finite_cells": int(np.isfinite(p).sum()),
             "threshold": frozen["threshold"],
@@ -721,10 +725,14 @@ def check(target: date, out_dir: Path, f: pd.DataFrame) -> None:
     issued = {e["target_day"]: e for e in fl.read(LOG) if e["status"] == "issued"}.get(str(target))
     if issued:
         same = {
-            k: checksum(out_dir / f"{k}.f16.gz") == issued["models"][k]["payload_sha256"]
+            k: np.array_equal(
+                fl.decode((out_dir / f"{k}.f16.gz").read_bytes()),
+                fl.decode((LIVE / issued["models"][k]["payload"]).read_bytes()),
+                equal_nan=True,
+            )
             for k in ("v6", "v7")
         }
-        log(f"replay {target}: equals the issued forecast: {same}")
+        log(f"replay {target}: values equal the issued forecast: {same}")
         for k in ("v6", "v7"):
             mine = fl.decode((out_dir / f"{k}.f16.gz").read_bytes())
             theirs = fl.decode((LIVE / issued["models"][k]["payload"]).read_bytes())
