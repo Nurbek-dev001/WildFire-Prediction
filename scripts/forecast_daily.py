@@ -13,7 +13,6 @@ from __future__ import annotations
 
 import argparse
 import asyncio
-import gzip
 import json
 import struct
 import sys
@@ -30,6 +29,7 @@ sys.path.insert(0, str(ROOT / "src"))
 import develop_model_v7 as v7  # noqa: E402
 import test_2026 as t26  # noqa: E402
 
+from wildfire_kz import forecast_log as fl  # noqa: E402
 from wildfire_kz import model_upgrade as mu  # noqa: E402
 from wildfire_kz.data import checksum, dump_json, gfs_forecasts  # noqa: E402
 from wildfire_kz.data import public_predictors as pp  # noqa: E402
@@ -39,11 +39,9 @@ from wildfire_kz.data.gibs_fires import fetch_day  # noqa: E402
 LIVE = ROOT / "runs/forecast_live"
 LOG = LIVE / "log.jsonl"
 TEST = (date(2027, 3, 1), date(2027, 10, 31))
-DEADLINE_UTC_HOUR = 6
 # Sealed inputs of the 2026 test end here; later days come only from the live feeds.
 SEALED_DETECTIONS, SEALED_NDVI = t26.END.date(), (t26.END - pd.Timedelta(days=12)).date()
 EPOCH = v7.EPOCH
-FORMAT = "little_endian_float16_byte_shuffle_gzip"
 WEATHER_NAMES = ["tmax", "tmin", "temperature", "rh", "wind", "precip", "soil_moisture"]
 ERA5_VARIABLES = [
     "temperature_2m",
@@ -72,23 +70,61 @@ def verify_v7() -> dict:
 
 
 # ---------- detections ----------
-def gibs_day(day: date) -> pd.DataFrame:
-    """Raw GIBS points of one UTC day; refetched until the day is complete (D+1 06 UTC)."""
+FIRMS_7D = (
+    "https://firms.modaps.eosdis.nasa.gov/data/active_fire/suomi-npp-viirs-c2/csv/"
+    "SUOMI_VIIRS_C2_Russia_Asia_7d.csv"
+)
+FIRMS_CONFIDENCE = {"n": "nominal", "h": "high", "l": "low"}
+
+
+def firms_day(day: date) -> pd.DataFrame:
+    """The same S-NPP NRT points from the public seven-day FIRMS file, in GIBS columns."""
+    path = LIVE / f"firms/{datetime.now(UTC):%Y%m%dT%H}.csv"
+    if not path.exists():
+        path.parent.mkdir(parents=True, exist_ok=True)
+        pp.download(FIRMS_7D, path, timeout=120)
+    raw = pd.read_csv(path, dtype={"acq_time": str, "confidence": str, "version": str})
+    west, south, east, north = t26.BBOX
+    raw = raw[
+        (raw.acq_date == str(day))
+        & raw.longitude.between(west, east)
+        & raw.latitude.between(south, north)
+    ]
+    out = pd.DataFrame(
+        {
+            "LATITUDE": raw.latitude,
+            "LONGITUDE": raw.longitude,
+            "ACQ_DATE": raw.acq_date,
+            "ACQ_TIME": raw.acq_time.str.zfill(4),
+            "CONFIDENCE": raw.confidence.map(FIRMS_CONFIDENCE),
+            "SATELLITE": raw.satellite,
+            "VERSION": raw.version,
+        }
+    ).astype(str)
+    return out.drop_duplicates(["LATITUDE", "LONGITUDE", "ACQ_TIME"]).reset_index(drop=True)
+
+
+def detections_day(day: date) -> tuple[pd.DataFrame, str]:
+    """Raw points of one UTC day and their source; refetched until complete (D+1 06 UTC)."""
     path = LIVE / f"gibs/{day}.parquet"
-    complete_after = datetime.combine(
-        day + timedelta(days=1), datetime.min.time(), UTC
-    ) + timedelta(hours=DEADLINE_UTC_HOUR)
+    complete_after = fl.midnight(day + timedelta(days=1)) + fl.DEADLINE_AFTER_MIDNIGHT
     if path.exists() and datetime.fromtimestamp(path.stat().st_mtime, UTC) >= complete_after:
-        return pd.read_parquet(path)
-    raw = fetch_day(str(day), t26.BBOX)
-    raw = (
-        raw.astype(str).drop_duplicates(["LATITUDE", "LONGITUDE", "ACQ_TIME"]) if len(raw) else raw
-    )
-    path.parent.mkdir(parents=True, exist_ok=True)
-    temporary = path.with_suffix(".working")
-    raw.to_parquet(temporary, index=False)
-    temporary.replace(path)
-    return raw
+        return pd.read_parquet(path), "gibs"
+    try:
+        raw, source = fetch_day(str(day), t26.BBOX), "gibs"
+        if len(raw):
+            raw = raw.astype(str).drop_duplicates(["LATITUDE", "LONGITUDE", "ACQ_TIME"])
+    except Exception as error:  # noqa: BLE001 - any GIBS failure falls back to FIRMS
+        log(f"GIBS {day} failed ({error}); FIRMS seven-day file")
+        raw, source = pd.DataFrame(), "firms"
+    if not len(raw) and day >= datetime.now(UTC).date() - timedelta(days=6):
+        raw, source = firms_day(day), "firms"
+    if source == "gibs":
+        path.parent.mkdir(parents=True, exist_ok=True)
+        temporary = path.with_suffix(".working")
+        raw.to_parquet(temporary, index=False)
+        temporary.replace(path)
+    return raw, source
 
 
 def live_detections(last: date) -> tuple[pd.DataFrame, dict]:
@@ -101,7 +137,8 @@ def live_detections(last: date) -> tuple[pd.DataFrame, dict]:
 
     # Days are independent HTTP work; each is written atomically.
     with ThreadPoolExecutor(max_workers=6) as pool:
-        frames = list(pool.map(gibs_day, days))
+        fetched = list(pool.map(detections_day, days))
+    frames = [f for f, _ in fetched]
     points = (
         pd.concat([f for f in frames if len(f)], ignore_index=True)
         if any(len(f) for f in frames)
@@ -115,6 +152,7 @@ def live_detections(last: date) -> tuple[pd.DataFrame, dict]:
         "live_days": [str(days[0]), str(days[-1])] if days else None,
         "live_points": 0 if points is None else len(points),
         "points_last_day": len(frames[-1]) if frames else None,
+        "firms_days": [str(d) for d, (_, src) in zip(days, fetched, strict=True) if src == "firms"],
         "last_detection_utc": str(both.timestamp.max()),
     }
     return both, meta
@@ -377,45 +415,34 @@ def h3_h2(day: pd.Timestamp, detections: pd.DataFrame, cells: pd.Series) -> pd.D
 
 
 # ---------- output ----------
-def write_payload(path: Path, p: np.ndarray, order: np.ndarray) -> str:
-    bits = np.asarray(p[order], dtype="<f2").view("uint8").reshape(-1, 2)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_bytes(gzip.compress(bits.T.tobytes(), mtime=0))
-    decoded = np.frombuffer(
-        np.frombuffer(gzip.decompress(path.read_bytes()), dtype="uint8").reshape(2, -1).T.tobytes(),
-        dtype="<f2",
-    ).astype("float32")
-    if not np.array_equal(decoded, p[order], equal_nan=True):
+def write_payload(path: Path, p: np.ndarray) -> str:
+    payload = fl.encode(p)
+    if not np.array_equal(fl.decode(payload), p, equal_nan=True):
         raise ValueError("Payload does not round-trip")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(payload)
     return checksum(path)
 
 
-def entries() -> list[dict]:
-    if not LOG.exists():
-        return []
-    rows = [json.loads(line) for line in LOG.read_text().splitlines() if line.strip()]
-    previous = "0" * 64
-    for row in rows:
-        body = {k: v for k, v in row.items() if k != "entry_sha256"}
-        if row["previous_sha256"] != previous or digest(body) != row["entry_sha256"]:
-            raise ValueError(f"Forecast log chain broken at {row['target_day']}")
-        previous = row["entry_sha256"]
-    return rows
-
-
-def digest(body: dict) -> str:
-    import hashlib
-
-    return hashlib.sha256(json.dumps(body, sort_keys=True).encode()).hexdigest()
+def strong_detections(live: pd.DataFrame) -> pd.DataFrame:
+    """Nominal/high active cell-days from 2014 on, for the H1 heat-source rule."""
+    columns = ["cell_id", "timestamp", "confidence"]
+    frames = [
+        pd.read_parquet(ROOT / f"data/real/normalized/detections_{y}.parquet", columns=columns)
+        for y in range(2014, 2025)
+    ]
+    frames += [pd.read_parquet(v7.IND / "detections_2025.parquet", columns=columns), live[columns]]
+    both = pd.concat(frames, ignore_index=True)
+    both = both[both.confidence.isin(["n", "h"])]
+    return both.assign(day=both.timestamp.dt.floor("D"))[["cell_id", "day"]].drop_duplicates()
 
 
 def forecast(target: date, replay: bool = False) -> None:
     issued = datetime.now(UTC)
-    history_log = entries()
-    if not replay and any(e["target_day"] == str(target) for e in history_log):
-        log(f"{target}: already issued, the first issue stands")
+    if not replay and any(e["target_day"] == str(target) for e in fl.read(LOG)):
+        log(f"{target}: already in the log, the first entry stands")
         return
-    earliest = datetime.combine(target, datetime.min.time(), UTC) - timedelta(hours=1)
+    earliest, deadline = fl.window(target)
     if not replay and issued < earliest:
         raise RuntimeError(
             f"Too early: D-1 detections to 21 UTC and GFS 18 UTC exist after {earliest}"
@@ -481,6 +508,8 @@ def forecast(target: date, replay: bool = False) -> None:
     extras = h3_h2(day, detections, cells)
     for c in extras:
         f[c] = extras[c].to_numpy()
+    # H1 persistent heat sources as known before D: the 2027 test's primary risk set.
+    heat = v7.HeatRule(strong_detections(detections), cells).flag(keys)
 
     log(f"{target}: scoring")
     out_dir = LIVE / (f"replay/{target}" if replay else f"forecasts/{target}")
@@ -493,46 +522,72 @@ def forecast(target: date, replay: bool = False) -> None:
         p = np.full(n, np.nan, dtype="float32")
         raw = model["estimator"].predict_proba(f.loc[eligible, model["features"]])[:, 1]
         p[eligible] = mu.published_probability(calibration.predict(raw))
+        alert = p >= frozen["threshold"]
         models[name] = {
             "release_sha256": checksum(folder / "release.json"),
             "payload": f"forecasts/{target}/{name}.f16.gz",
-            "payload_sha256": write_payload(out_dir / f"{name}.f16.gz", p, order),
-            "format": FORMAT,
+            "payload_sha256": write_payload(out_dir / f"{name}.f16.gz", p[order]),
+            "format": fl.FORMAT,
             "finite_cells": int(np.isfinite(p).sum()),
             "threshold": frozen["threshold"],
-            "alert_cells": int(np.sum(p >= frozen["threshold"])),
+            "alert_cells": int(alert.sum()),
+            "alert_cells_outside_heat_sources": int((alert & ~heat).sum()),
             "mean_probability": float(np.nanmean(p)),
         }
+    # Heat sources in cells.bin order, as the map indexes cells.
+    heat_cells = np.flatnonzero(heat[order]).astype(int).tolist()
+    (out_dir / "heat_cells.json").write_text(json.dumps(heat_cells))
     if replay:
         check(target, out_dir, f)
         return
-    deadline = datetime.combine(target, datetime.min.time(), UTC) + timedelta(
-        hours=DEADLINE_UTC_HOUR
-    )
-    body = {
-        "target_day": str(target),
-        "issued_utc": issued.isoformat(timespec="seconds"),
-        "on_time": issued < deadline,
-        "prospective_test_day": TEST[0] <= target <= TEST[1],
-        "models": models,
-        "inputs": {
-            "detections": det_meta,
-            "era5_last_day": str(era5_last),
-            "ndvi_last_week": ndvi_last,
-            "gfs": {str(d): checksum(v7.GFS / f"{d}.npz") for d in gfs_days},
-            "land_cover_year": t26.COVER_YEAR,
-            "v7_frozen_utc": v7_release["frozen_utc"],
+    entry = fl.append(
+        LOG,
+        {
+            "target_day": str(target),
+            "status": "issued",
+            "issued_utc": issued.isoformat(timespec="seconds"),
+            "on_time": issued < deadline,
+            "prospective_test_day": TEST[0] <= target <= TEST[1],
+            "models": models,
+            "heat_cells": len(heat_cells),
+            "heat_cells_sha256": checksum(out_dir / "heat_cells.json"),
+            "inputs": {
+                "detections": det_meta,
+                "era5_last_day": str(era5_last),
+                "ndvi_last_week": ndvi_last,
+                "gfs": {str(d): checksum(v7.GFS / f"{d}.npz") for d in gfs_days},
+                "land_cover_year": t26.COVER_YEAR,
+                "v7_frozen_utc": v7_release["frozen_utc"],
+            },
+            "code_sha256": checksum(Path(__file__)),
         },
-        "code_sha256": checksum(Path(__file__)),
-        "previous_sha256": history_log[-1]["entry_sha256"] if history_log else "0" * 64,
-    }
-    body["entry_sha256"] = digest(body)
-    with LOG.open("a", encoding="utf-8", newline="\n") as stream:
-        stream.write(json.dumps(body, sort_keys=True) + "\n")
+    )
     log(
-        f"{target}: issued, on time {body['on_time']}; alerts v6 {models['v6']['alert_cells']}, "
+        f"{target}: issued, on time {entry['on_time']}; alerts v6 {models['v6']['alert_cells']}, "
         f"v7 {models['v7']['alert_cells']} of {models['v6']['finite_cells']} cells"
     )
+    import publish_forecasts
+
+    publish_forecasts.publish()
+
+
+def missed(target: date, error: BaseException) -> None:
+    """After the last scheduled attempt a failure is a missed day, and is logged as one."""
+    if any(e["target_day"] == str(target) for e in fl.read(LOG)):
+        return
+    fl.append(
+        LOG,
+        {
+            "target_day": str(target),
+            "status": "missed",
+            "issued_utc": datetime.now(UTC).isoformat(timespec="seconds"),
+            "on_time": False,
+            "prospective_test_day": TEST[0] <= target <= TEST[1],
+            "reason": f"{type(error).__name__}: {error}"[:500],
+            "code_sha256": checksum(Path(__file__)),
+        },
+    )
+    log(f"{target}: recorded as missed ({error})")
 
 
 def check(target: date, out_dir: Path, f: pd.DataFrame) -> None:
@@ -553,8 +608,17 @@ def check(target: date, out_dir: Path, f: pd.DataFrame) -> None:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    # 23:00 UTC of D-1 to 06:00 UTC of D all map to D.
-    parser.add_argument("--day", default=str((datetime.now(UTC) + timedelta(hours=12)).date()))
+    parser.add_argument("--day", default=str(fl.target_day(datetime.now(UTC))))
     parser.add_argument("--replay", action="store_true", help="recompute a past day, no log entry")
+    parser.add_argument("--status", action="store_true", help="print the log summary and stop")
     args = parser.parse_args()
-    forecast(date.fromisoformat(args.day), args.replay)
+    if args.status:
+        print(json.dumps(fl.summary(fl.read(LOG), TEST), indent=2))
+        sys.exit(0)
+    target = date.fromisoformat(args.day)
+    try:
+        forecast(target, args.replay)
+    except Exception as error:
+        if not args.replay and fl.last_attempt(target, datetime.now(UTC)):
+            missed(target, error)
+        raise

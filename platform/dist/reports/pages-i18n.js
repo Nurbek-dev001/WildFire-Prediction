@@ -1,6 +1,6 @@
 // English and Kazakh text for the report pages. Static blocks keep their Russian in the page
 // itself (data-i18n-html), so those entries hold only en and kk; script text has all three.
-import { DICT } from '../i18n.js?v=20261029-v6';
+import { DICT } from '../i18n.js?v=20261030-live';
 
 const L = (ru, en, kk) => ({ ru, en, kk });
 const E = (en, kk) => ({ en, kk });

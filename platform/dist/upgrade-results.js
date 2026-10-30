@@ -1,4 +1,4 @@
-import {t,pctText as pct} from './i18n.js?v=20261029-v6';
+import {t,pctText as pct} from './i18n.js?v=20261030-live';
 export function decodeHalf(raw,count){
   if(raw.byteLength!==count*2)throw Error('Half grid size differs');
   const b=new Uint8Array(raw),out=new Float32Array(count);

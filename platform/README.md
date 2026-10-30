@@ -211,3 +211,14 @@ sealed until the pipeline's explicit final evaluation gate is reached.
 The exact acquisition URLs, revisions, hashes, and access checks remain in
 `runs/primary/acquisition/` locally. Sealed files and ML runtime artifacts are
 excluded from the Site source and deployment package.
+
+## Daily forecasts
+
+`scripts/forecast_daily.py` (repository root) issues v6 and v7 for the next UTC day each night
+and `scripts/publish_forecasts.py` adds them here: payloads in `assets/predictions-v6/` and
+`assets/predictions-v7/` (not in Git, like the other payloads), their hashes and log entries in
+`assets/forecast-live.json`, the latest alerts in `assets/bulletin-latest.csv`. The map opens on
+the newest forecast; v7 appears as a third model once a day is issued. The registered v6
+manifest is not changed: daily days are merged in the browser after their hashes check.
+`node scripts/verify-live-assets.mjs` verifies every daily payload against its record. A
+deployment needs the new payload files uploaded with `forecast-live.json`.

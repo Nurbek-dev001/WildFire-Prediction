@@ -129,6 +129,12 @@ years (GFS from 2024), against the v6 recipe.
 | 2024, GFS | 0.0270 → 0.0210 | 5.32% → **13.50%** | −0.015 (+0.002) | ×1.43 (×2.25) |
 | 2025, GFS | 0.0167 → **0.0212** | 1.46% → **5.63%** | **+0.001** (−0.021) | ×1.63 (×1.71) |
 
+Paired block bootstrap (1000 draws, 100 km x 30 days), v7 minus v6 recipe, AP (95%):
+2020 +0.0047..+0.0124; 2021 -0.0003..+0.0055; 2022 -0.0024..+0.0110; 2023 -0.0152..-0.0017;
+2024 -0.0143..+0.0128; 2025 +0.0024..+0.0068. v7 is better beyond noise at 2020 and at 2025, the
+year served exactly as in operation; worse beyond noise at 2023; the other three are open.
+`scripts/bootstrap_v7.py`, `runs/model_v7/experiments/v7_candidate/bootstrap.json`.
+
 The candidate does not meet the selection rule (2023 and 2024). Amendment
 2026-10-29-02, written after these results: no release under the rule, v6 stays the map
 default, and the candidate is frozen as a challenger for the prospective 2027 test, which
@@ -156,3 +162,18 @@ Checks: a replay of 2026-10-15 reproduces the registered v6 map byte for byte, a
 H2 inputs equal v7's development features exactly (4,334 rows of 2026-10-15; two 2025 days).
 The log proves order, not time, to anyone outside this machine: pushing it daily (or any
 external timestamp) is what makes the 2027 comparison verifiable.
+
+### Operation (from 2026-10-30)
+
+- First entry: 2026-10-30, issued 05:36 UTC, on time; alerts v6 51, v7 34 of 109,838 cells.
+- Detections: GIBS first; the public FIRMS seven-day file when GIBS fails or is empty
+  (`firms_days` in each entry). A day that cannot be issued by the last attempt (03:40 UTC) is
+  logged as `missed` with the reason, so gaps are visible, not silent.
+- Each entry also records the H1 heat-source cells known before D, the 2027 primary risk set.
+- `scripts/publish_forecasts.py` puts every issued day on the map (v6 timeline and v7 as a third
+  model, `platform/dist/assets/forecast-live.json`) and writes the alert bulletin
+  (`assets/bulletin-latest.csv`, region, coordinates, both probabilities).
+- `scripts/push_forecast_log.py` commits the log to the `forecast-log` branch from its own
+  worktree and pushes it: the GitHub time of each push is the external timestamp.
+- Install once: `powershell -ExecutionPolicy Bypass -File scripts\install_forecast_schedule.ps1 -Push`.
+- `forecast_daily.py --status` summarises on-time, late and missed test days.

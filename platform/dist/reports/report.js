@@ -1,8 +1,8 @@
 // Shared code for report pages: verified data loading, localised number formats, SVG charts.
 // Every number on a report comes from a release file checked against its SHA-256 record.
 
-import { t, locale, bindSwitch, onLang } from '../i18n.js?v=20261029-v6';
-import './pages-i18n.js?v=20261029-v6';
+import { t, locale, bindSwitch, onLang } from '../i18n.js?v=20261030-live';
+import './pages-i18n.js?v=20261030-live';
 
 export { t };
 export const $ = (id) => document.getElementById(id);

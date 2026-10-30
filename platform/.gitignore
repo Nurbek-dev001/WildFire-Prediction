@@ -7,3 +7,7 @@ node_modules/
 # forecast manifest, without exceeding the source Git receive size limit.
 /dist/assets/predictions/
 /dist/assets/predictions-v6/
+/dist/assets/predictions-v7/
+# Daily forecast records change every night; the forecast-log branch keeps them.
+/dist/assets/forecast-live.json
+/dist/assets/bulletin-latest.csv
