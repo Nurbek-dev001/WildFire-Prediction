@@ -1,24 +1,25 @@
 {
   "synthetic": false,
   "kind": "daily_forecasts",
-  "updated_utc": "2026-10-31T09:58:20+00:00",
+  "updated_utc": "2026-11-01T02:32:46+00:00",
   "test_period": [
     "2027-03-01",
     "2027-10-31"
   ],
-  "log_last_entry_sha256": "edfc505f334a5cda003456cfeb6f0f92aa53fc1b4c0749d271a1baac61ba70de",
+  "log_last_entry_sha256": "7a360bfb2e1b564b00e1c1060016b363332f67e660bbda7eec74fa88a01020db",
   "summary": {
-    "entries": 2,
+    "entries": 3,
     "test_days_total": 245,
     "test_days_on_time": 0,
     "test_days_late": 0,
     "test_days_missed": 0,
-    "last": "2026-10-31"
+    "last": "2026-11-01"
   },
   "missed_days": [],
   "days": [
     "2026-10-30",
-    "2026-10-31"
+    "2026-10-31",
+    "2026-11-01"
   ],
   "models": {
     "v6": {
@@ -317,6 +318,21 @@
         "issued_utc": "2026-10-31T02:42:22+00:00",
         "on_time": true,
         "log_entry_sha256": "edfc505f334a5cda003456cfeb6f0f92aa53fc1b4c0749d271a1baac61ba70de"
+      },
+      "2026-11-01": {
+        "target_day": "2026-11-01",
+        "synthetic": false,
+        "model": "xgboost_v6",
+        "format": "little_endian_float16_byte_shuffle_gzip",
+        "count": 110129,
+        "finite_cells": 109815,
+        "alert_cells": 54,
+        "payload_sha256": "76797a0bfe1b1ec2233619e1dac8285c9bbd669085bbe94b0adcde7b1e4cb625",
+        "release_sha256": "6575d61a84036b5964155f7966c28282271d359e936f1aa1e8754e6018b848d9",
+        "retrospective": false,
+        "issued_utc": "2026-11-01T02:32:04+00:00",
+        "on_time": true,
+        "log_entry_sha256": "7a360bfb2e1b564b00e1c1060016b363332f67e660bbda7eec74fa88a01020db"
       }
     },
     "v7": {
@@ -349,6 +365,21 @@
         "issued_utc": "2026-10-31T02:42:22+00:00",
         "on_time": true,
         "log_entry_sha256": "edfc505f334a5cda003456cfeb6f0f92aa53fc1b4c0749d271a1baac61ba70de"
+      },
+      "2026-11-01": {
+        "target_day": "2026-11-01",
+        "synthetic": false,
+        "model": "xgboost_v7",
+        "format": "little_endian_float16_byte_shuffle_gzip",
+        "count": 110129,
+        "finite_cells": 109815,
+        "alert_cells": 210,
+        "payload_sha256": "0e299499c8c21e6ea28992241158f067d0de121eba01f0e2cd5640f9a0203fd0",
+        "release_sha256": "a17dfa714f26f6aebc8e2ed883b2e3a98238a48ec585475833d6210478fb4e2b",
+        "retrospective": false,
+        "issued_utc": "2026-11-01T02:32:04+00:00",
+        "on_time": true,
+        "log_entry_sha256": "7a360bfb2e1b564b00e1c1060016b363332f67e660bbda7eec74fa88a01020db"
       }
     }
   },
