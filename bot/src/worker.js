@@ -1,9 +1,10 @@
 // Cloudflare Worker: Telegram webhook for subscribers and the morning broadcast.
 // Secrets and bindings (wrangler.toml / GitHub workflow): TELEGRAM_TOKEN, SITE_URL, ADMIN_CHAT_ID
-// (optional), KV namespace SUBS. Only chat id, language, regions and two switches are stored,
-// as key metadata, so one KV list call reads every subscriber.
+// (optional), KV namespace SUBS. Only chat id, language, regions, an optional point and a few
+// switches are stored, as key metadata, so one KV list call reads every subscriber.
 import {
-  T, langOf, defaults, command, regionKeyboard, toggleRegion, regionList, summary, nearby,
+  T, langOf, defaults, command, menuAction, menuKeyboard, findRegion, regionKeyboard, toggleRegion,
+  regionList, summary, regionSummary, nearby, national, regionCounts, radiusKeyboard, RADII,
   settingsKeyboard, applySetting, COMMANDS,
 } from './logic.js';
 
@@ -32,6 +33,15 @@ async function bulletin(env) {
   return b?.synthetic === false && Array.isArray(b.alerts) ? b : null;
 }
 
+// Alert counts per region of recent days, written once per new day by the broadcast.
+async function history(env) {
+  return JSON.parse((await env.SUBS.get('history')) || '{}');
+}
+function previousCounts(hist, day) {
+  const days = Object.keys(hist).filter((d) => d < day).sort();
+  return days.length ? hist[days.at(-1)] : null;
+}
+
 const key = (chat) => `chat:${chat}`;
 async function load(env, chat, lang) {
   const { metadata } = await env.SUBS.getWithMetadata(key(chat));
@@ -43,6 +53,7 @@ const mapButton = (env, lang) => ({ inline_keyboard: [[{ text: T[lang].map, url:
 const send = (env, chat, text, extra = {}) => tg(env, 'sendMessage', {
   chat_id: chat, text, parse_mode: 'HTML', disable_web_page_preview: true, ...extra,
 });
+const escapeName = (s) => (s ? String(s).replace(/[&<>]/g, '').slice(0, 40) : '');
 
 async function onMessage(env, msg) {
   const chat = msg.chat.id;
@@ -51,17 +62,24 @@ async function onMessage(env, msg) {
   const lang = sub?.lang || lang0;
   const t = T[lang];
   if (msg.location) {
+    sub = { ...(sub || defaults(lang)), home: { lat: +msg.location.latitude.toFixed(4), lon: +msg.location.longitude.toFixed(4) } };
+    await save(env, chat, sub);
     const b = await bulletin(env);
-    return send(env, chat, b ? nearby(b, msg.location.latitude, msg.location.longitude, lang) : t.noData, { reply_markup: mapButton(env, lang) });
+    if (b) await send(env, chat, nearby(b, sub.home.lat, sub.home.lon, lang, sub), { reply_markup: mapButton(env, lang) });
+    return send(env, chat, t.homeAsk, { reply_markup: radiusKeyboard(lang) });
   }
-  const c = command(msg.text);
-  if (!c) return send(env, chat, t.help);
-  const b = ['start', 'regions', 'today'].includes(c.name) ? await bulletin(env) : null;
+  const c = command(msg.text) || (menuAction(msg.text) ? { name: menuAction(msg.text), arg: '' } : null);
+  const b = !c || ['start', 'regions', 'today', 'kz'].includes(c.name) ? await bulletin(env) : null;
+  if (!c) {
+    const region = b ? findRegion(b, msg.text) : -1;
+    if (region >= 0) return send(env, chat, regionSummary(b, sub || defaults(lang), region), { reply_markup: mapButton(env, lang) });
+    return send(env, chat, t.unknown, { reply_markup: menuKeyboard(lang) });
+  }
   switch (c.name) {
     case 'start':
       sub = sub || defaults(lang);
       await save(env, chat, sub);
-      await send(env, chat, t.welcome(escapeName(msg.from?.first_name)));
+      await send(env, chat, t.welcome(escapeName(msg.from?.first_name)), { reply_markup: menuKeyboard(lang) });
       return b ? send(env, chat, t.choose, { reply_markup: regionKeyboard(b, sub) }) : send(env, chat, t.noData);
     case 'regions':
       sub = sub || defaults(lang);
@@ -69,55 +87,68 @@ async function onMessage(env, msg) {
     case 'today':
       if (!b) return send(env, chat, t.noData);
       return send(env, chat, summary(b, sub || defaults(lang), { forced: true }), { reply_markup: mapButton(env, lang) });
+    case 'near':
+      // The menu button sends the location itself; typed /near asks for it.
+      return send(env, chat, t.homeAsk, { reply_markup: menuKeyboard(lang) });
+    case 'kz': {
+      if (!b) return send(env, chat, t.noData);
+      const prev = previousCounts(await history(env), b.target_day);
+      return send(env, chat, national(b, sub || defaults(lang), prev), { reply_markup: mapButton(env, lang) });
+    }
     case 'settings':
       sub = sub || defaults(lang);
       await save(env, chat, sub);
-      return send(env, chat, t.settings(sub.push, sub.quiet, sub.lang), { reply_markup: settingsKeyboard(sub) });
+      return send(env, chat, t.settings(sub), { reply_markup: settingsKeyboard(sub) });
     case 'about':
       return send(env, chat, t.about, { reply_markup: mapButton(env, lang) });
     case 'stop':
       await env.SUBS.delete(key(chat));
-      return send(env, chat, t.stopped);
+      return send(env, chat, t.stopped, { reply_markup: { remove_keyboard: true } });
     case 'stats':
       if (String(chat) !== String(env.ADMIN_CHAT_ID || '')) return send(env, chat, t.unknown);
-      return send(env, chat, `Subscribers: ${(await allSubscribers(env)).length}`);
+      return send(env, chat, await stats(env));
     case 'help':
-      return send(env, chat, t.help);
+      return send(env, chat, t.help, { reply_markup: menuKeyboard(lang) });
     default:
-      return send(env, chat, t.unknown);
+      return send(env, chat, t.unknown, { reply_markup: menuKeyboard(lang) });
   }
 }
-
-const escapeName = (s) => (s ? String(s).replace(/[&<>]/g, '').slice(0, 40) : '');
 
 async function onCallback(env, cb) {
   const chat = cb.message.chat.id;
   let sub = (await load(env, chat, langOf(cb.from?.language_code))) || defaults(langOf(cb.from?.language_code));
   const [kind, ...rest] = cb.data.split(':');
   const value = rest.join(':');
+  const t = T[sub.lang];
   const edit = (text, markup) => tg(env, 'editMessageText', {
     chat_id: chat, message_id: cb.message.message_id, text, parse_mode: 'HTML', reply_markup: markup,
   });
+  await tg(env, 'answerCallbackQuery', { callback_query_id: cb.id });
   if (kind === 'r') {
     const b = await bulletin(env);
-    if (!b) return tg(env, 'answerCallbackQuery', { callback_query_id: cb.id, text: T[sub.lang].noData });
+    if (!b) return edit(t.noData);
     if (value === 'done') {
       await save(env, chat, sub);
-      await tg(env, 'answerCallbackQuery', { callback_query_id: cb.id });
-      return edit(sub.regions.length ? T[sub.lang].saved(regionList(b, sub)) : T[sub.lang].noRegions);
+      return edit(sub.regions.length ? t.saved(regionList(b, sub)) : t.noRegions);
     }
     sub = toggleRegion(sub, value, b.regions.length);
     await save(env, chat, sub);
-    await tg(env, 'answerCallbackQuery', { callback_query_id: cb.id });
-    return edit(T[sub.lang].choose, regionKeyboard(b, sub));
+    return edit(t.choose, regionKeyboard(b, sub));
+  }
+  if (kind === 'h') {
+    if (value === 'off') {
+      await save(env, chat, { ...sub, home: null });
+      return edit(t.homeRemoved);
+    }
+    const radius = RADII.includes(Number(value)) ? Number(value) : 50;
+    await save(env, chat, { ...sub, radius });
+    return edit(t.homeSaved(radius));
   }
   if (kind === 's') {
     sub = applySetting(sub, value);
     await save(env, chat, sub);
-    await tg(env, 'answerCallbackQuery', { callback_query_id: cb.id });
-    return edit(T[sub.lang].settings(sub.push, sub.quiet, sub.lang), settingsKeyboard(sub));
+    return edit(T[sub.lang].settings(sub), settingsKeyboard(sub));
   }
-  return tg(env, 'answerCallbackQuery', { callback_query_id: cb.id });
 }
 
 async function allSubscribers(env) {
@@ -131,12 +162,32 @@ async function allSubscribers(env) {
   return out;
 }
 
+async function stats(env) {
+  const subs = await allSubscribers(env);
+  const m = subs.map((k) => k.metadata || {});
+  const state = JSON.parse((await env.SUBS.get('broadcast')) || '{}');
+  return [
+    `Подписчиков: ${subs.length}`,
+    `с областями: ${m.filter((s) => s.regions?.length).length}, с точкой: ${m.filter((s) => s.home).length}`,
+    `рассылка выключена: ${m.filter((s) => s.push === false).length}`,
+    `языки: ${['ru', 'kk', 'en'].map((l) => `${l} ${m.filter((s) => (s.lang || 'ru') === l).length}`).join(', ')}`,
+    `последняя рассылка: ${state.day || '—'}, отправлено ${state.sent || 0}${state.done ? '' : ' (идёт)'}`,
+  ].join('\n');
+}
+
 // One cron tick: if a new day is published, send the next batch of summaries.
 export async function broadcast(env) {
   const b = await bulletin(env);
   if (!b) return { sent: 0, reason: 'no bulletin' };
   const state = JSON.parse((await env.SUBS.get('broadcast')) || '{}');
   if (state.day === b.target_day && state.done) return { sent: 0, reason: 'done' };
+  if (state.day !== b.target_day) {
+    // First tick of a new day: keep its counts for the trend (two weeks).
+    const hist = await history(env);
+    hist[b.target_day] = regionCounts(b);
+    for (const d of Object.keys(hist).sort().slice(0, -14)) delete hist[d];
+    await env.SUBS.put('history', JSON.stringify(hist));
+  }
   const cursor = state.day === b.target_day ? state.cursor : undefined;
   const page = await env.SUBS.list({ prefix: 'chat:', cursor, limit: BATCH });
   let sent = 0;
@@ -162,7 +213,7 @@ export default {
     const url = new URL(request.url);
     const secret = await webhookSecret(env);
     if (url.pathname === '/health') return new Response('ok');
-    // Called once by the deploy workflow: registers the webhook and the command menu.
+    // Called by the deploy workflow: registers the webhook and the command menu.
     if (url.pathname === '/setup' && url.searchParams.get('key') === secret) {
       const hook = await tg(env, 'setWebhook', {
         url: `${url.origin}/telegram`, secret_token: secret,

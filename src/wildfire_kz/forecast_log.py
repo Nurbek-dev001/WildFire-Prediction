@@ -20,8 +20,8 @@ GENESIS = "0" * 64
 FORMAT = "little_endian_float16_byte_shuffle_gzip"
 EARLIEST_BEFORE_MIDNIGHT = timedelta(hours=1)
 DEADLINE_AFTER_MIDNIGHT = timedelta(hours=6)
-# The last scheduled attempt runs at 03:40 UTC; a failure from 03:00 UTC on is recorded.
-LAST_ATTEMPT_AFTER_MIDNIGHT = timedelta(hours=3)
+# The last scheduled attempt starts at 05:35 UTC; a failure from 05:30 UTC on is recorded.
+LAST_ATTEMPT_AFTER_MIDNIGHT = timedelta(hours=5, minutes=30)
 
 
 def midnight(day: date) -> datetime:

@@ -24,8 +24,8 @@ def test_issue_window_maps_the_night_to_one_target_day():
     earliest, deadline = fl.window(date(2027, 3, 2))
     assert earliest == datetime(2027, 3, 1, 23, tzinfo=UTC)
     assert deadline == datetime(2027, 3, 2, 6, tzinfo=UTC)
-    assert not fl.last_attempt(date(2027, 3, 2), datetime(2027, 3, 2, 1, 40, tzinfo=UTC))
-    assert fl.last_attempt(date(2027, 3, 2), datetime(2027, 3, 2, 3, 40, tzinfo=UTC))
+    assert not fl.last_attempt(date(2027, 3, 2), datetime(2027, 3, 2, 3, 40, tzinfo=UTC))
+    assert fl.last_attempt(date(2027, 3, 2), datetime(2027, 3, 2, 5, 35, tzinfo=UTC))
 
 
 def test_chain_links_entries_and_refuses_a_second_issue(tmp_path):

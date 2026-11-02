@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   command, summary, nearby, toggleRegion, regionKeyboard, applySetting, defaults, distanceKm, langOf,
+  menuAction, menuKeyboard, findRegion, national, regionSummary,
 } from '../src/logic.js';
 import worker, { broadcast } from '../src/worker.js';
 
@@ -34,6 +35,32 @@ test('a summary lists only the subscriber regions and explains cropland alerts',
   assert.match(summary(bulletin, { ...defaults('en'), regions: [1] }), /Alerts in your regions/);
 });
 
+test('menu buttons, typed region names and the national summary', () => {
+  assert.equal(menuAction('🔥 Прогноз'), 'today');
+  assert.equal(menuAction('🇰🇿 Бүкіл Қазақстан'), 'kz');
+  assert.equal(menuAction('hello'), null);
+  assert.equal(menuKeyboard('ru').keyboard[0][1].request_location, true);
+  assert.equal(findRegion(bulletin, 'кызылорда'), 1);
+  assert.equal(findRegion(bulletin, 'Pavlodar'), 0);
+  assert.equal(findRegion(bulletin, 'ок'), -1);
+  assert.match(regionSummary(bulletin, defaults('ru'), 1), /Кызылординская: тревог <b>2<\/b>/);
+  assert.match(regionSummary(bulletin, defaults('ru'), 0), /Павлодарская: тревог на завтра нет/);
+  const kz = national(bulletin, defaults('ru'), { 1: 5 });
+  assert.match(kz, /Всего тревог: <b>2<\/b>/);
+  assert.match(kz, /Кызылординская: <b>2<\/b> ↓3/);
+});
+
+test('cropland burns can be hidden; a saved point gets its own section', () => {
+  const sub = { ...defaults('ru'), regions: [1], crop: false };
+  const text = summary(bulletin, sub);
+  assert.match(text, /Тревог в ваших областях: <b>1<\/b>/);
+  assert.match(text, /Скрыто палов на пашне: 1/);
+  const home = { ...defaults('ru'), home: { lat: 45.13, lon: 65.0 }, radius: 25 };
+  assert.match(summary(bulletin, home), /Рядом с вами<\/b> \(до 25 км\): тревог <b>2<\/b>/);
+  assert.equal(summary(bulletin, { ...home, home: { lat: 51, lon: 71 } }), null, 'quiet when nothing near');
+  assert.equal(applySetting(defaults('ru'), 'crop').crop, false);
+});
+
 test('region toggles, all and the keyboard marks', () => {
   let sub = defaults('ru');
   sub = toggleRegion(sub, '1', 2);
@@ -58,9 +85,9 @@ test('settings switch push, quiet and language', () => {
 test('nearby alerts are sorted by distance within 50 km', () => {
   assert.ok(Math.abs(distanceKm(45, 65, 46, 65) - 111.2) < 0.5);
   const text = nearby(bulletin, 45.13, 65.0, 'ru');
-  assert.match(text, /Тревог в радиусе 50 км: <b>2<\/b>/);
+  assert.match(text, /до 50 км\): тревог <b>2<\/b>/);
   assert.ok(text.indexOf('пашня') < text.indexOf('степь'));
-  assert.match(nearby(bulletin, 51, 71, 'ru'), /тревог на завтра нет/);
+  assert.match(nearby(bulletin, 51, 71, 'ru'), /тревог нет/);
 });
 
 // A Telegram, KV and site double for the worker.
@@ -113,7 +140,16 @@ test('webhook refuses requests without the secret and runs a subscription end to
   await update(env, { message: { chat: { id: 1 }, text: '/today' } }, secret);
   assert.match(sent.at(-1).body.text, /Кызылорд|Тревог/);
   await update(env, { message: { chat: { id: 1 }, location: { latitude: 45.13, longitude: 65 } } }, secret);
-  assert.match(sent.at(-1).body.text, /радиусе 50 км/);
+  assert.deepEqual(kv.get('chat:1').metadata.home, { lat: 45.13, lon: 65 });
+  assert.equal(sent.at(-1).body.reply_markup.inline_keyboard[0][1].callback_data, 'h:50');
+  await update(env, { callback_query: { id: 'h', from: {}, data: 'h:100', message: { chat: { id: 1 }, message_id: 6 } } }, secret);
+  assert.equal(kv.get('chat:1').metadata.radius, 100);
+  await update(env, { message: { chat: { id: 1 }, text: '🇰🇿 Весь Казахстан' } }, secret);
+  assert.match(sent.at(-1).body.text, /Всего тревог/);
+  await update(env, { message: { chat: { id: 1 }, text: 'Кызылорда' } }, secret);
+  assert.match(sent.at(-1).body.text, /Кызылординская: тревог/);
+  await update(env, { message: { chat: { id: 7 }, text: '/stats' } }, secret);
+  assert.match(sent.at(-1).body.text, /Подписчиков: 1/);
   await update(env, { message: { chat: { id: 1 }, text: '/stop' } }, secret);
   assert.ok(!kv.has('chat:1'));
 });
@@ -130,4 +166,5 @@ test('broadcast sends once per day in batches and drops blocked users', async ()
   assert.equal(sent.filter((s) => s.method === 'sendMessage').length, 46, '45 subscribers plus the blocked one; region 0 stays quiet');
   assert.ok(!kv.has('chat:403'));
   assert.equal((await broadcast(env)).reason, 'done');
+  assert.deepEqual(JSON.parse(kv.get('history').value)['2026-10-31'], { 1: 2 });
 });

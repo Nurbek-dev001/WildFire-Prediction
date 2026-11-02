@@ -1,13 +1,13 @@
 name: Nightly forecast
 # v6 and v7 for the next UTC day, issued in the cloud every night (docs/cloud-setup.md).
-# Three attempts; a run after a successful issue stops at once. The record goes to the
+# GitHub starts scheduled runs late (often 1-3 hours), so attempts come every 30 minutes from
+# 23:05 to 05:35 UTC; a quick check skips every attempt once the day is in the log. The record goes to the
 # forecast-log branch (its push time is the external timestamp of each forecast), the site to
 # Cloudflare Workers static assets, and the Telegram bot reads the new bulletin from the site.
 on:
   schedule:
-    - cron: '40 23 * * *'
-    - cron: '40 1 * * *'
-    - cron: '40 3 * * *'
+    - cron: '5,35 23 * * *'
+    - cron: '5,35 0-5 * * *'
   workflow_dispatch:
     inputs:
       day:
@@ -33,7 +33,33 @@ env:
   PYTHONUTF8: '1'
 
 jobs:
+  # Seconds instead of minutes: reads only the log and decides whether there is work to do.
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      run: ${{ steps.decide.outputs.run }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: forecast-log
+          sparse-checkout: log.jsonl
+          sparse-checkout-cone-mode: false
+      - id: decide
+        run: |
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import json, os
+          from datetime import UTC, datetime, timedelta
+          now = datetime.now(UTC)
+          target = str((now + timedelta(hours=12)).date())
+          done = {json.loads(l)["target_day"] for l in open("log.jsonl") if l.strip()} if os.path.exists("log.jsonl") else set()
+          scheduled = os.environ["EVENT"] == "schedule"
+          print("run=" + ("false" if scheduled and target in done else "true"))
+          PY
+        env:
+          EVENT: ${{ github.event_name }}
   forecast:
+    needs: check
+    if: needs.check.outputs.run == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 90
     steps:
