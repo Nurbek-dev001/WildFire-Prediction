@@ -17,9 +17,11 @@ on:
         description: 'Recompute without a log entry'
         type: boolean
         default: false
-  # A push to forecast-trigger replays the latest logged day: a check of the cloud setup.
+  # A push replays the latest logged day and redeploys the site: forecast-trigger checks the
+  # cloud setup; a change to the site on main reaches the public address at once.
   push:
-    branches: [forecast-trigger]
+    branches: [forecast-trigger, main]
+    paths: ['platform/dist/**', 'site/**', 'scripts/publish_forecasts.py', '.github/workflows/forecast.yml']
 
 permissions:
   contents: write
