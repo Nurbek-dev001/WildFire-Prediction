@@ -15,3 +15,4 @@ __pycache__/
 /configs/synthetic.yaml
 .coverage
 htmlcov/
+docs/paper/*.zip
