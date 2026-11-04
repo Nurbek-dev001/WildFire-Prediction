@@ -1,0 +1,3 @@
+item,value,unit
+"Model development (tuning + fitting, six models)",3.9727690972222223,CPU-hours
+Optuna trials per ensemble,5.0,trials

@@ -1,0 +1,16 @@
+\begin{table}
+\caption{Test metrics separately for 2023 and 2024.}
+\label{tab:T3_test_by_year}
+\begin{tabular}{lrrrrrrrr}
+\toprule
+model & average_precision_2023 & average_precision_2024 & roc_auc_2023 & roc_auc_2024 & bss_2023 & bss_2024 & f1_2023 & f1_2024 \\
+\midrule
+xgboost & 0.01918 & 0.02773 & 0.9236 & 0.9225 & -0.006044 & 0.009857 & 0.06403 & 0.07364 \\
+catboost & 0.0163 & 0.02555 & 0.9094 & 0.9045 & 0.006855 & 0.01095 & 0.05572 & 0.05587 \\
+random_forest & 0.007532 & 0.006586 & 0.8747 & 0.8864 & 0.003307 & 0.002906 & 0.03177 & 0.03522 \\
+logistic & 0.001399 & 0.000687 & 0.8085 & 0.767 & 0.0002578 & -0.0001083 & 0.004682 & 0.002359 \\
+weather_logistic & 0.0006265 & 0.0002387 & 0.6794 & 0.6363 & -2.443e-05 & 0.0004838 & 0.001571 & 0.0004449 \\
+seasonal & 0.0007808 & 0.0003931 & 0.7402 & 0.7167 & 0 & 0 & 0.004931 & 0.001685 \\
+\bottomrule
+\end{tabular}
+\end{table}

@@ -1,0 +1,17 @@
+\begin{table}
+\caption{Five-fold spatial-block transfer (100 km blocks, 25 km buffer), XGBoost, development period.}
+\label{tab:T6_spatial_blocks}
+\begin{tabular}{lrrrrrrrr}
+\toprule
+fold & rows & prevalence & average_precision & roc_auc & bss & precision & recall & ap_lift \\
+\midrule
+spatial_100000_0 & 4.421e+04 & 7.435e-05 & 0.0004811 & 0.8081 & -0.04788 & 0.005977 & 0.01176 & 6.471 \\
+spatial_100000_1 & 3.563e+04 & 0.0002262 & 0.008345 & 0.882 & 0.000729 & 0.01473 & 0.006289 & 36.88 \\
+spatial_100000_2 & 4.201e+04 & 0.0003444 & 0.004299 & 0.8903 & -0.02165 & 0.004889 & 0.003342 & 12.48 \\
+spatial_100000_3 & 3.28e+04 & 0.0003091 & 0.003007 & 0.8591 & -0.003714 & 0.01105 & 0.002953 & 9.728 \\
+spatial_100000_4 & 4.244e+04 & 0.0002698 & 0.003119 & 0.8899 & -0.01009 & 0.0008389 & 0.000501 & 11.56 \\
+mean & 3.942e+04 & 0.0002448 & 0.00385 & 0.8659 & -0.01652 & 0.007496 & 0.00497 & 15.43 \\
+std & 4924 & 0.000105 & 0.002872 & 0.0347 & 0.01945 & 0.005439 & 0.004319 & 12.21 \\
+\bottomrule
+\end{tabular}
+\end{table}

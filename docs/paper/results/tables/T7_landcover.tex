@@ -1,0 +1,25 @@
+\begin{table}
+\caption{Test metrics by dominant land cover (2023-2024).}
+\label{tab:T7_landcover}
+\begin{tabular}{llrrrrrrrr}
+\toprule
+model & group & positive_rows & prevalence & average_precision & roc_auc & bss & recall & precision & ap_lift \\
+\midrule
+seasonal & cropland & 1947 & 0.000629 & 0.001374 & 0.7391 & 0 & 0.4463 & 0.00168 & 2.184 \\
+weather_logistic & cropland & 1947 & 0.000629 & 0.0006602 & 0.535 & 0.002745 & 0.08475 & 0.0005237 & 1.05 \\
+xgboost & cropland & 1947 & 0.000629 & 0.01342 & 0.8915 & 0.004571 & 0.03801 & 0.06615 & 21.33 \\
+seasonal & forest & 5 & 3.532e-05 & 0.0001502 & 0.842 & 0 & 0 & 0 & 4.253 \\
+weather_logistic & forest & 5 & 3.532e-05 & 0.0001768 & 0.8135 & -0.003491 & 0 & 0 & 5.005 \\
+xgboost & forest & 5 & 3.532e-05 & 0.001426 & 0.982 & -0.005211 & 0 & 0 & 40.37 \\
+seasonal & grassland & 12805 & 0.0001836 & 0.0004268 & 0.7176 & 0 & 0 & 0 & 2.325 \\
+weather_logistic & grassland & 12805 & 0.0001836 & 0.0004049 & 0.651 & -0.000208 & 0.05326 & 0.0004099 & 2.206 \\
+xgboost & grassland & 12805 & 0.0001836 & 0.04131 & 0.9206 & 0.0164 & 0.04881 & 0.1278 & 225 \\
+seasonal & other & 947 & 0.0001363 & 0.0002425 & 0.6569 & 0 & 0 & 0 & 1.778 \\
+weather_logistic & other & 947 & 0.0001363 & 0.0004596 & 0.6689 & 7.95e-05 & 0.01901 & 0.001463 & 3.371 \\
+xgboost & other & 947 & 0.0001363 & 0.0359 & 0.9446 & -0.2278 & 0.1183 & 0.04873 & 263.3 \\
+seasonal & shrubland & 0 & 0 & NaN & NaN & 0 & 0 & 0 & NaN \\
+weather_logistic & shrubland & 0 & 0 & NaN & NaN & -701.8 & 0 & 0 & NaN \\
+xgboost & shrubland & 0 & 0 & NaN & NaN & -18.24 & 0 & 0 & NaN \\
+\bottomrule
+\end{tabular}
+\end{table}

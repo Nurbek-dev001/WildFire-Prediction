@@ -1,0 +1,16 @@
+\begin{table}
+\caption{Share of new-event starts inside the highest-scoring 5/10/20% of eligible cell-days.}
+\label{tab:T10_top_capture}
+\begin{tabular}{lrrr}
+\toprule
+model & capture_top5 & capture_top10 & capture_top20 \\
+\midrule
+xgboost & 0.5556 & 0.6805 & 0.8217 \\
+catboost & 0.5022 & 0.6328 & 0.7948 \\
+random_forest & 0.4922 & 0.6109 & 0.7487 \\
+logistic & 0.2555 & 0.4038 & 0.5696 \\
+weather_logistic & 0.08386 & 0.1919 & 0.351 \\
+seasonal & 0.1432 & 0.1998 & 0.2666 \\
+\bottomrule
+\end{tabular}
+\end{table}

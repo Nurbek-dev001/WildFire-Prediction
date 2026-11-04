@@ -1,0 +1,16 @@
+\begin{table}
+\caption{Rolling-origin validation AP used for model selection (2019-2021).}
+\label{tab:T4_rolling_validation}
+\begin{tabular}{lrrrr}
+\toprule
+model & ap_2019 & ap_2020 & ap_2021 & mean_ap \\
+\midrule
+xgboost & 0.01765 & 0.02031 & 0.01922 & 0.01906 \\
+catboost & 0.01135 & 0.01252 & 0.009205 & 0.01102 \\
+random_forest & 0.009365 & 0.01278 & 0.00482 & 0.008988 \\
+logistic & 0.002978 & 0.001953 & 0.001391 & 0.002108 \\
+weather_logistic & 0.001082 & 0.0007987 & 0.0007885 & 0.0008897 \\
+seasonal & 0.002644 & 0.001435 & 0.001209 & 0.001762 \\
+\bottomrule
+\end{tabular}
+\end{table}

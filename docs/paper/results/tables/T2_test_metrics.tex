@@ -1,0 +1,16 @@
+\begin{table}
+\caption{Test-period (2023-2024) performance; thresholds fixed on 2022; BSS relative to the seasonal reference.}
+\label{tab:T2_test_metrics}
+\begin{tabular}{llrrrrrrrrrrrrrr}
+\toprule
+model & label & average_precision & roc_auc & brier & bss & ece & threshold & precision & recall & f1 & fpr & false_discovery_proportion & accuracy & prevalence & ap_lift_over_prevalence \\
+\midrule
+xgboost & XGBoost & 0.02045 & 0.9237 & 0.0001961 & 0.0001988 & 7.501e-05 & 0.04728 & 0.09761 & 0.05164 & 0.06755 & 9.364e-05 & 0.9024 & 0.9997 & 0.0001961 & 104.3 \\
+catboost & CatBoost & 0.01748 & 0.908 & 0.0001944 & 0.008464 & 6.999e-05 & 0.02603 & 0.0455 & 0.07208 & 0.05578 & 0.0002966 & 0.9545 & 0.9995 & 0.0001961 & 89.15 \\
+random_forest & Random Forest & 0.006972 & 0.8794 & 0.0001955 & 0.00315 & 7.044e-05 & 0.01576 & 0.02427 & 0.05152 & 0.033 & 0.0004062 & 0.9757 & 0.9994 & 0.0001961 & 35.55 \\
+logistic & Logistic regression & 0.001041 & 0.7929 & 0.0001961 & 0.0001141 & 8.53e-05 & 0.003142 & 0.001841 & 0.0484 & 0.003547 & 0.005147 & 0.9982 & 0.9947 & 0.0001961 & 5.31 \\
+weather_logistic & Weather-only logistic & 0.000425 & 0.6616 & 0.0001961 & 0.0001751 & 8.566e-05 & 0.0008551 & 0.0004338 & 0.05508 & 0.0008607 & 0.0249 & 0.9996 & 0.9749 & 0.0001961 & 2.167 \\
+seasonal & Seasonal frequency & 0.0005752 & 0.731 & 0.0001961 & 0 & 6.848e-05 & 0.004003 & 0.00168 & 0.05534 & 0.003261 & 0.00645 & 0.9983 & 0.9934 & 0.0001961 & 2.933 \\
+\bottomrule
+\end{tabular}
+\end{table}

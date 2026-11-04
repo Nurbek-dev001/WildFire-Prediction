@@ -1,0 +1,21 @@
+\begin{table}
+\caption{Paired 95% space-time block-bootstrap intervals (1000 resamples, 100 km x 30 days).}
+\label{tab:T5_bootstrap_intervals}
+\begin{tabular}{lrrrr}
+\toprule
+model & average_precision_lower & brier_lower & average_precision_upper & brier_upper \\
+\midrule
+catboost & 0.0137 & 0.00018 & 0.0232 & 0.00021 \\
+logistic & 0.000892 & 0.000181 & 0.00139 & 0.000212 \\
+random_forest & 0.00478 & 0.00018 & 0.011 & 0.000211 \\
+seasonal & 0.000498 & 0.000181 & 0.000662 & 0.000212 \\
+weather_logistic & 0.000325 & 0.000181 & 0.000581 & 0.000212 \\
+xgboost & 0.0166 & 0.000181 & 0.0311 & 0.000212 \\
+xgboost minus catboost & -0.00169 & -1.26e-06 & 0.0124 & 5.22e-06 \\
+xgboost minus logistic & 0.0156 & -2.95e-06 & 0.0301 & 3.58e-06 \\
+xgboost minus random_forest & 0.00952 & -2.25e-06 & 0.0231 & 4.24e-06 \\
+xgboost minus seasonal & 0.0161 & -3e-06 & 0.0306 & 3.54e-06 \\
+xgboost minus weather_logistic & 0.0162 & -2.96e-06 & 0.0307 & 3.59e-06 \\
+\bottomrule
+\end{tabular}
+\end{table}

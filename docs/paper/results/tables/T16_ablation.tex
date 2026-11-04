@@ -1,0 +1,19 @@
+\begin{table}
+\caption{Predictor-group ablation (XGBoost, frozen hyperparameters): test 2023-2024, rolling validation 2019-2021 and paired 95% CI of the AP lost (full minus variant).}
+\label{tab:T16_ablation}
+\begin{tabular}{lrrrrrrrr}
+\toprule
+variant & features & test_ap & test_roc_auc & test_bss & rolling_mean_ap & full_minus_variant_ap & ci_lower & ci_upper \\
+\midrule
+full & 26 & 0.02341 & 0.9243 & 0.007067 & 0.01594 & 0 & 0 & 0 \\
+without_same_day_weather & 20 & 0.03025 & 0.9241 & 0.01597 & 0.0166 & -0.006843 & -0.01442 & 0.001111 \\
+without_antecedent_weather & 22 & 0.02407 & 0.9243 & 0.009531 & 0.01623 & -0.0006603 & -0.008154 & 0.00294 \\
+without_vegetation & 23 & 0.02108 & 0.9224 & 0.0007641 & 0.01558 & 0.002331 & -0.002823 & 0.006187 \\
+without_land_cover & 21 & 0.01398 & 0.917 & -0.001216 & 0.01502 & 0.009429 & 0.002075 & 0.01335 \\
+without_terrain & 22 & 0.008059 & 0.9091 & -0.008578 & 0.009568 & 0.01535 & 0.01179 & 0.02331 \\
+without_human & 24 & 0.01554 & 0.897 & 0.005465 & 0.01448 & 0.007863 & 0.0001781 & 0.01225 \\
+without_season & 24 & 0.01895 & 0.9157 & 0.001673 & 0.01438 & 0.004453 & 0.0006449 & 0.007643 \\
+weather_only & 10 & 0.000634 & 0.7468 & 0.0004346 & 0.001777 & 0.02277 & 0.01841 & 0.03209 \\
+\bottomrule
+\end{tabular}
+\end{table}
