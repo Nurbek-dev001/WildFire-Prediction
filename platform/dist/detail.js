@@ -2,7 +2,7 @@
 // the day's alert cells and observed events, and every observed 2023–2024 event nearby.
 // Only this view needs the network; Leaflet and proj4 are vendored and load on first use.
 
-import { t, regionName, coords } from './i18n.js?v=20261030-3d';
+import { t, regionName, coords } from './i18n.js?v=20261105-da';
 
 const LAEA = '+proj=laea +lat_0=48 +lon_0=67 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs';
 const SOURCES = {

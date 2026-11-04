@@ -22,4 +22,19 @@ for(const key of ['v6','v7'])for(const day of live.days){
   assert.equal(finite,proof.finite_cells);assert.equal(n,proof.alert_cells);alerts[key]+=n;
 }
 assert(live.heat_cells.every(i=>Number.isInteger(i)&&i>=0&&i<count));
-console.log(JSON.stringify({daily_forecasts:live.days.length,first:live.days[0],last:live.days.at(-1),alerts,summary:live.summary}));
+// Day-ahead v6da forecasts: the same proofs against their own log and release.
+const ahead=live.dayahead;let aheadAlerts=0;
+if(ahead){
+  assert.equal(ahead.model,'xgboost_v6da');assert.equal(ahead.prediction_path,'./assets/predictions-v6da/');
+  assert(ahead.days.every((d,i)=>i===0||d>ahead.days[i-1]));
+  assert(ahead.tomorrow===null||ahead.tomorrow===ahead.days.at(-1)&&(!live.days.length||ahead.tomorrow>live.days.at(-1)));
+  for(const day of ahead.days){
+    const proof=ahead.assets[day],payload=read(`assets/predictions-v6da/${day}.f16.gz`);
+    assert.equal(digest(payload),proof.payload_sha256,`v6da ${day}`);assert.equal(proof.release_sha256,ahead.release_sha256);
+    assert.equal(proof.model,'xgboost_v6da');assert.equal(proof.count,count);assert.equal(proof.retrospective,false);
+    const raw=gunzipSync(payload),p=decodeHalf(raw.buffer.slice(raw.byteOffset,raw.byteOffset+raw.byteLength),count);
+    let finite=0,n=0;for(const v of p){if(Number.isNaN(v))continue;assert(v>=0&&v<=1);finite++;if(v>=ahead.threshold)n++}
+    assert.equal(finite,proof.finite_cells);assert.equal(n,proof.alert_cells);aheadAlerts+=n;
+  }
+}
+console.log(JSON.stringify({daily_forecasts:live.days.length,first:live.days[0],last:live.days.at(-1),alerts,summary:live.summary,dayahead:ahead?{days:ahead.days.length,tomorrow:ahead.tomorrow,alerts:aheadAlerts}:null}));

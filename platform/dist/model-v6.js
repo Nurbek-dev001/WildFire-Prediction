@@ -1,9 +1,10 @@
 // Model v6: its own manifest, maps and records, verified by hash before the map uses them.
-import {t,pctText as pct,num} from './i18n.js?v=20261030-3d';
+import {t,pctText as pct,num} from './i18n.js?v=20261105-da';
 const hex=async bytes=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes)),v=>v.toString(16).padStart(2,'0')).join('');
 const METRICS=['precision','recall','f1','average_precision','roc_auc','brier','bss','top_0.1pct','top_1pct'];
 // v7 shares v6's transport and map; isV7 picks its own texts.
-export const isV6=m=>m?.model==='xgboost_v6'||m?.model==='xgboost_v7';
+export const isV6=m=>m?.model==='xgboost_v6'||m?.model==='xgboost_v7'||m?.model==='xgboost_v6da';
+export const isDayAhead=m=>m?.model==='xgboost_v6da';
 export const isV7=m=>m?.model==='xgboost_v7';
 export function validateV6(m){
   if(m.synthetic!==false||!m.evaluation_released||m.retrospective!==true||m.operational_validation!==false)throw Error('Frozen evaluation provenance absent');
@@ -62,7 +63,20 @@ export async function loadLive(v6){
     prediction_path:mv7.prediction_path,release_sha256:mv7.release_sha256,frozen_utc:mv7.frozen_utc,threshold:mv7.threshold,input_features:mv7.input_features,
     available_days:days,live_days:days,prediction_assets:live.assets.v7,development:mv7.development,calibration:mv7.calibration,
     test_metrics:{xgboost_v7:{precision:mv7.calibration_metrics?.precision,recall:mv7.calibration_metrics?.recall}},summary:live.summary,missed_days:live.missed_days};
-  return {v7,heat:Array.isArray(live.heat_cells)?live.heat_cells:[],summary:live.summary};
+  let dayahead=null;
+  // Day-ahead v6da (issued during D-1): its own release and log; a fault here leaves v6 and v7 intact.
+  try{dayahead=loadDayAhead(live.dayahead,v6)}catch(e){console.warn('Day-ahead forecast unavailable',e)}
+  return {v7,heat:Array.isArray(live.heat_cells)?live.heat_cells:[],summary:live.summary,dayahead};
+}
+function loadDayAhead(da,v6){
+  if(!da?.tomorrow)return null;
+  if(da.model!=='xgboost_v6da'||!/^[a-f0-9]{64}$/.test(da.release_sha256||'')||!Number.isFinite(da.threshold)||da.prediction_path!=='./assets/predictions-v6da/')throw Error('Day-ahead release invalid');
+  const d=da.tomorrow,p=da.assets?.[d];
+  if(!/^202[6-9]-\d{2}-\d{2}$/.test(d)||d<=v6.available_days.at(-1))throw Error('Day-ahead date invalid');
+  if(!p||LIVE_FIELDS.some(f=>!(f in p))||p.target_day!==d||p.synthetic!==false||p.retrospective!==false||p.model!=='xgboost_v6da'||p.release_sha256!==da.release_sha256||p.format!==v6.format)throw Error('Day-ahead provenance differs: '+d);
+  return {...v6,model:'xgboost_v6da',retrospective:false,prediction_path:da.prediction_path,release_sha256:da.release_sha256,threshold:da.threshold,
+    available_days:[d],live_days:[d],prediction_assets:{[d]:p},era5_lag_days:da.era5_lag_days,issued_utc:p.issued_utc,on_time:p.on_time,
+    test_metrics:{...v6.test_metrics,xgboost_v6da:v6.test_metrics?.xgboost_v6}};
 }
 export function v7Evaluation(m){
   const d=m.development||{},boot=d.paired_bootstrap_95||{},rows=d.origins||[];

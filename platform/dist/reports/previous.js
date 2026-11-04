@@ -1,4 +1,4 @@
-import { $, t, pct, num, run, loadVerified, table, barChart, reliability, widthOf } from './report.js?v=20261030-3d';
+import { $, t, pct, num, run, loadVerified, table, barChart, reliability, widthOf } from './report.js?v=20261105-da';
 
 const MODELS = Object.fromEntries(['logistic', 'random_forest', 'xgboost', 'catboost', 'weather_logistic', 'seasonal'].map((k, i) => [k, t('pj.models')[i]]));
 const FEATURE_KEYS = ['population_density', 'month_cos', 'month_sin', 'temperature_14d', 'temperature_7d', 'cropland', 'elevation', 'other', 'ndvi', 'slope',

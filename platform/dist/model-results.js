@@ -1,7 +1,7 @@
-import {decodeHalf,upgradeMethod,upgradeEvaluation} from './upgrade-results.js?v=20261030-3d';
-import {t,locale} from './i18n.js?v=20261030-3d';
+import {decodeHalf,upgradeMethod,upgradeEvaluation} from './upgrade-results.js?v=20261105-da';
+import {t,locale} from './i18n.js?v=20261105-da';
 import {policyComparison} from './operating-policy.js';
-import {isV6,isV7,validateV6,v6Method,v6Evaluation} from './model-v6.js?v=20261030-3d';
+import {isV6,isV7,validateV6,v6Method,v6Evaluation} from './model-v6.js?v=20261105-da';
 const escape = value => String(value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 export const probability = p => Number.isFinite(p) ? (p*100).toLocaleString(locale(),{minimumFractionDigits:2,maximumFractionDigits:4})+'%' : '—';
 export const modelLabel = name => ({xgboost_v6:'XGBoost v6',xgboost_v7:'XGBoost v7',xgboost_spatiotemporal:'XGBoost + stacking',logistic:'Logistic regression',random_forest:'Random forest',xgboost:'XGBoost',catboost:'CatBoost',weather_logistic:'Только погода · logistic',seasonal:'Сезонный фон'}[name] || name);
