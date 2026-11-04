@@ -13,6 +13,10 @@ BIB = Path(r"C:\Users\nured\Downloads\Telegram Desktop\references (9).bib")
 
 tex = SRC.read_text(encoding="utf-8")
 
+# ---------- 0. abstract and keywords: sn-jnl expects them before \maketitle ----------
+assert "\\abstract{" not in tex and tex.count("\\maketitle") == 1
+tex = tex.replace("\\maketitle", (HERE / "abstract.tex").read_text(encoding="utf-8") + "\n\\maketitle")
+
 # ---------- 1. author-name citations -> numeric citations, as in the Introduction ----------
 SUBJECTS = [
     ("Jadouli and El Amrani integrate", "jadouli2024morocco"),
