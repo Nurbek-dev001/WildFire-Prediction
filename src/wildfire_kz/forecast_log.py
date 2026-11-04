@@ -1,8 +1,8 @@
 """Issue window, map payloads and the hash-chained log of the daily forecasts.
 
-A forecast for UTC day D is issued the day before: from 12:00 UTC of D-1 (the day pass of
-S-NPP over Kazakhstan and the GFS 06 UTC run of D-1 are out) to 19:00 UTC of D-1, which is
-midnight in Kazakhstan (UTC+5) before D begins. Each log line carries the hash of the previous line, so no entry can be changed
+A forecast for UTC day D is issued between 23:00 UTC of D-1 (S-NPP detections of D-1 to
+21 UTC and the GFS 18 UTC run of D-1 exist) and 06:00 UTC of D (the first S-NPP pass over
+Kazakhstan). Each log line carries the hash of the previous line, so no entry can be changed
 or removed without breaking every later one. One entry per target day; the first stands.
 """
 
@@ -18,11 +18,10 @@ import numpy as np
 
 GENESIS = "0" * 64
 FORMAT = "little_endian_float16_byte_shuffle_gzip"
-EARLIEST_BEFORE_MIDNIGHT = timedelta(hours=12)
-# Relative to 00:00 UTC of D: 19:00 UTC of D-1, midnight in Kazakhstan.
-DEADLINE_AFTER_MIDNIGHT = timedelta(hours=-5)
-# The last scheduled attempt starts at 18:35 UTC of D-1; a failure from 18:30 UTC on is recorded.
-LAST_ATTEMPT_AFTER_MIDNIGHT = timedelta(hours=-5, minutes=-30)
+EARLIEST_BEFORE_MIDNIGHT = timedelta(hours=1)
+DEADLINE_AFTER_MIDNIGHT = timedelta(hours=6)
+# The last scheduled attempt starts at 05:35 UTC; a failure from 05:30 UTC on is recorded.
+LAST_ATTEMPT_AFTER_MIDNIGHT = timedelta(hours=5, minutes=30)
 
 
 def midnight(day: date) -> datetime:
@@ -30,7 +29,7 @@ def midnight(day: date) -> datetime:
 
 
 def target_day(now: datetime) -> date:
-    """12:00 UTC of D-1 to 11:59 UTC of D map to D: during D-1 afternoon the next day."""
+    """23:00 UTC of D-1 to 06:00 UTC of D (and up to noon) all map to D."""
     return (now + timedelta(hours=12)).date()
 
 

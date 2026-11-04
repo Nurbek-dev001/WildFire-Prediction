@@ -205,3 +205,14 @@ On 2026-11-03 the 06 UTC run reproduced the 18 UTC daily fields closely (correla
 tmax, 0.998 tmin, 0.994 RH, 0.991 wind, 0.987 precipitation over the window). v7's H3 inputs
 now see only the day pass of D-1, which v7 was not trained on: its 2027 scores measure the
 model as served day-ahead. Entries record `issue: day_ahead` and the detection cut-off.
+
+## Amendment 2026-11-04-03 withdrawn (2026-11-04, 19:40 UTC)
+
+The day-ahead issue never produced a forecast and is withdrawn before its first issue. v6 needs
+ERA5 for D-7, and the archive publishes that day only around the night before D: at 19:20 UTC
+of 2026-11-04 it ended on 2026-10-28, so no attempt between 12:00 and 19:00 UTC of D-1 could
+issue D. The scheduled attempts of 2026-11-04 also fell into two GitHub Actions incidents
+(16:05-17:01 and 17:40-18:16 UTC) and left no record. Both models are again issued between
+23:00 UTC of D-1 and 06:00 UTC of D with the inputs of the table's left column, as they were
+through 2026-11-04; no log entry was ever written under the amendment. A day-ahead forecast
+would need v6 to take older weather (D-8), which is a new model version, not an amendment.
