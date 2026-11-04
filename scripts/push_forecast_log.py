@@ -108,7 +108,16 @@ def push(status: str | None) -> None:
         f"Forecast log through {last}" + (f" ({status})" if status else ""),
         cwd=TREE,
     )
-    git("push", "origin", BRANCH, cwd=TREE)
+    # Another job (the bot deploy, a parallel run) may have pushed meanwhile: rebase and retry.
+    for attempt in range(4):
+        try:
+            git("push", "origin", BRANCH, cwd=TREE)
+            break
+        except subprocess.CalledProcessError:
+            if attempt == 3:
+                raise
+            git("fetch", "origin", BRANCH, cwd=TREE)
+            git("rebase", f"origin/{BRANCH}", cwd=TREE)
     print(f"forecast log through {last} pushed to {BRANCH}")
 
 

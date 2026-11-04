@@ -21,7 +21,7 @@ on:
   # cloud setup; a change to the site on main reaches the public address at once.
   push:
     branches: [forecast-trigger, main]
-    paths: ['platform/dist/**', 'site/**', 'scripts/publish_forecasts.py', '.github/workflows/forecast.yml']
+    paths: ['platform/dist/**', 'site/**', 'scripts/forecast_daily.py', 'scripts/publish_forecasts.py', 'scripts/push_forecast_log.py', 'src/wildfire_kz/**', '.github/workflows/forecast.yml']
 
 permissions:
   contents: write
