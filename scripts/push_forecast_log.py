@@ -16,6 +16,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import shutil
 import subprocess
 from datetime import UTC, datetime
@@ -25,6 +26,7 @@ ROOT = Path(__file__).resolve().parents[1]
 LIVE = ROOT / "runs/forecast_live"
 TREE = LIVE / "git"
 BRANCH = "forecast-log"
+EMAIL = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
 FILES = {
     LIVE / "log.jsonl": "log.jsonl",
     LIVE / "dayahead.jsonl": "dayahead.jsonl",
@@ -91,6 +93,8 @@ def push(status: str | None) -> None:
         for name in ("TELEGRAM_TOKEN", "CLOUDFLARE_API_TOKEN", "CLOUDFLARE_ACCOUNT_ID"):
             if os.environ.get(name):
                 text = text.replace(os.environ[name], "***")
+        # Nor personal data: wrangler prints the account's e-mail address on every deploy.
+        text = EMAIL.sub("<e-mail>", text)
         tail = text.splitlines()[-60:]
         (TREE / os.environ.get("STATUS_FILE", "status.json")).write_text(
             json.dumps(
