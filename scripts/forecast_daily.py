@@ -17,6 +17,7 @@ import hashlib
 import json
 import struct
 import sys
+import threading
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 
@@ -86,14 +87,18 @@ FIRMS_7D = (
     "SUOMI_VIIRS_C2_Russia_Asia_7d.csv"
 )
 FIRMS_CONFIDENCE = {"n": "nominal", "h": "high", "l": "low"}
+FIRMS_LOCK = threading.Lock()
 
 
 def firms_day(day: date) -> pd.DataFrame:
     """The same S-NPP NRT points from the public seven-day FIRMS file, in GIBS columns."""
     path = LIVE / f"firms/{datetime.now(UTC):%Y%m%dT%H}.csv"
-    if not path.exists():
-        path.parent.mkdir(parents=True, exist_ok=True)
-        pp.download(FIRMS_7D, path, timeout=120)
+    # Days are fetched in parallel threads and several fall back here at once: one download,
+    # not two threads writing the same temporary file.
+    with FIRMS_LOCK:
+        if not path.exists():
+            path.parent.mkdir(parents=True, exist_ok=True)
+            pp.download(FIRMS_7D, path, timeout=120)
     raw = pd.read_csv(path, dtype={"acq_time": str, "confidence": str, "version": str})
     west, south, east, north = t26.BBOX
     raw = raw[
@@ -471,6 +476,20 @@ def check_versions() -> None:
         )
 
 
+def feed_gap(target: date, det_meta: dict) -> list[str]:
+    """In any season: S-NPP points must reach D-2; an older last point means NASA's feeds are
+    behind (GIBS 404 and a stale FIRMS file on 2026-11-04), not a quiet fire day."""
+    last = det_meta.get("last_detection_utc")
+    if not last or last == "NaT":
+        return ["No S-NPP detections at all"]
+    seen = pd.Timestamp(last).date()
+    if seen < target - timedelta(days=2):
+        return [
+            f"S-NPP detections end on {seen}; days {seen + timedelta(days=1)}..{target - timedelta(days=1)} are missing"
+        ]
+    return []
+
+
 def health(
     target: date,
     det_meta: dict,
@@ -489,6 +508,7 @@ def health(
         warnings.append("No S-NPP detections over Kazakhstan for D-1: feed gap or full cloud cover")
     if det_meta.get("firms_days"):
         warnings.append(f"FIRMS fallback used for {det_meta['firms_days']}")
+    warnings += feed_gap(target, det_meta)
     ndvi_age = (target - date.fromisoformat(ndvi_last)).days if ndvi_last else None
     if ndvi_age is None or ndvi_age > 26:
         warnings.append(f"NDVI is {ndvi_age} days old (normal 12-19)")

@@ -174,3 +174,26 @@ test('broadcast sends once per day in batches and drops blocked users', async ()
   assert.equal((await broadcast(env)).reason, 'done');
   assert.deepEqual(JSON.parse(kv.get('history').value)['2026-10-31'], { 1: 2 });
 });
+
+test('the evening day-ahead bulletin is marked as tomorrow\'s and read on one scale', () => {
+  // As publish_forecasts.bulletin_dayahead writes it: one model (v6da), generic p and strong.
+  const ahead = {
+    synthetic: false, kind: 'dayahead', model: 'v6da', target_day: '2026-11-06', warnings: [],
+    regions: bulletin.regions,
+    alerts: [
+      { region: 1, lat: 45.1255, lon: 64.9983, land: 'степь', p: 0.02344, strong: false },
+      { region: 1, lat: 45.3, lon: 65.1, land: 'пашня', p: 0.0081, strong: false },
+    ],
+  };
+  const sub = { ...defaults('ru'), regions: [1] };
+  const text = summary(ahead, sub);
+  assert.match(text, /Прогноз пожарной опасности на/);
+  assert.match(text, /Прогноз на завтра: выпущен накануне вечером, утром он уточняется/);
+  assert.match(text, /🟠 🌾 Кызылординская · степь · <b>шанс 2,3%/);
+  assert.doesNotMatch(text, /🔴 🌾/);
+  const kz = national(ahead, { ...defaults('kk'), crop: true });
+  assert.match(kz, /Ертеңгі болжам: алдыңғы күні кешке шықты/);
+  assert.ok(kz.indexOf('2,3%') < kz.indexOf('0,81%'), 'highest chance first');
+  // The morning bulletin keeps its header without the day-ahead note.
+  assert.doesNotMatch(summary(bulletin, sub), /уточняется/);
+});

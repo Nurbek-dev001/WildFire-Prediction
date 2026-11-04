@@ -4,7 +4,10 @@ Reads the hash-chained log (runs/forecast_live/log.jsonl), copies each issued v6
 payload next to the site and writes platform/dist/assets/forecast-live.json, which binds
 each map to its log entry by SHA-256. The site merges these days into the v6 timeline and
 shows v7 as a third model. The registered v6 manifest and its records are not changed.
-Usage: publish_forecasts.py   (forecast_daily.py runs it after each issue)
+Day-ahead v6da forecasts (runs/forecast_live/dayahead.jsonl) go to the record's `dayahead`
+block; while the latest of them is for a later day than the latest morning issue, the bot's
+bulletin is the day-ahead one.
+Usage: publish_forecasts.py   (forecast_daily.py and forecast_dayahead.py run it after an issue)
 """
 
 from __future__ import annotations
@@ -125,6 +128,7 @@ def bulletin(
         ASSETS / "bulletin-latest.json",
         {
             "synthetic": False,
+            "kind": "morning",
             "target_day": day,
             "issued_utc": entry["issued_utc"],
             "on_time": entry["on_time"],
@@ -149,6 +153,9 @@ def bulletin(
                     "p_v6": round(float(values["v6"][i]), 5),
                     "v7": bool(alert["v7"][i]),
                     "v6": bool(alert["v6"][i]),
+                    # One scale for the bot whatever the bulletin's kind.
+                    "p": round(float(values["v7"][i]), 5),
+                    "strong": bool(alert["v7"][i]),
                 }
                 for i in cells
             ],
@@ -231,9 +238,12 @@ def publish() -> dict:
         "assets": assets,
         "heat_cells": heat,
     }
+    last = issued[-1]["target_day"] if issued else ""
+    ahead = dayahead(count, last)
+    if ahead:
+        record["dayahead"] = ahead
     dump_json(ASSETS / "forecast-live.json", record)
     if issued:
-        last = issued[-1]["target_day"]
         values = {
             k: fl.decode((ASSETS / f"predictions-{k}/{last}.f16.gz").read_bytes()) for k in assets
         }
@@ -242,7 +252,115 @@ def publish() -> dict:
             bulletin(last, values, thresholds, set(heat), issued[-1]),
             ASSETS / "bulletin-latest.csv",
         )
+    # The day-ahead forecast of a later day is the latest news until that day's morning issue.
+    if ahead and ahead["tomorrow"]:
+        bulletin_dayahead(ahead["tomorrow"])
     return record
+
+
+def dayahead(count: int, last_main: str) -> dict | None:
+    """Day-ahead v6da forecasts from their own log (forecast_dayahead.py), bound to the site the
+    same way; `tomorrow` is the latest one when its day has no morning issue yet."""
+    path = LIVE / "dayahead.jsonl"
+    rows = fl.read(path) if path.exists() else []
+    issued = [r for r in rows if r["status"] == "issued"]
+    if not issued:
+        return None
+    folder = ROOT / "runs/model_v6da"
+    release = checksum(folder / "release.json")
+    frozen = json.loads((folder / "frozen.json").read_text())
+    assets = {}
+    for r in issued:
+        day, m = r["target_day"], r["models"]["v6da"]
+        if m["release_sha256"] != release:
+            raise ValueError(f"{day}: day-ahead release differs from runs/model_v6da")
+        source = LIVE / m["payload"]
+        if checksum(source) != m["payload_sha256"]:
+            raise ValueError(f"{day} v6da: payload differs from its log entry")
+        target = ASSETS / f"predictions-v6da/{day}.f16.gz"
+        if not target.exists() or checksum(target) != m["payload_sha256"]:
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(source, target)
+        assets[day] = {
+            "target_day": day,
+            "synthetic": False,
+            "model": "xgboost_v6da",
+            "format": m["format"],
+            "count": count,
+            "finite_cells": m["finite_cells"],
+            "alert_cells": m["alert_cells"],
+            "payload_sha256": m["payload_sha256"],
+            "release_sha256": release,
+            "retrospective": False,
+            "issued_utc": r["issued_utc"],
+            "on_time": r["on_time"],
+            "log_entry_sha256": r["entry_sha256"],
+        }
+    latest = issued[-1]["target_day"]
+    return {
+        "model": "xgboost_v6da",
+        "release_sha256": release,
+        "threshold": frozen["threshold"],
+        "era5_lag_days": frozen["era5_lag_days"],
+        "prediction_path": "./assets/predictions-v6da/",
+        "log_last_entry_sha256": rows[-1]["entry_sha256"],
+        "days": [r["target_day"] for r in issued],
+        "missed_days": [r["target_day"] for r in rows if r["status"] == "missed"],
+        "assets": assets,
+        "tomorrow": latest if latest > last_main else None,
+    }
+
+
+def bulletin_dayahead(day: str) -> None:
+    """The bot's bulletin for a day-ahead forecast: v6da alerts outside heat sources."""
+    entry = next(r for r in fl.read(LIVE / "dayahead.jsonl") if r["target_day"] == day)
+    folder = LIVE / f"dayahead/{day}"
+    if checksum(folder / "heat_cells.json") != entry["heat_cells_sha256"]:
+        raise ValueError("Day-ahead heat-source list differs from its log entry")
+    heat = set(json.loads((folder / "heat_cells.json").read_text()))
+    p = fl.decode((ASSETS / f"predictions-v6da/{day}.f16.gz").read_bytes())
+    threshold = entry["models"]["v6da"]["threshold"]
+    raw = np.frombuffer((ASSETS / "cells.bin").read_bytes(), dtype=np.uint8).reshape(-1, 34)
+    lon = raw[:, 8:12].copy().view("<f4").ravel()
+    lat = raw[:, 12:16].copy().view("<f4").ravel()
+    region = raw[:, 16:18].copy().view("<u2").ravel()
+    regions = json.loads((ASSETS / "geography.json").read_text(encoding="utf-8"))["regions"]
+    codes = np.frombuffer((folder / "land.u8").read_bytes(), dtype=np.uint8)
+    cells = [i for i in np.flatnonzero(p >= threshold) if int(i) not in heat]
+    cells.sort(key=lambda i: -float(p[i]))
+    dump_json(
+        ASSETS / "bulletin-latest.json",
+        {
+            "synthetic": False,
+            "kind": "dayahead",
+            "model": "v6da",
+            "target_day": day,
+            "issued_utc": entry["issued_utc"],
+            "on_time": entry["on_time"],
+            "warnings": entry.get("warnings", []),
+            "thresholds": {"v6da": threshold},
+            "eligible_cells": entry["models"]["v6da"]["finite_cells"],
+            "regions": [
+                {
+                    "ru": r["label"],
+                    "en": r["name"].replace(" Region", ""),
+                    "kk": KAZAKH.get(r["name"], r["label"]),
+                }
+                for r in regions
+            ],
+            "alerts": [
+                {
+                    "region": int(region[i]),
+                    "lat": round(float(lat[i]), 4),
+                    "lon": round(float(lon[i]), 4),
+                    "land": LAND[codes[i]],
+                    "p": round(float(p[i]), 5),
+                    "strong": False,
+                }
+                for i in cells
+            ],
+        },
+    )
 
 
 if __name__ == "__main__":

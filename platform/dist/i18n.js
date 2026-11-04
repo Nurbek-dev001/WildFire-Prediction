@@ -397,6 +397,8 @@ export const DICT = {
   // ---------- model v6 ----------
   'model.version': L('Версия модели', 'Model version', 'Модель нұсқасы'),
   'model.v6': L('v6 · история очагов', 'v6 · fire history', 'v6 · өрт тарихы'),
+  'model.tomorrow': L('Завтра', 'Tomorrow', 'Ертең'),
+  'model.v6da': L('Прогноз на завтра · v6da, выпускается накануне с 17:00', 'Tomorrow · v6da, issued the day before from 17:00', 'Ертеңгі болжам · v6da, алдыңғы күні 17:00-ден бастап шығады'),
   'model.v7': L('v7 · погода дня прогноза', 'v7 · weather of the target day', 'v7 · болжам күнінің ауа райы'),
   'inputs.v7': L('всё, что у v6, плюс вчерашние очаги (до 21:00 UTC) и прогноз погоды GFS на сам день прогноза', 'everything v6 uses, plus yesterday’s fires (to 21:00 UTC) and the GFS weather forecast for the target day', 'v6 қолданатынның бәрі, сонымен қатар кешегі ошақтар (21:00 UTC дейін) және болжам күніне GFS ауа райы болжамы'),
   'checks.metricsTest.v7': L('Метрики · разработка 2020–2025', 'Metrics · development 2020–2025', 'Метрикалар · әзірлеу 2020–2025'),

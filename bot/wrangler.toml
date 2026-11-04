@@ -13,10 +13,11 @@ compatibility_flags = ["global_fetch_strictly_public"]
 binding = "SITE"
 service = "steppe-wildfire"
 
-# Every 2 minutes during 00:00-08:59 UTC (05:00-13:59 in Kazakhstan): sends the morning summary
-# in batches once a new bulletin is on the site.
+# Every 2 minutes during 12:00-20:59 UTC (17:00-01:59 in Kazakhstan, the day-ahead forecast for
+# tomorrow) and 00:00-08:59 UTC (the morning issue when no day-ahead one came): sends a new
+# day's bulletin in batches, once per day.
 [triggers]
-crons = ["*/2 0-8 * * *"]
+crons = ["*/2 0-8,12-20 * * *"]
 
 [[kv_namespaces]]
 binding = "SUBS"

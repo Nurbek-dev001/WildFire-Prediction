@@ -17,7 +17,7 @@ export const T = {
     welcome: (name) => `Здравствуйте${name ? ', ' + name : ''}! Я присылаю ежедневный прогноз пожарной опасности по Казахстану на следующие сутки.\n\nВыберите области, по которым хотите получать тревоги, и нажмите «Готово». Или отправьте геолокацию 📍 — буду следить за тревогами рядом с вами.`,
     choose: 'Отметьте области (можно несколько):',
     all: 'Все области', done: '✅ Готово',
-    saved: (n) => `Подписка сохранена: ${n}. Сводка приходит каждое утро около 6:00–8:00 по Казахстану.`,
+    saved: (n) => `Подписка сохранена: ${n}. Прогноз на завтра приходит каждый вечер, обычно в 17:00–20:00 по Казахстану; утром он уточняется.`,
     allRegions: 'все области', noRegions: 'Сначала выберите области (🗺 Области) или отправьте геолокацию (📍 Рядом со мной).',
     header: (day) => `🔥 <b>Прогноз пожарной опасности на ${day}</b>`,
     count: (n, total) => `Тревог в ваших областях: <b>${n}</b> (по Казахстану: ${total}).`,
@@ -31,18 +31,19 @@ export const T = {
     cropHidden: (n) => `🚜 Скрыто палов на пашне: ${n} (настройки).`,
     warn: '⚠️ Часть входных данных сегодня неполная, прогноз может быть менее точным.',
     map: '🗺 Открыть карту',
-    noData: 'Прогноз ещё не выпущен. Обычно он появляется к 6:00–8:00 по Казахстану.',
+    noData: 'Прогноз ещё не выпущен. Прогноз на завтра появляется вечером, обычно в 17:00–20:00 по Казахстану.',
+    ahead: 'Прогноз на завтра: выпущен накануне вечером, утром он уточняется.',
     near: (r, n) => `📍 <b>Рядом с вами</b> (до ${r} км): тревог <b>${n}</b>.`,
     nearNone: (r) => `📍 Рядом с вами (до ${r} км) тревог нет.`,
     km: 'км',
-    homeAsk: 'Следить за тревогами рядом с этой точкой каждое утро? Выберите радиус:',
-    homeSaved: (r) => `📍 Точка сохранена, радиус ${r} км. Утром пришлю тревоги рядом с ней.`,
+    homeAsk: 'Присылать каждый вечер тревоги на завтра рядом с этой точкой? Выберите радиус:',
+    homeSaved: (r) => `📍 Точка сохранена, радиус ${r} км. Каждый вечер пришлю тревоги на завтра рядом с ней.`,
     homeOff: 'Не следить', homeRemoved: 'Точка удалена.',
     kz: (day, total) => `🇰🇿 <b>Казахстан, ${day}</b>\nВсего тревог: <b>${total}</b>`,
     trend: (d) => (d > 0 ? ` ↑${d}` : d < 0 ? ` ↓${-d}` : ''),
     top: 'Самые высокие:',
     about: 'ℹ️ <b>Что это</b>\nКаждую ночь модель машинного обучения оценивает для каждой клетки 5×5 км вероятность, что завтра спутник увидит там новый очаг огня. Данные: спутники NASA, погода ERA5 и GFS, растительность, рельеф, история пожаров.\n\n<b>Точность.</b> Прогноз показывает, где риск выше всего, но не предсказывает конкретный пожар: из 100 клеток с тревогой горят около 7, в зону тревоги попадает около 10–15% новых очагов — это в десятки раз лучше случайного выбора. Это не официальное предупреждение МЧС.\n\n🚒 При пожаре звоните 112.',
-    settings: (s) => `⚙️ <b>Настройки</b>\nУтренняя рассылка: ${s.push ? 'вкл' : 'выкл'}\nПисать, если тревог нет: ${s.quiet ? 'нет' : 'да'}\nПалы на пашне: ${s.crop ? 'показывать' : 'скрывать'}\nТочка: ${s.home ? `есть, ${s.radius} км` : 'нет'}\nЯзык: ${s.lang}`,
+    settings: (s) => `⚙️ <b>Настройки</b>\nВечерняя рассылка: ${s.push ? 'вкл' : 'выкл'}\nПисать, если тревог нет: ${s.quiet ? 'нет' : 'да'}\nПалы на пашне: ${s.crop ? 'показывать' : 'скрывать'}\nТочка: ${s.home ? `есть, ${s.radius} км` : 'нет'}\nЯзык: ${s.lang}`,
     pushOn: '🔔 Рассылка: вкл', pushOff: '🔕 Рассылка: выкл', quietOn: 'Без тревог — не писать', quietOff: 'Без тревог — писать',
     cropOn: '🚜 Палы: показывать', cropOff: '🚜 Палы: скрывать',
     stopped: 'Подписка удалена, данные о вас стёрты. Вернуться: /start',
@@ -54,7 +55,7 @@ export const T = {
     welcome: (name) => `Сәлеметсіз бе${name ? ', ' + name : ''}! Мен Қазақстан бойынша келесі тәулікке өрт қаупінің күнделікті болжамын жіберемін.\n\nДабылдарын алғыңыз келетін облыстарды таңдап, «Дайын» басыңыз. Немесе геолокация жіберіңіз 📍 — жаныңыздағы дабылдарды бақылаймын.`,
     choose: 'Облыстарды белгілеңіз (бірнешеуін де):',
     all: 'Барлық облыстар', done: '✅ Дайын',
-    saved: (n) => `Жазылым сақталды: ${n}. Шолу күн сайын таңертең Қазақстан уақытымен 6:00–8:00 шамасында келеді.`,
+    saved: (n) => `Жазылым сақталды: ${n}. Ертеңгі болжам күн сайын кешке, әдетте Қазақстан уақытымен 17:00–20:00 аралығында келеді; таңертең нақтыланады.`,
     allRegions: 'барлық облыстар', noRegions: 'Алдымен облыстарды таңдаңыз (🗺 Облыстар) немесе геолокация жіберіңіз (📍 Жанымда).',
     header: (day) => `🔥 <b>${day} күнгі өрт қаупінің болжамы</b>`,
     count: (n, total) => `Сіздің облыстардағы дабылдар: <b>${n}</b> (Қазақстан бойынша: ${total}).`,
@@ -68,18 +69,19 @@ export const T = {
     cropHidden: (n) => `🚜 Жасырылған егістік өртеулері: ${n} (баптаулар).`,
     warn: '⚠️ Бүгін кіріс деректердің бір бөлігі толық емес, болжам дәлдігі төмен болуы мүмкін.',
     map: '🗺 Картаны ашу',
-    noData: 'Болжам әлі шықпады. Әдетте Қазақстан уақытымен 6:00–8:00 шамасында шығады.',
+    noData: 'Болжам әлі шықпады. Ертеңгі болжам кешке, әдетте Қазақстан уақытымен 17:00–20:00 аралығында шығады.',
+    ahead: 'Ертеңгі болжам: алдыңғы күні кешке шықты, таңертең нақтыланады.',
     near: (r, n) => `📍 <b>Жаныңызда</b> (${r} км дейін): дабылдар <b>${n}</b>.`,
     nearNone: (r) => `📍 Жаныңызда (${r} км дейін) дабыл жоқ.`,
     km: 'км',
-    homeAsk: 'Осы нүктенің жанындағы дабылдарды күн сайын таңертең бақылайын ба? Радиусты таңдаңыз:',
-    homeSaved: (r) => `📍 Нүкте сақталды, радиус ${r} км. Таңертең жанындағы дабылдарды жіберемін.`,
+    homeAsk: 'Осы нүктенің жанындағы ертеңгі дабылдарды күн сайын кешке жіберейін бе? Радиусты таңдаңыз:',
+    homeSaved: (r) => `📍 Нүкте сақталды, радиус ${r} км. Күн сайын кешке ертеңгі жақын дабылдарды жіберемін.`,
     homeOff: 'Бақыламау', homeRemoved: 'Нүкте жойылды.',
     kz: (day, total) => `🇰🇿 <b>Қазақстан, ${day}</b>\nБарлық дабылдар: <b>${total}</b>`,
     trend: (d) => (d > 0 ? ` ↑${d}` : d < 0 ? ` ↓${-d}` : ''),
     top: 'Ең жоғарылары:',
     about: 'ℹ️ <b>Бұл не</b>\nМашиналық оқыту моделі әр түні 5×5 км әр ұяшық үшін ертең спутник жаңа өрт ошағын көру ықтималдығын бағалайды. Деректер: NASA спутниктері, ERA5 және GFS ауа райы, өсімдік, жер бедері, өрт тарихы.\n\n<b>Дәлдік.</b> Болжам қауіп қай жерде жоғары екенін көрсетеді, бірақ нақты өртті болжамайды: дабылы бар 100 ұяшықтың шамамен 7-еуі жанады. Бұл ТЖМ-нің ресми ескертуі емес.\n\n🚒 Өрт кезінде 112-ге қоңырау шалыңыз.',
-    settings: (s) => `⚙️ <b>Баптаулар</b>\nТаңғы тарату: ${s.push ? 'қосулы' : 'өшірулі'}\nДабыл болмаса жазу: ${s.quiet ? 'жоқ' : 'иә'}\nЕгістік өртеулері: ${s.crop ? 'көрсету' : 'жасыру'}\nНүкте: ${s.home ? `бар, ${s.radius} км` : 'жоқ'}\nТіл: ${s.lang}`,
+    settings: (s) => `⚙️ <b>Баптаулар</b>\nКешкі тарату: ${s.push ? 'қосулы' : 'өшірулі'}\nДабыл болмаса жазу: ${s.quiet ? 'жоқ' : 'иә'}\nЕгістік өртеулері: ${s.crop ? 'көрсету' : 'жасыру'}\nНүкте: ${s.home ? `бар, ${s.radius} км` : 'жоқ'}\nТіл: ${s.lang}`,
     pushOn: '🔔 Тарату: қосулы', pushOff: '🔕 Тарату: өшірулі', quietOn: 'Дабылсыз — жазбау', quietOff: 'Дабылсыз — жазу',
     cropOn: '🚜 Өртеулер: көрсету', cropOff: '🚜 Өртеулер: жасыру',
     stopped: 'Жазылым жойылды, сіз туралы деректер өшірілді. Қайту: /start',
@@ -91,7 +93,7 @@ export const T = {
     welcome: (name) => `Hello${name ? ', ' + name : ''}! I send a daily next-day fire danger forecast for Kazakhstan.\n\nChoose the regions you want alerts for and press “Done”. Or send your location 📍 and I will watch for alerts near you.`,
     choose: 'Tick the regions (several allowed):',
     all: 'All regions', done: '✅ Done',
-    saved: (n) => `Subscription saved: ${n}. The summary arrives every morning around 6:00–8:00 Kazakhstan time.`,
+    saved: (n) => `Subscription saved: ${n}. Tomorrow’s forecast arrives every evening, usually 17:00–20:00 Kazakhstan time, and is refined in the morning.`,
     allRegions: 'all regions', noRegions: 'Choose regions first (🗺 Regions) or send your location (📍 Near me).',
     header: (day) => `🔥 <b>Fire danger forecast for ${day}</b>`,
     count: (n, total) => `Alerts in your regions: <b>${n}</b> (all Kazakhstan: ${total}).`,
@@ -105,18 +107,19 @@ export const T = {
     cropHidden: (n) => `🚜 Cropland burns hidden: ${n} (settings).`,
     warn: '⚠️ Some inputs are incomplete today; the forecast may be less accurate.',
     map: '🗺 Open the map',
-    noData: 'The forecast is not issued yet. It usually appears by 6:00–8:00 Kazakhstan time.',
+    noData: 'The forecast is not issued yet. Tomorrow’s forecast appears in the evening, usually 17:00–20:00 Kazakhstan time.',
+    ahead: 'Tomorrow’s forecast: issued the evening before, refined in the morning.',
     near: (r, n) => `📍 <b>Near you</b> (within ${r} km): <b>${n}</b> alerts.`,
     nearNone: (r) => `📍 No alerts near you (within ${r} km).`,
     km: 'km',
-    homeAsk: 'Watch for alerts near this point every morning? Choose a radius:',
-    homeSaved: (r) => `📍 Point saved, radius ${r} km. I will send alerts near it every morning.`,
+    homeAsk: 'Send tomorrow’s alerts near this point every evening? Choose a radius:',
+    homeSaved: (r) => `📍 Point saved, radius ${r} km. Every evening I will send tomorrow’s alerts near it.`,
     homeOff: 'Do not watch', homeRemoved: 'Point removed.',
     kz: (day, total) => `🇰🇿 <b>Kazakhstan, ${day}</b>\nAlerts: <b>${total}</b>`,
     trend: (d) => (d > 0 ? ` ↑${d}` : d < 0 ? ` ↓${-d}` : ''),
     top: 'Highest:',
     about: 'ℹ️ <b>What this is</b>\nEvery night a machine-learning model estimates, for each 5×5 km cell, the chance that a satellite sees a new fire there tomorrow. Data: NASA satellites, ERA5 and GFS weather, vegetation, terrain, fire history.\n\n<b>Accuracy.</b> The forecast shows where risk is highest but does not predict a specific fire: about 7 of 100 cells on alert burn. It is not an official emergency warning.\n\n🚒 In case of fire call 112.',
-    settings: (s) => `⚙️ <b>Settings</b>\nMorning summary: ${s.push ? 'on' : 'off'}\nMessage when there are no alerts: ${s.quiet ? 'no' : 'yes'}\nCropland burns: ${s.crop ? 'show' : 'hide'}\nPoint: ${s.home ? `set, ${s.radius} km` : 'none'}\nLanguage: ${s.lang}`,
+    settings: (s) => `⚙️ <b>Settings</b>\nEvening digest: ${s.push ? 'on' : 'off'}\nMessage when there are no alerts: ${s.quiet ? 'no' : 'yes'}\nCropland burns: ${s.crop ? 'show' : 'hide'}\nPoint: ${s.home ? `set, ${s.radius} km` : 'none'}\nLanguage: ${s.lang}`,
     pushOn: '🔔 Summary: on', pushOff: '🔕 Summary: off', quietOn: 'No alerts — stay silent', quietOff: 'No alerts — tell me',
     cropOn: '🚜 Burns: show', cropOff: '🚜 Burns: hide',
     stopped: 'Unsubscribed; your data is deleted. Come back: /start',
@@ -201,8 +204,8 @@ function alertLine(a, bulletin, lang) {
   const link = `https://maps.google.com/?q=${a.lat},${a.lon}`;
   // One scale for every alert: v7's calibrated chance; a red mark when v7 itself is on alert,
   // orange when only v6 flags the cell.
-  const level = a.v7 ? '🔴' : '🟠';
-  return `${level} ${LAND[a.land] || '▫️'} ${region} · ${LAND_NAME[lang][a.land] || ''} · <b>${t.chance} ${pct(a.p_v7)}</b> · <a href="${link}">${a.lat.toFixed(3)}, ${a.lon.toFixed(3)}</a>`;
+  const level = (a.strong ?? a.v7) ? '🔴' : '🟠';
+  return `${level} ${LAND[a.land] || '▫️'} ${region} · ${LAND_NAME[lang][a.land] || ''} · <b>${t.chance} ${pct(a.p ?? a.p_v7)}</b> · <a href="${link}">${a.lat.toFixed(3)}, ${a.lon.toFixed(3)}</a>`;
 }
 
 export function distanceKm(lat1, lon1, lat2, lon2) {
@@ -212,6 +215,8 @@ export function distanceKm(lat1, lon1, lat2, lon2) {
 }
 
 // A one-line key under any message that lists alerts.
+// The evening (day-ahead) bulletin is marked as tomorrow's preliminary forecast.
+const heading = (b, lang) => T[lang].header(dayText(b.target_day, lang)) + (b.kind === 'dayahead' ? `\n<i>${T[lang].ahead}</i>` : '');
 const withLegend = (text, lang) => (/🔴|🟠/.test(text) ? `${text}\n\n<i>${T[lang].legend}</i>` : text);
 
 // Alerts the subscriber wants to see: cropland burns only if they keep them.
@@ -241,7 +246,7 @@ export function summary(bulletin, sub, { forced = false } = {}) {
   const mine = shown.filter((a) => sub.regions.includes(a.region));
   const near = sub.home ? nearLines(bulletin, sub, sub.home.lat, sub.home.lon, sub.radius) : null;
   if (!mine.length && !(near && near.n) && sub.quiet && !forced) return null;
-  const lines = [t.header(dayText(bulletin.target_day, sub.lang))];
+  const lines = [heading(bulletin, sub.lang)];
   if (near) lines.push(...near.lines, '');
   if (sub.regions.length) {
     if (!mine.length) lines.push(t.none);
@@ -261,7 +266,7 @@ export function regionSummary(bulletin, sub, region) {
   const t = T[sub.lang];
   const name = escape(bulletin.regions[region]?.[sub.lang] || '');
   const alerts = visible(bulletin, sub).filter((a) => a.region === region);
-  const lines = [t.header(dayText(bulletin.target_day, sub.lang))];
+  const lines = [heading(bulletin, sub.lang)];
   if (!alerts.length) lines.push(t.noneRegion(name));
   else {
     lines.push(t.regionCount(name, alerts.length), '');
@@ -274,7 +279,7 @@ export function regionSummary(bulletin, sub, region) {
 
 export function nearby(bulletin, lat, lon, lang, sub = defaults(lang)) {
   const s = { ...sub, lang };
-  return withLegend([T[lang].header(dayText(bulletin.target_day, lang)), ...nearLines(bulletin, s, lat, lon, s.home ? s.radius : NEAR_KM).lines].join('\n'), lang);
+  return withLegend([heading(bulletin, lang), ...nearLines(bulletin, s, lat, lon, s.home ? s.radius : NEAR_KM).lines].join('\n'), lang);
 }
 
 // Counts per region for a day, kept for the trend in the national summary.
@@ -285,7 +290,7 @@ export function national(bulletin, sub, previous = null) {
   const shown = visible(bulletin, sub);
   const counts = {};
   for (const a of shown) counts[a.region] = (counts[a.region] || 0) + 1;
-  const lines = [t.kz(dayText(bulletin.target_day, sub.lang), shown.length), ''];
+  const lines = [t.kz(dayText(bulletin.target_day, sub.lang), shown.length), ...(bulletin.kind === 'dayahead' ? [`<i>${t.ahead}</i>`] : []), ''];
   const order = Object.keys(counts).map(Number).sort((a, b) => counts[b] - counts[a]);
   for (const r of order) {
     const before = previous ? previous[r] || 0 : null;
@@ -293,7 +298,7 @@ export function national(bulletin, sub, previous = null) {
   }
   if (shown.length) {
     lines.push('', t.top);
-    for (const a of [...shown].sort((x, y) => y.p_v7 - x.p_v7).slice(0, 5)) lines.push(alertLine(a, bulletin, sub.lang));
+    for (const a of [...shown].sort((x, y) => (y.p ?? y.p_v7) - (x.p ?? x.p_v7)).slice(0, 5)) lines.push(alertLine(a, bulletin, sub.lang));
   }
   if (!sub.crop && bulletin.alerts.length > shown.length) lines.push('', t.cropHidden(bulletin.alerts.length - shown.length));
   return withLegend(lines.join('\n'), sub.lang);

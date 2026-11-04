@@ -1,6 +1,7 @@
 """Keep the forecast record on its own branch, so every entry gets a timestamp outside this machine.
 
-The branch `forecast-log` holds the log, each day's payloads and heat-source list, the map
+The branch `forecast-log` holds the log, each day's payloads and heat-source list, the
+day-ahead log (dayahead.jsonl) and its payloads, the map
 record of the daily forecasts, the latest alert bulletin and the status of the last cloud run.
 It shares no history with the code and lives in a separate worktree (runs/forecast_live/git),
 so the checked-out branch is never touched. The GitHub push time of each commit is the external
@@ -26,6 +27,7 @@ TREE = LIVE / "git"
 BRANCH = "forecast-log"
 FILES = {
     LIVE / "log.jsonl": "log.jsonl",
+    LIVE / "dayahead.jsonl": "dayahead.jsonl",
     ROOT / "platform/dist/assets/forecast-live.json": "forecast-live.json",
     ROOT / "platform/dist/assets/bulletin-latest.csv": "bulletin-latest.csv",
 }
@@ -56,6 +58,10 @@ def pull() -> None:
         shutil.copyfile(TREE / "log.jsonl", LIVE / "log.jsonl")
     if (TREE / "forecasts").exists():
         shutil.copytree(TREE / "forecasts", LIVE / "forecasts", dirs_exist_ok=True)
+    if (TREE / "dayahead.jsonl").exists():
+        shutil.copyfile(TREE / "dayahead.jsonl", LIVE / "dayahead.jsonl")
+    if (TREE / "dayahead").exists():
+        shutil.copytree(TREE / "dayahead", LIVE / "dayahead", dirs_exist_ok=True)
     print(
         "forecast log: pulled",
         len((LIVE / "log.jsonl").read_text().splitlines()) if (LIVE / "log.jsonl").exists() else 0,
@@ -70,6 +76,13 @@ def push(status: str | None) -> None:
             shutil.copyfile(source, TREE / name)
     if (LIVE / "forecasts").exists():
         shutil.copytree(LIVE / "forecasts", TREE / "forecasts", dirs_exist_ok=True)
+    if (LIVE / "dayahead").exists():
+        shutil.copytree(
+            LIVE / "dayahead",
+            TREE / "dayahead",
+            dirs_exist_ok=True,
+            ignore=shutil.ignore_patterns("replay"),
+        )
     if status:
         # STATUS_FILE and STATUS_LOG let the bot workflow record its own run beside the forecast's.
         source = Path(os.environ.get("STATUS_LOG", LIVE / "runs.log"))

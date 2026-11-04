@@ -1,7 +1,7 @@
 // 3D relief layer for the main map: SRTM elevation per 5 km cell as a WebGL2 block model.
 // The map passes in whatever values its 2D layer shows; this module only draws them.
 
-import { t, cityName } from './i18n.js?v=20261030-3d';
+import { t, cityName } from './i18n.js?v=20261105-da';
 
 const css = getComputedStyle(document.documentElement);
 const token = (name) => css.getPropertyValue(name).trim();

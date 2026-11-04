@@ -1,0 +1,142 @@
+name: Day-ahead forecast
+# v6da for day D, issued during D-1 (scripts/forecast_dayahead.py): from 12:00 UTC (17:00 in
+# Kazakhstan), on time before 19:00 UTC. GitHub starts scheduled runs late and can drop a whole
+# evening in an Actions incident, so attempts come every 30 minutes from 12:05 to 18:35 UTC and
+# hourly until 23:05 UTC (a later issue is logged as late); a quick check skips every attempt
+# once the day is in dayahead.jsonl. The record goes to the forecast-log branch beside the
+# morning log, the site to Cloudflare Workers, and the bot sends the evening bulletin from it.
+on:
+  schedule:
+    - cron: '5,35 12-18 * * *'
+    - cron: '5 19-23 * * *'
+  workflow_dispatch:
+    inputs:
+      day:
+        description: 'Target UTC day, YYYY-MM-DD (empty: the next day)'
+        required: false
+      replay:
+        description: 'Recompute without a log entry'
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+# The same group as the morning forecast: one run at a time writes the log branch and the site.
+concurrency:
+  group: nightly-forecast
+  cancel-in-progress: false
+
+env:
+  OPENBLAS_NUM_THREADS: '1'
+  PYTHONUTF8: '1'
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      run: ${{ steps.decide.outputs.run }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: forecast-log
+          sparse-checkout: dayahead.jsonl
+          sparse-checkout-cone-mode: false
+      - id: decide
+        run: |
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import json, os
+          from datetime import UTC, datetime, timedelta
+          now = datetime.now(UTC)
+          target = str((now + timedelta(hours=12)).date())
+          path = "dayahead.jsonl"
+          done = {json.loads(l)["target_day"] for l in open(path) if l.strip()} if os.path.exists(path) else set()
+          scheduled = os.environ["EVENT"] == "schedule"
+          print("run=" + ("false" if scheduled and target in done else "true"))
+          PY
+        env:
+          EVENT: ${{ github.event_name }}
+  forecast:
+    needs: check
+    if: needs.check.outputs.run == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: requirements-forecast.txt
+      - name: Install the pinned libraries
+        run: |
+          pip install -r requirements-forecast.txt
+          pip install --no-deps -e .
+          sudo ln -sf "$(command -v curl)" /usr/local/bin/curl.exe
+      - name: Frozen inputs, models and map payloads
+        run: |
+          git fetch --depth 1 origin forecast-inputs
+          git archive FETCH_HEAD -- data runs | tar -x
+          git fetch --depth 1 origin site-assets
+          git archive FETCH_HEAD -- platform | tar -x
+          git config user.name "wildfire-forecast-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+      - name: Code in the form its releases recorded
+        run: python scripts/cloud_code_paths.py
+      - name: Forecast log
+        run: python scripts/push_forecast_log.py --pull
+      - name: Restore downloaded inputs
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            runs/forecast_live/gibs
+            runs/forecast_live/weather
+            data/real/public_predictors/gfs
+            data/real/public_predictors/vegetation
+          key: forecast-state-${{ github.run_id }}
+          restore-keys: forecast-state-
+      - name: Day-ahead forecast
+        id: forecast
+        continue-on-error: true
+        run: |
+          args=""
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            [ -n "${{ inputs.day }}" ] && args="--day ${{ inputs.day }}"
+            [ "${{ inputs.replay }}" = "true" ] && args="$args --replay"
+          fi
+          set -o pipefail
+          mkdir -p runs/forecast_live
+          python scripts/forecast_dayahead.py $args 2>&1 | tee -a runs/forecast_live/runs.log
+          python scripts/publish_forecasts.py 2>&1 | tee -a runs/forecast_live/runs.log
+      - name: Save downloaded inputs
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            runs/forecast_live/gibs
+            runs/forecast_live/weather
+            data/real/public_predictors/gfs
+            data/real/public_predictors/vegetation
+          key: forecast-state-${{ github.run_id }}
+      - name: Verify the site
+        if: steps.forecast.outcome == 'success'
+        run: node platform/scripts/verify-live-assets.mjs
+      - name: Deploy the site to Cloudflare
+        if: steps.forecast.outcome == 'success'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ]; then echo "::notice::Cloudflare secrets not set; site not deployed"; exit 0; fi
+          set -o pipefail
+          npx --yes wrangler@3.99.0 deploy --config site/wrangler.toml 2>&1 | tee -a runs/forecast_live/runs.log
+      - name: Publish the record
+        if: always()
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          STATUS_FILE: status-dayahead.json
+        run: python scripts/push_forecast_log.py --status "dayahead-${{ github.event_name }}:${{ steps.forecast.outcome }}:${{ job.status }}"
+      - name: Fail when the forecast failed
+        if: steps.forecast.outcome != 'success'
+        run: exit 1
