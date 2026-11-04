@@ -104,8 +104,15 @@ plt.rcParams.update(
 
 
 def panel(ax: plt.Axes, letter: str) -> None:
-    ax.text(-0.02, 1.02, f"({letter})", transform=ax.transAxes, ha="right", va="bottom",
-            fontweight="bold")
+    ax.text(
+        -0.02,
+        1.02,
+        f"({letter})",
+        transform=ax.transAxes,
+        ha="right",
+        va="bottom",
+        fontweight="bold",
+    )
 
 
 def save(fig: plt.Figure, name: str) -> None:
@@ -115,9 +122,10 @@ def save(fig: plt.Figure, name: str) -> None:
 
 
 def predictions(model: str) -> pd.DataFrame:
-    return pd.read_parquet(EVAL / f"predictions_{model}.parquet",
-                           columns=["label", "weight", "probability", "day", "cell_id",
-                                    "area_km2"])
+    return pd.read_parquet(
+        EVAL / f"predictions_{model}.parquet",
+        columns=["label", "weight", "probability", "day", "cell_id", "area_km2"],
+    )
 
 
 def daily_capture(p: pd.DataFrame, grid: np.ndarray) -> np.ndarray:
@@ -126,7 +134,7 @@ def daily_capture(p: pd.DataFrame, grid: np.ndarray) -> np.ndarray:
     area ranked above them is below the budget."""
     d = p.sort_values(["day", "probability", "cell_id"], ascending=[True, False, True])
     area = d.area_km2 * d.weight
-    before = ((area.groupby(d.day).cumsum() - area) / area.groupby(d.day).transform("sum"))
+    before = (area.groupby(d.day).cumsum() - area) / area.groupby(d.day).transform("sum")
     order = np.argsort(before.to_numpy(), kind="stable")
     hits = (d.label * d.weight).to_numpy()[order]
     caught = np.cumsum(hits) / hits.sum()
@@ -148,13 +156,18 @@ def fig_performance() -> None:
         grid = np.linspace(0, 0.3, 301)
         b.plot(grid * 100, daily_capture(p, grid) * 100, color=COLOR[m], lw=lw)
     a.axhline(prevalence, color="black", ls=":", lw=0.8, label="No skill (prevalence)")
-    a.set(xlabel="Recall", ylabel="Precision (log scale)", yscale="log", ylim=(1e-4, 1),
-          xlim=(0, 1))
+    a.set(
+        xlabel="Recall", ylabel="Precision (log scale)", yscale="log", ylim=(1e-4, 1), xlim=(0, 1)
+    )
     a.legend(title="Model (AP)", title_fontsize=7, loc="upper right", frameon=False)
     b.plot([0, 30], [0, 30], color="black", ls=":", lw=0.8)
     b.axvline(5, color="grey", ls="--", lw=0.6)
-    b.set(xlabel="Daily area flagged, highest scores first (%)",
-          ylabel="New fire starts captured (%)", xlim=(0, 30), ylim=(0, 100))
+    b.set(
+        xlabel="Daily area flagged, highest scores first (%)",
+        ylabel="New fire starts captured (%)",
+        xlim=(0, 30),
+        ylim=(0, 100),
+    )
     panel(a, "a")
     panel(b, "b")
     fig.tight_layout(w_pad=2.5)
@@ -176,11 +189,21 @@ def fig_ablation() -> None:
     }
     fig, ax = plt.subplots(figsize=(5.0, 3.0))
     y = np.arange(len(t))
-    ax.barh(y, t.full_minus_variant_ap,
-            color=["#c0392b" if lo > 0 else "#bdc3c7" for lo in t.ci_lower], height=0.6)
-    ax.errorbar(t.full_minus_variant_ap, y,
-                xerr=[t.full_minus_variant_ap - t.ci_lower, t.ci_upper - t.full_minus_variant_ap],
-                fmt="none", color="black", capsize=2, lw=0.8)
+    ax.barh(
+        y,
+        t.full_minus_variant_ap,
+        color=["#c0392b" if lo > 0 else "#bdc3c7" for lo in t.ci_lower],
+        height=0.6,
+    )
+    ax.errorbar(
+        t.full_minus_variant_ap,
+        y,
+        xerr=[t.full_minus_variant_ap - t.ci_lower, t.ci_upper - t.full_minus_variant_ap],
+        fmt="none",
+        color="black",
+        capsize=2,
+        lw=0.8,
+    )
     ax.axvline(0, color="black", lw=0.6)
     ax.set_yticks(y, [names[v] for v in t.variant])
     ax.set_xlabel("Average precision lost when the group is removed (95% CI)")
@@ -198,10 +221,10 @@ def fig_regions() -> None:
     fig, ax = plt.subplots(figsize=(4.8, 3.8))
     yy = np.arange(len(piv))
     ax.barh(yy + 0.2, piv.xgboost, height=0.4, color=COLOR["xgboost"], label="XGBoost")
-    ax.barh(yy - 0.2, piv.seasonal, height=0.4, color=COLOR["seasonal"],
-            label="Seasonal frequency")
-    ax.set_yticks(yy, [g.replace(" Region", "") if "Region" in g else f"{g} (city)"
-                       for g in piv.index])
+    ax.barh(yy - 0.2, piv.seasonal, height=0.4, color=COLOR["seasonal"], label="Seasonal frequency")
+    ax.set_yticks(
+        yy, [g.replace(" Region", "") if "Region" in g else f"{g} (city)" for g in piv.index]
+    )
     ax.set(xscale="log", xlabel="Average precision, 2023-2024 (log scale)")
     ax.legend(loc="lower right", frameon=False)
     ax.grid(axis="y", visible=False)
@@ -211,28 +234,40 @@ def fig_regions() -> None:
 def fig_reliability() -> None:
     """(a) log-binned reliability for XGBoost and CatBoost, (b) cell-days per bin."""
     edges = np.r_[0, np.logspace(-6, 0, 13)]
-    fig, (a, b) = plt.subplots(2, 1, figsize=(4.4, 4.4), sharex=True,
-                               gridspec_kw={"height_ratios": [2.2, 1]})
+    fig, (a, b) = plt.subplots(
+        2, 1, figsize=(4.4, 4.4), sharex=True, gridspec_kw={"height_ratios": [2.2, 1]}
+    )
     a.plot([1e-6, 1], [1e-6, 1], color="black", ls=":", lw=0.8, label="Perfect calibration")
     for k, m in enumerate(["xgboost", "catboost"]):
         p = predictions(m)
         p["bin"] = np.digitize(p.probability, edges[1:-1])
         g = p.assign(wl=p.label * p.weight, wp=p.probability * p.weight).groupby("bin")
-        r = pd.DataFrame({"w": g.weight.sum(), "pos": g.wl.sum(), "pred": g.wp.sum(),
-                          "rows": g.size()})
+        r = pd.DataFrame(
+            {"w": g.weight.sum(), "pos": g.wl.sum(), "pred": g.wp.sum(), "rows": g.size()}
+        )
         r = r[r.rows >= 20]
         r["predicted"] = r.pred / r.w
         r["observed"] = r.pos / r.w
         shown = r[r.observed > 0]
-        a.plot(shown.predicted, shown.observed, marker="o", ms=4, color=COLOR[m], lw=1.1,
-               label=LABEL[m])
+        a.plot(
+            shown.predicted,
+            shown.observed,
+            marker="o",
+            ms=4,
+            color=COLOR[m],
+            lw=1.1,
+            label=LABEL[m],
+        )
         centers = np.sqrt(np.maximum(edges[r.index], 1e-7) * edges[np.minimum(r.index + 1, 13)])
         b.bar(centers * (0.85 if k == 0 else 1.15), r.w, width=centers * 0.3, color=COLOR[m])
-    a.set(xscale="log", yscale="log", xlim=(1e-6, 1), ylim=(1e-6, 1),
-          ylabel="Observed frequency")
+    a.set(xscale="log", yscale="log", xlim=(1e-6, 1), ylim=(1e-6, 1), ylabel="Observed frequency")
     a.legend(loc="upper left", frameon=False)
-    b.set(xscale="log", yscale="log", xlabel="Mean predicted probability (log scale)",
-          ylabel="Cell-days")
+    b.set(
+        xscale="log",
+        yscale="log",
+        xlabel="Mean predicted probability (log scale)",
+        ylabel="Cell-days",
+    )
     panel(a, "a")
     panel(b, "b")
     fig.tight_layout(h_pad=1.0)
@@ -245,28 +280,50 @@ def fig_shap() -> None:
     g = g.iloc[::-1]
     grouped = pd.read_csv(RUN / "explain/grouped.csv")
     lc = grouped[grouped.dimension == "landcover"].pivot(
-        index="group", columns="feature_group", values="weighted_mean_abs_group_contribution")
+        index="group", columns="feature_group", values="weighted_mean_abs_group_contribution"
+    )
     order = ["human", "season", "antecedent_weather", "weather", "cover", "terrain", "vegetation"]
-    heads = ["Human", "Season", "7/14-day weather", "Daily weather", "Land cover", "Terrain",
-             "Vegetation"]
+    heads = [
+        "Human",
+        "Season",
+        "7/14-day weather",
+        "Daily weather",
+        "Land cover",
+        "Terrain",
+        "Vegetation",
+    ]
     lc = lc.loc[["grassland", "cropland", "forest", "shrubland", "other"], order]
     fig, (a, b) = plt.subplots(1, 2, figsize=(7.0, 3.1), gridspec_kw={"width_ratios": [1, 1.1]})
-    a.barh(range(len(g)), g.weighted_mean_abs_contribution,
-           color=[GROUP_COLOR[GROUP_OF[f]] for f in g.feature])
+    a.barh(
+        range(len(g)),
+        g.weighted_mean_abs_contribution,
+        color=[GROUP_COLOR[GROUP_OF[f]] for f in g.feature],
+    )
     a.set_yticks(range(len(g)), [NICE.get(f, f) for f in g.feature])
     a.set_xlabel("Mean |SHAP| (log-odds)")
     a.grid(axis="y", visible=False)
     used = list(dict.fromkeys(GROUP_OF[f] for f in g.feature[::-1]))
-    a.legend(handles=[matplotlib.patches.Patch(color=GROUP_COLOR[u], label=u) for u in used],
-             loc="lower right", frameon=False, fontsize=6.5)
+    a.legend(
+        handles=[matplotlib.patches.Patch(color=GROUP_COLOR[u], label=u) for u in used],
+        loc="lower right",
+        frameon=False,
+        fontsize=6.5,
+    )
     im = b.imshow(lc.to_numpy(), cmap="OrRd", aspect="auto", vmin=0, vmax=1.8)
     b.set_xticks(range(len(order)), heads, rotation=40, ha="right", rotation_mode="anchor")
     b.set_yticks(range(len(lc)), [i.capitalize() for i in lc.index])
     for i in range(lc.shape[0]):
         for j in range(lc.shape[1]):
             v = lc.iat[i, j]
-            b.text(j, i, f"{v:.2f}", ha="center", va="center", fontsize=6.5,
-                   color="white" if v > 1.1 else "black")
+            b.text(
+                j,
+                i,
+                f"{v:.2f}",
+                ha="center",
+                va="center",
+                fontsize=6.5,
+                color="white" if v > 1.1 else "black",
+            )
     b.grid(False)
     fig.colorbar(im, ax=b, label="Mean |SHAP| of the group", shrink=0.9)
     panel(a, "a")
@@ -279,8 +336,9 @@ def fig_case() -> None:
     """Forecast percentile classes for 7-9 June 2023, region outlines and each day's new starts."""
     import rasterio
 
-    laea = Transformer.from_crs("EPSG:4326", "+proj=laea +lat_0=48 +lon_0=67 +datum=WGS84",
-                                always_xy=True)
+    laea = Transformer.from_crs(
+        "EPSG:4326", "+proj=laea +lat_0=48 +lon_0=67 +datum=WGS84", always_xy=True
+    )
     regions = pd.read_parquet(ROOT / "data/real/normalized/regions.parquet")
     outlines = []
     for wkb in regions.geometry:
@@ -302,28 +360,57 @@ def fig_case() -> None:
         ranks[finite] = pd.Series(a[finite]).rank(pct=True).to_numpy()
         classes = np.full(a.shape, np.nan)
         classes[finite] = np.digitize(ranks[finite], [0.80, 0.95, 0.99])
-        ax.imshow(classes, extent=(b.left / 1000, b.right / 1000, b.bottom / 1000, b.top / 1000),
-                  cmap=colors, vmin=-0.5, vmax=3.5, interpolation="nearest")
+        ax.imshow(
+            classes,
+            extent=(b.left / 1000, b.right / 1000, b.bottom / 1000, b.top / 1000),
+            cmap=colors,
+            vmin=-0.5,
+            vmax=3.5,
+            interpolation="nearest",
+        )
         for x, y in outlines:
             ax.plot(x, y, color="#555555", lw=0.35)
         starts = events[(events.timestamp.dt.strftime("%Y-%m-%d") == day) & events.is_first]
-        ax.scatter(starts.x / 1000, starts.y_coord / 1000, s=16, facecolor="none",
-                   edgecolor="#08306b", lw=1.0, zorder=3)
+        ax.scatter(
+            starts.x / 1000,
+            starts.y_coord / 1000,
+            s=16,
+            facecolor="none",
+            edgecolor="#08306b",
+            lw=1.0,
+            zorder=3,
+        )
         if day == "2023-06-08":
-            ax.annotate("Semei start\n(78th percentile)", xy=(semei[0] / 1000, semei[1] / 1000),
-                        xytext=(semei[0] / 1000 - 330, semei[1] / 1000 + 330), fontsize=7,
-                        arrowprops={"arrowstyle": "->", "lw": 0.8}, ha="center")
+            ax.annotate(
+                "Semei start\n(78th percentile)",
+                xy=(semei[0] / 1000, semei[1] / 1000),
+                xytext=(semei[0] / 1000 - 330, semei[1] / 1000 + 330),
+                fontsize=7,
+                arrowprops={"arrowstyle": "->", "lw": 0.8},
+                ha="center",
+            )
         ax.set_xlim(b.left / 1000, b.right / 1000)
         ax.set_ylim(b.bottom / 1000, b.top / 1000)
         ax.set_axis_off()
-        ax.text(0.0, 0.98, f"({letter}) {day}", transform=ax.transAxes, fontweight="bold",
-                va="top")
-    handles = [matplotlib.patches.Patch(color=colors(i), label=t) for i, t in
-               enumerate(["Below top 20%", "Top 5-20%", "Top 1-5%", "Top 1%"])]
-    handles.append(matplotlib.lines.Line2D([], [], marker="o", ls="", mfc="none", mec="#08306b",
-                                           label="New fire start"))
-    fig.legend(handles=handles, loc="lower center", ncol=5, frameon=False,
-               bbox_to_anchor=(0.5, -0.01), handlelength=1.2, columnspacing=1.0)
+        ax.text(0.0, 0.98, f"({letter}) {day}", transform=ax.transAxes, fontweight="bold", va="top")
+    handles = [
+        matplotlib.patches.Patch(color=colors(i), label=t)
+        for i, t in enumerate(["Below top 20%", "Top 5-20%", "Top 1-5%", "Top 1%"])
+    ]
+    handles.append(
+        matplotlib.lines.Line2D(
+            [], [], marker="o", ls="", mfc="none", mec="#08306b", label="New fire start"
+        )
+    )
+    fig.legend(
+        handles=handles,
+        loc="lower center",
+        ncol=5,
+        frameon=False,
+        bbox_to_anchor=(0.5, -0.01),
+        handlelength=1.2,
+        columnspacing=1.0,
+    )
     fig.tight_layout(h_pad=0.3, rect=(0, 0.03, 1, 1))
     save(fig, "fig_case")
 
@@ -342,13 +429,16 @@ def comparability_table() -> None:
         cls = np.digitize(p.probability, frozen["map_boundaries"][m])
         starts = (p.label * p.weight).groupby(cls).sum() / pos
         days = p.weight.groupby(cls).sum() / p.weight.sum()
-        rows.append({
-            "model": m,
-            "ap_balanced_1to1": average_precision_score(p.label, p.probability,
-                                                        sample_weight=balanced),
-            **{f"starts_class{k + 1}": starts.get(k, 0.0) for k in range(4)},
-            **{f"cell_days_class{k + 1}": days.get(k, 0.0) for k in range(4)},
-        })
+        rows.append(
+            {
+                "model": m,
+                "ap_balanced_1to1": average_precision_score(
+                    p.label, p.probability, sample_weight=balanced
+                ),
+                **{f"starts_class{k + 1}": starts.get(k, 0.0) for k in range(4)},
+                **{f"cell_days_class{k + 1}": days.get(k, 0.0) for k in range(4)},
+            }
+        )
     pd.DataFrame(rows).to_csv(TAB / "T17_comparability.csv", index=False)
 
 

@@ -21,7 +21,10 @@ print("missing bib keys:", keys - bib or "none")
 labels = set(re.findall(r"\\label\{([^}]*)\}", body))
 refs = set(re.findall(r"\\ref\{([^}]*)\}", body))
 print("unresolved refs:", refs - labels or "none")
-print("floats never referenced:", {x for x in labels if x.startswith(("tab:", "fig:"))} - refs or "none")
+print(
+    "floats never referenced:",
+    {x for x in labels if x.startswith(("tab:", "fig:"))} - refs or "none",
+)
 figures = re.findall(r"\\includegraphics\[[^]]*\]\{([^}]*)\}", body)
 print("figure files present:", all((HERE / f).exists() for f in figures), figures)
 layout = "\\centering\\footnotesize\n\\setlength{\\tabcolsep}{3pt}\n\\begin{tabularx}{\\textwidth}"

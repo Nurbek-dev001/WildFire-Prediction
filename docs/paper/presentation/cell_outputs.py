@@ -7,7 +7,6 @@ import sys
 from contextlib import redirect_stdout
 from pathlib import Path
 
-import numpy as np
 import pandas as pd
 
 ROOT = Path(r"C:\Users\nured\Documents\ChatGPT\WildFire")
@@ -23,6 +22,7 @@ def cell(name):
             fn()
         cells[name] = buf.getvalue().rstrip()
         return fn
+
     return wrap
 
 
@@ -35,8 +35,9 @@ def _():
 
 @cell("events")
 def _():
-    events = pd.read_parquet(RUN / "outcomes/events_through_2024.parquet",
-                             columns=["day", "is_first"])
+    events = pd.read_parquet(
+        RUN / "outcomes/events_through_2024.parquet", columns=["day", "is_first"]
+    )
     years = events.day.dt.year.between(2015, 2024)
     print(f"{years.sum():,} detections (2015-2024)")
     print(f"{(events.is_first & years).sum():,} separate fire events")
@@ -44,8 +45,7 @@ def _():
 
 @cell("sampling")
 def _():
-    test = pd.read_parquet(RUN / "features/2023_evaluation.parquet",
-                           columns=["label", "weight"])
+    test = pd.read_parquet(RUN / "features/2023_evaluation.parquet", columns=["label", "weight"])
     print(f"{len(test):,} sampled rows in 2023")
     print(f"{int(test.label.sum()):,} new fire starts (all kept)")
     print(f"{test.weight.sum():,.0f} cell-days represented")
@@ -54,8 +54,10 @@ def _():
 @cell("evaluate")
 def _():
     from sklearn.metrics import average_precision_score, roc_auc_score
-    p = pd.read_parquet(RUN / "evaluate/predictions_xgboost.parquet",
-                        columns=["label", "weight", "probability"])
+
+    p = pd.read_parquet(
+        RUN / "evaluate/predictions_xgboost.parquet", columns=["label", "weight", "probability"]
+    )
     y, w, s = p.label, p.weight, p.probability
     prevalence = (y * w).sum() / w.sum()
     ap = average_precision_score(y, s, sample_weight=w)
@@ -69,6 +71,7 @@ def _():
 def _():
     sys.path.insert(0, str(ROOT / "src"))
     from wildfire_kz.evaluation import top_capture
+
     p = pd.read_parquet(RUN / "evaluate/predictions_xgboost.parquet")
     table = top_capture(p, p.probability.to_numpy(), [0.05, 0.10, 0.20])
     for _, r in table.iterrows():
