@@ -1,6 +1,6 @@
-"""Defense speech for two speakers: writes speech.md and puts each slide's lines into the
-speaker notes of a copy of the deck, wildfire_presentation_with_speech.pptx (presenter view
-shows who speaks and what to say).
+"""Defense speech for two speakers (about 10 minutes): writes speech.md and puts each slide's
+lines into the speaker notes of a copy of the deck, wildfire_presentation_with_speech.pptx
+(presenter view shows who speaks and what to say).
 
 Nurbek opens (slides 1-6) and closes (slides 21-24) with the descriptive parts; Samat presents
 the technical middle (slides 7-20). Every number matches the slides and the manuscript.
@@ -18,75 +18,30 @@ OUT = HERE / "wildfire_presentation_with_speech.pptx"
 N, S = "Nurbek", "Samat"
 
 SPEECH = [
-    (N, "Title", """Good afternoon, dear members of the commission. My name is Nurbek Bolarbek, and this is my colleague Samat Zharylkap. Today we present our research: "An Explainable Multisource Machine Learning Framework for Next-Day Wildfire Prediction and Mapping in Kazakhstan".
-In simple words, we tried to answer one question: which places in Kazakhstan are most likely to have a new fire tomorrow? The map on the right is a real forecast of our model for 8 June 2023. Dark red means a higher chance of a new fire."""),
-    (N, "Problem statement", """Why is this important? In June 2023, a large fire started in the Semei Ormany forest reserve in Abay Region, and fourteen forestry workers died.
-This is not a single case. Satellites see about sixteen thousand new fire starts in Kazakhstan every year. The country is very big: we divided it into 110,129 squares of five by five kilometres, and nobody can watch all of them every day.
-So the aim of our study was to build and honestly test a model that, every day, estimates the chance of a new fire in each square for the next day, and explains why the chance is high."""),
-    (N, "Input and output", """This slide shows our task as input and output.
-The input is seven kinds of data: satellite fire detections, weather, vegetation, land cover, terrain, people and the season.
-The model learns from the years 2015 to 2021 which conditions came before new fires.
-The output is, for every square and every day, the chance of a new fire tomorrow. We show it as a daily map with four warning levels."""),
-    (N, "Research questions", """We had three research questions.
-First: is more data better than simple rules?
-Second: does the model still work next year and in a new place?
-Third: can we trust its numbers, and why does it say "high risk"?
-We will come back to these three questions at the end of the presentation."""),
-    (N, "Data sources", """Now about the data. We joined seven open data sources on one five-kilometre grid. Fire detections come from NASA's VIIRS satellite sensor. Weather comes from the ERA5 archive, vegetation from NOAA, land cover from MODIS, terrain from SRTM, and population from WorldPop.
-One rule was very important for us: the model may only use information that was really available before the forecast day. For example, the weather archive appears about five days late, so we used the weather from seven days before."""),
-    (N, "Raw data", """This is what the raw data look like. Every row is one hot spot seen by the satellite, with its time, latitude, longitude and confidence. The small code cell on the right simply loads the file and counts the rows.
-In 2023 alone there were 65,413 such points, and more than one million in ten years. But one fire can create hundreds of points over several days, so we had to group them. My colleague Samat will explain how we did it."""),
-    (S, "From hot spots to fire starts", """Thank you, Nurbek. To turn hot spots into a clear target, we used four steps.
-First, we cleaned the data: we kept only nominal and high-confidence points and removed industrial heat sources such as gas flares.
-Second, we linked points that are closer than two kilometres and forty-eight hours, because they belong to the same fire.
-Third, we kept only the first day of each fire, because we want to predict new fires, not fires that are already burning.
-Fourth, we placed these starts on the five-kilometre grid.
-The code shows that about 1.14 million detections became about 152 thousand fire events. After cleaning, we had 139,326 new fire starts as our targets."""),
-    (S, "Processed dataset", """After processing, every row of the dataset is one square on one day. Here you can see five real rows from June 2023: the land cover, the temperature, the rain in the last fourteen days, the greenness of plants, the elevation and the population. The last column says whether a new fire started there.
-In total we have 26 predictors in seven groups."""),
-    (S, "Rare fires", """An important feature of this problem is that fires are very rare: only about two of every ten thousand square-days have a new fire.
-If we kept all rows, the data would be too large. So we kept every fire and only a sample of the days without fire. Each sampled row has a weight, so 189,885 rows in 2023 represent almost forty million square-days.
-The chart also shows that fires became less frequent over time, so our test years, 2023 and 2024, were harder than the training years."""),
-    (S, "Models", """Next, the models. We compared four machine-learning models.
-Logistic regression is the simplest one. Random Forest averages the answers of many decision trees. XGBoost and CatBoost are boosting methods: they build trees one after another, and each new tree fixes the mistakes of the previous ones.
-To check whether machine learning is really needed, we also used two simple references: the past fire frequency for each month and land cover, and a model that sees only the weather."""),
-    (S, "How we tested", """We tested the models in a strict way. The years 2015 to 2021 were used for training and for choosing the best model. The year 2022 was used only to calibrate the probabilities. The years 2023 and 2024 were not touched until the final test.
-We also did a test in space: we hid whole one-hundred-kilometre blocks of the country, trained on the rest, and predicted the hidden blocks. This shows whether the model can work in a place it has never seen."""),
-    (S, "How we measure success", """How do we judge a forecast when fires are so rare? Accuracy is not useful: a model that always says "no fire" is right 99.98 percent of the time.
-So we used average precision. Imagine that we sort all squares from the most to the least risky. Average precision is high when the real fires are near the top of this list. A random list gets only 0.0002.
-We also measured how many new fires fall inside the five percent riskiest area each day, we checked whether the probabilities are honest, and we used SHAP to explain the model. For every result we give 95 percent confidence intervals."""),
-    (S, "Training code", """Here is the main code. On the left, we take the best settings found by the Optuna search and train XGBoost with the sample weights. The final model has 314 small trees, each at most five levels deep.
-On the right, we use only the year 2022 to calibrate the probabilities and to fix the alert threshold, which is 0.047. The test years were not used in this step."""),
-    (S, "Main result", """Now the results. XGBoost was the best model. Its average precision was 0.0204, which is about 104 times better than a random ranking, and it was clearly better than both simple references. CatBoost was close, and the difference between them was not significant.
-The chart on the right is the easiest way to read the result. If we check the five percent riskiest area each day, XGBoost finds 55.6 percent of new fires. The seasonal rule finds only 14.3 percent, and weather alone only 8.4 percent."""),
-    (S, "Curves and evaluation code", """This slide shows the same result as curves, together with the real Python code that calculated it.
-In panel (a), the precision-recall curves of the two boosting models are above the others almost everywhere.
-In panel (b), you can see how many new fires we catch when we check more of the daily area: with five percent we find 55.6 percent of new fires, with ten percent 68 percent, and with twenty percent 82.2 percent."""),
-    (S, "Comparison with other studies", """You may ask why our average precision is only 0.02, when other studies report 0.95 or more.
-The reason is the test design. Most studies test on balanced data, where half of the cases are fires. In our test, only two of ten thousand square-days have a fire. When we re-weighted our same predictions to a fifty-fifty balance, without retraining, the average precision became 0.925.
-Our ROC-AUC, which does not depend on this balance, is 0.92, close to other studies. So the difference comes from the honest test, not from a weak model."""),
-    (S, "Which information helps", """Which information really helps? We removed one group of inputs at a time and measured how much the result became worse.
-Terrain gave the largest loss, and land cover, people and season also mattered. Weather from seven days before and vegetation did not help.
-We think the reason is that most fires in the steppe are started by people, for example when they burn fields and pastures, and old weather cannot show short hot and dry periods.
-So our answer to the first research question is yes, with a caveat: more data was better than simple rules, but the gain came mainly from terrain, land cover, people and season."""),
-    (S, "Future years and new regions", """The second question was about transfer. In future years the model was stable: its average precision was 80 times the random level in 2023 and 181 times in 2024. But in regions that the model had never seen, it fell to only 15 times.
-The chart shows big differences between regions. The best results are in Atyrau and Aktobe, and the weakest are in the northern grain regions, where many small cropland fires are hard to predict.
-So the answer is mixed: good for future years, weak for new regions."""),
-    (S, "Calibration", """The third question starts with calibration. The four warning levels order the risk correctly: the highest level covers only five percent of the area but contains 65.8 percent of the new fires.
-But the probabilities are 1.2 to 1.8 times too high. The reason is that fires became less frequent: in 2022 there were 2.5 fires per ten thousand square-days, and in 2024 only 1.5. So the levels are useful as an order of risk, but not as exact chances."""),
-    (S, "Explanations (SHAP)", """Finally, SHAP explains which inputs pushed the forecasts. Population density is the strongest factor, followed by the month and the recent temperature.
-The drivers also differ by land cover. In cropland, recent weather matters most, which fits stubble burning after dry days. In grassland, people and season matter most.
-Together with the calibration result, this answers our third question: the probabilities are good for ranking but too high in size, and the forecasts are explained mostly by people, season and land surface.
-Now Nurbek will show you a real example."""),
-    (N, "June 2023 case", """Thank you, Samat. This is the week when the Semei Ormany fire started, from the seventh to the ninth of June 2023. Each map shows the forecast for one day, and the blue circles are the real new fires.
-On these days, 19 to 31 percent of the new fires were inside the top five percent of the area. Many fires in the east were flagged: four of the seven other eastern starts were in the top four percent.
-But the start near Semei was only at the 78th percentile, so our model would not have flagged it. This is an honest result: a forecast can help people prepare, but it cannot prevent every fire."""),
-    (N, "Limitations and next steps", """Our study also has limitations. We used one satellite sensor, which shows when a fire was first seen, not the real ignition time. We cannot separate farm burning from wildfires. The weather was seven days old, we had only five tuning trials instead of fifty, and forest fires were too rare to test separately.
-In the future, we want to use weather forecasts for the next day, data from several satellites, and separate agricultural burning from wildfires. We also want to recalibrate the probabilities by season and region and compare our forecasts with official fire records."""),
-    (N, "Conclusion", """To conclude. We built a Kazakhstan dataset that joins satellite fires with weather, vegetation, terrain, land cover and people. We compared four machine-learning models with two simple references, tested them on future years and unseen regions, calibrated the probabilities and explained the model with SHAP. We also produced daily probability maps.
-The answers to our questions are: yes, more data helps; the model works well in future years but weakly in new regions; and its ranking is good, but the probabilities are too high.
-Thus, all tasks set at the beginning of this work were completed."""),
-    (N, "Thank you", """Thank you for your attention. Our daily forecast platform is available at the address on the slide. We are happy to answer your questions."""),
+    (N, "Title", """Good afternoon, dear members of the commission. I am Nurbek Bolarbek, and this is my colleague Samat Zharylkap. Our research answers one question: which places in Kazakhstan are most likely to have a new fire tomorrow? The map on the right is a real forecast of our model."""),
+    (N, "Problem statement", """In June 2023, a fire in the Semei Ormany reserve killed fourteen forestry workers. Satellites see about sixteen thousand new fires in Kazakhstan every year, and the country has more than one hundred and ten thousand squares of five kilometres. Nobody can watch all of them. So our aim was a model that every day shows where a new fire is most likely tomorrow, and explains why."""),
+    (N, "Input and output", """The input is seven kinds of data: satellite fire detections, weather, vegetation, land cover, terrain, people and season. The model learns from 2015 to 2021. The output is the chance of a new fire tomorrow for every square, shown as a daily map with four warning levels."""),
+    (N, "Research questions", """We asked three questions. Is more data better than simple rules? Does the model still work next year and in a new place? And can we trust its numbers and explain them?"""),
+    (N, "Data sources", """All seven data sources are public, from NASA, ERA5, NOAA, MODIS, SRTM and WorldPop. One rule was important: the model may only use data that existed before the forecast day. The weather archive is about five days late, so we used weather from seven days before."""),
+    (N, "Raw data", """Every raw row is one hot spot seen by the satellite: time, place and confidence. In 2023 alone there were 65,413 points. One fire creates many points, so we had to group them. Samat will explain how."""),
+    (S, "From hot spots to fire starts", """Thank you, Nurbek. We cleaned the points, linked points closer than two kilometres and forty-eight hours into one fire, and kept only the first day of each fire, because we predict new fires. About 1.14 million detections became 152 thousand events, and after cleaning we had 139,326 new fire starts."""),
+    (S, "Processed dataset", """After processing, each row is one square on one day, with 26 predictors in seven groups. The last column shows whether a new fire started."""),
+    (S, "Rare fires", """Fires are very rare: about two in every ten thousand square-days. We kept every fire and a weighted sample of the other days, so 189,885 rows represent almost forty million square-days of 2023. Fires also became less frequent, so the test years were harder."""),
+    (S, "Models", """We compared four models: logistic regression, Random Forest, XGBoost and CatBoost. XGBoost and CatBoost build trees one after another, and each tree fixes the mistakes of the previous ones. We also used two simple references: past fire frequency and a weather-only model."""),
+    (S, "How we tested", """Training used 2015 to 2021, calibration used only 2022, and 2023 to 2024 stayed untouched until the final test. We also hid whole one-hundred-kilometre blocks to test the model in places it had never seen."""),
+    (S, "How we measure success", """Accuracy is useless here, because always saying "no fire" is right 99.98 percent of the time. So we used average precision: if we sort squares from most to least risky, are the real fires near the top? A random list gets only 0.0002. We also count how many fires fall inside the five percent riskiest area each day."""),
+    (S, "Training code", """This is the main code: XGBoost with the settings found by Optuna, trained with sample weights. Then only 2022 is used to calibrate the probabilities and fix the alert threshold of 0.047."""),
+    (S, "Main result", """XGBoost was the best model. Its average precision was 0.0204, about 104 times better than random, and clearly better than both references. If we check the five percent riskiest area each day, XGBoost finds 55.6 percent of new fires. The seasonal rule finds 14.3 percent, and weather alone 8.4 percent."""),
+    (S, "Curves and evaluation code", """The curves and the real Python code confirm this. With ten percent of the area we find 68 percent of new fires, and with twenty percent, 82 percent."""),
+    (S, "Comparison with other studies", """Other studies report around 0.95 because they test on balanced data, half fires and half not. Our test keeps the real rate. If we re-weight our same predictions to fifty-fifty, average precision becomes 0.925. So the difference is the honest test, not a weak model."""),
+    (S, "Which information helps", """We removed one group of inputs at a time. Terrain, land cover, people and season mattered most, while week-old weather and vegetation did not help. Most steppe fires are started by people, so place and calendar matter more than old weather. So, for the first question: yes, more data helps, mainly through these four groups."""),
+    (S, "Future years and new regions", """The model was stable in 2023 and 2024, but in regions it had never seen, its skill fell from 104 to 15 times random. Results are best in Atyrau and Aktobe and weakest in the northern grain regions. So the second answer is mixed: good for future years, weak for new places."""),
+    (S, "Calibration", """The highest warning level covers five percent of the area but holds 65.8 percent of new fires, so the order of risk is right. But the probabilities are 1.2 to 1.8 times too high, because fires became less frequent after 2022."""),
+    (S, "Explanations (SHAP)", """SHAP shows that population density, the month and recent temperature drive the forecasts, and the drivers differ between cropland and grassland. So the third answer: good ranking, probabilities too high, explained mostly by people, season and land. Nurbek will now show a real example."""),
+    (N, "June 2023 case", """Thank you, Samat. These are the forecasts for 7 to 9 June 2023. Many eastern fires were in the top five percent of the area, but the Semei start was only at the 78th percentile, so the model would not have flagged it. A forecast helps people prepare, but it cannot catch every fire."""),
+    (N, "Limitations and next steps", """Our limits are one satellite, farm burning mixed with wildfires, and week-old weather. Next, we want to use weather forecasts, more satellites and official fire records."""),
+    (N, "Conclusion", """To conclude, we built the dataset, compared the models, tested them in time and space, calibrated and explained them, and produced daily maps. More data helps, the model works well in future years but weakly in new regions, and its ranking is good but its probabilities are too high. Thus, all tasks of this work were completed."""),
+    (N, "Thank you", """Thank you for your attention. We are happy to answer your questions."""),
 ]
 
 QA = [
@@ -118,29 +73,31 @@ def write_markdown() -> None:
     for who, _, text in SPEECH:
         total[who] += words(text)
     lines = [
-        "# Defense speech: two speakers",
+        "# Defense speech: two speakers, about 10 minutes",
         "",
         "Nurbek opens (slides 1-6) and closes (slides 21-24) with the descriptive parts. Samat "
         "presents the data processing, methods and results (slides 7-20).",
         "",
-        f"Speaking time at about 130 words per minute: Nurbek ~{total[N] / 130:.0f} min "
-        f"({total[N]} words), Samat ~{total[S] / 130:.0f} min ({total[S]} words), "
-        f"together ~{(total[N] + total[S]) / 130:.0f} min.",
+        f"Speaking time at about 130 words per minute: Nurbek ~{total[N] / 130:.1f} min "
+        f"({total[N]} words), Samat ~{total[S] / 130:.1f} min ({total[S]} words), "
+        f"together ~{(total[N] + total[S]) / 130:.1f} min of speaking. With pauses and 24 "
+        "slide changes the talk takes about 10 minutes.",
         "",
         "The same lines are in the speaker notes of each slide (PowerPoint: Slide Show > "
-        "Presenter View).",
+        "Presenter View). On fast slides (8, 15, 22) say the line and move on.",
         "",
         "Tips: look at the commission, not at the screen; point at the number you are talking "
-        "about; hand over with the prepared sentence (\"Thank you, Nurbek / Samat\").",
+        "about; hand over with the prepared sentence (\"Samat will explain how\" / \"Nurbek will "
+        "now show a real example\").",
         "",
     ]
     for i, (who, title, text) in enumerate(SPEECH, 1):
-        lines += [f"## Slide {i} - {title} ({who})", "", *[p for p in text.split("\n")], ""]
+        lines += [f"## Slide {i} - {title} ({who})", "", *text.split("\n"), ""]
     lines += ["## Likely questions", ""]
     for who, q, a in QA:
         lines += [f"**{q}** ({who})", "", a, ""]
     (HERE / "speech.md").write_text("\n".join(lines), encoding="utf-8")
-    print(total)
+    print(total, round(sum(total.values()) / 130, 1), "min")
 
 
 def write_notes() -> None:
