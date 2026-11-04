@@ -4,7 +4,7 @@
 // switches are stored, as key metadata, so one KV list call reads every subscriber.
 import {
   T, langOf, defaults, command, menuAction, menuKeyboard, findRegion, regionKeyboard, toggleRegion,
-  regionList, summary, regionSummary, nearby, national, regionCounts, radiusKeyboard, RADII,
+  regionList, summary, regionSummary, nearby, national, regionCounts, radiusKeyboard, RADII, migrate,
   settingsKeyboard, applySetting, COMMANDS,
 } from './logic.js';
 
@@ -59,7 +59,7 @@ function previousCounts(hist, day) {
 const key = (chat) => `chat:${chat}`;
 async function load(env, chat, lang) {
   const { metadata } = await env.SUBS.getWithMetadata(key(chat));
-  return metadata ? { ...defaults(lang), ...metadata } : null;
+  return metadata ? { ...defaults(lang), ...migrate(metadata) } : null;
 }
 const save = (env, chat, sub) => env.SUBS.put(key(chat), '1', { metadata: sub });
 
@@ -189,12 +189,20 @@ async function stats(env) {
   ].join('\n');
 }
 
-// One cron tick: if a new day is published, send the next batch of summaries.
+// One cron tick: if a new issue is published, send the next batch of summaries. A day has two
+// issues: the evening one for tomorrow (kind 'dayahead', v6da) and the morning refinement
+// (v6 and v7, the most accurate models); each is sent once, the second marked as an update.
 export async function broadcast(env) {
-  const b = await bulletin(env);
+  let b = await bulletin(env);
   if (!b) return { sent: 0, reason: 'no bulletin' };
+  const kind = b.kind === 'dayahead' ? 'dayahead' : 'morning';
   const state = JSON.parse((await env.SUBS.get('broadcast')) || '{}');
-  if (state.day === b.target_day && state.done) return { sent: 0, reason: 'done' };
+  const sameIssue = state.day === b.target_day && (state.kind || 'morning') === kind;
+  if (sameIssue && state.done) return { sent: 0, reason: 'done' };
+  // An older day never follows a newer one (a redeploy can briefly show the previous issue).
+  if (state.day && b.target_day < state.day) return { sent: 0, reason: 'older' };
+  const refined = kind === 'morning' && (sameIssue ? state.refined : state.day === b.target_day);
+  if (refined) b = { ...b, refined: true };
   if (state.day !== b.target_day) {
     // First tick of a new day: keep its counts for the trend (two weeks).
     const hist = await history(env);
@@ -202,12 +210,12 @@ export async function broadcast(env) {
     for (const d of Object.keys(hist).sort().slice(0, -14)) delete hist[d];
     await env.SUBS.put('history', JSON.stringify(hist));
   }
-  const cursor = state.day === b.target_day ? state.cursor : undefined;
+  const cursor = sameIssue ? state.cursor : undefined;
   const page = await env.SUBS.list({ prefix: 'chat:', cursor, limit: BATCH });
   const previous = previousCounts(await history(env), b.target_day);
   let sent = 0;
   for (const k of page.keys) {
-    const sub = { ...defaults('ru'), ...(k.metadata || {}) };
+    const sub = { ...defaults('ru'), ...migrate(k.metadata || {}) };
     if (!sub.push) continue;
     // Without regions or a point a subscriber still hears something: the national summary.
     const text = sub.regions.length || sub.home ? summary(b, sub) : national(b, sub, previous);
@@ -218,8 +226,9 @@ export async function broadcast(env) {
     else sent++;
   }
   await env.SUBS.put('broadcast', JSON.stringify({
-    day: b.target_day, cursor: page.list_complete ? null : page.cursor, done: page.list_complete,
-    sent: (state.day === b.target_day ? state.sent || 0 : 0) + sent,
+    day: b.target_day, kind, refined, cursor: page.list_complete ? null : page.cursor,
+    done: page.list_complete, sent: (sameIssue ? state.sent || 0 : 0) + sent,
+    at: new Date().toISOString(),
   }));
   return { sent, done: page.list_complete };
 }

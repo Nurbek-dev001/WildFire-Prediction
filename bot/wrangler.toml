@@ -13,11 +13,11 @@ compatibility_flags = ["global_fetch_strictly_public"]
 binding = "SITE"
 service = "steppe-wildfire"
 
-# Every 2 minutes during 12:00-20:59 UTC (17:00-01:59 in Kazakhstan, the day-ahead forecast for
-# tomorrow) and 00:00-08:59 UTC (the morning issue when no day-ahead one came): sends a new
-# day's bulletin in batches, once per day.
+# Every minute, all day: a new issue (the evening forecast for tomorrow, then the morning
+# refinement) reaches subscribers within about a minute of its publication. A tick with nothing
+# new reads two small values and stops (1,440 ticks a day, well inside the free plan).
 [triggers]
-crons = ["*/2 0-8,12-20 * * *"]
+crons = ["* * * * *"]
 
 [[kv_namespaces]]
 binding = "SUBS"
