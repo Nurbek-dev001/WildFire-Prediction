@@ -247,8 +247,8 @@ def fig_shap() -> None:
     lc = grouped[grouped.dimension == "landcover"].pivot(
         index="group", columns="feature_group", values="weighted_mean_abs_group_contribution")
     order = ["human", "season", "antecedent_weather", "weather", "cover", "terrain", "vegetation"]
-    heads = ["Human", "Season", "7/14-day\nweather", "Daily\nweather", "Land\ncover", "Terrain",
-             "Vege-\ntation"]
+    heads = ["Human", "Season", "7/14-day weather", "Daily weather", "Land cover", "Terrain",
+             "Vegetation"]
     lc = lc.loc[["grassland", "cropland", "forest", "shrubland", "other"], order]
     fig, (a, b) = plt.subplots(1, 2, figsize=(7.0, 3.1), gridspec_kw={"width_ratios": [1, 1.1]})
     a.barh(range(len(g)), g.weighted_mean_abs_contribution,
