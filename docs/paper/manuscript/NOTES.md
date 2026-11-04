@@ -29,7 +29,7 @@ be compared with studies that test on balanced samples; nothing is refitted.
 
 ## Word counts (body text, without tables and captions)
 
-Results and Discussion: 1,396 words (required 1,200-1,500). Conclusion: 385 words (300-400).
+Results and Discussion: 1,406 words (required 1,200-1,500). Conclusion: 385 words (300-400).
 
 ## Tables and figures
 
