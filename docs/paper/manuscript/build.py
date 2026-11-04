@@ -1,13 +1,15 @@
-"""Assemble the full manuscript: numeric citations, joined Results and Discussion, floats."""
+"""Assemble the full manuscript: numeric citations, joined Results and Discussion, floats.
+
+results_section.tex marks where each table or figure goes with a line `%FLOAT:<name>`; the
+blocks below replace those lines. Figures are made by scripts/article_figures.py.
+"""
 
 import re
-import shutil
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 SRC = Path(r"C:\Users\nured\Downloads\Telegram Desktop\sn-article (19).tex")
 BIB = Path(r"C:\Users\nured\Downloads\Telegram Desktop\references (9).bib")
-FIGS = HERE.parents[0] / "results/figures"
 
 tex = SRC.read_text(encoding="utf-8")
 
@@ -69,7 +71,6 @@ PAIRS = [
 for old, new in PAIRS:
     assert old in tex, old[:60]
     tex = tex.replace(old, new)
-left = re.findall(r"[A-Z][\w\\'-]+ (?:et al\.|and [A-Z][\w ]+? (?=[a-z]))", tex)
 assert not re.search(r"et al\.", tex), "an et al. citation is left"
 
 # ---------- 2. Results and Discussion, Conclusion with uniform floats ----------
@@ -97,21 +98,21 @@ def table(label: str, caption: str, spec: str, header: str, rows: list[str], not
     return "\n".join(lines) + "\n"
 
 
-def figure(label: str, path: str, caption: str) -> str:
+def figure(label: str, path: str, caption: str, width: str = "\\textwidth") -> str:
     return (
         "\\begin{figure}[htbp]\n\\centering\n"
-        f"\\includegraphics[width=0.85\\textwidth]{{{path}}}\n"
+        f"\\includegraphics[width={width}]{{{path}}}\n"
         f"\\caption{{{caption}}}\\label{{{label}}}\n\\end{{figure}}\n"
     )
 
 
 C = ">{\\centering\\arraybackslash}X"
 floats = {
-    "so every model was tested on rarer events than it was trained on.\n": table(
+    "dataset": table(
         "tab:dataset",
-        "New-event starts and prevalence by year and role",
+        "New fire starts and prevalence by year and role in the experiment",
         "l l" + f" {C}" * 3,
-        "Year & Role & New-event starts & Eligible cell-days ($\\times10^{6}$) & Prevalence ($\\times10^{-4}$)",
+        "Year & Role & New fire starts & Eligible cell-days ($\\times10^{6}$) & Prevalence ($\\times10^{-4}$)",
         [
             "2015 & Development & 15,326 & 40.1 & 3.82",
             "2016 & Development & 13,050 & 40.2 & 3.24",
@@ -124,9 +125,9 @@ floats = {
             "2023 & Test & 9,563 & 39.8 & 2.40",
             "2024 & Test & 6,187 & 40.3 & 1.54",
         ],
-        "All positives are retained; eligible cell-days are inverse-inclusion weighted totals of the sampled negatives and positives.",
+        "All positives are kept; eligible cell-days are inverse-inclusion weighted totals of the sampled negatives and the positives.",
     ),
-    "but it weakens the meteorological signal.\n": table(
+    "implementation": table(
         "tab:implementation",
         "Planned design (Section~\\ref{sec:methods}) and its implementation",
         "l X X",
@@ -135,16 +136,16 @@ floats = {
             "Weather & ERA5-Land (9\\,km), observations before $t$ & ERA5 (0.25$^{\\circ}$) from the Open-Meteo archive \\cite{hersbach2020era5,openmeteoOpenData}; day $t-7$ and 7/14-day windows ending $t-7$",
             "Vegetation & MOD13A2 NDVI/EVI, 16-day & NOAA CDR NDVI (0.05$^{\\circ}$), weekly, used $\\geq$12 days after observation \\cite{noaaCdrNdvi}",
             "Human pressure & Dated WorldPop, OSM roads & WorldPop 2010 \\cite{worldpop2010}; distance to Natural Earth settlements \\cite{naturalEarthPlaces}; no roads",
-            "Tuning & 50 Optuna trials per ensemble & 5 trials (budget amended before test access)",
-            "Spatial blocks & 50, 100, 150\\,km; re-tuned per fold & 100\\,km with 25\\,km buffer; hyperparameters fixed",
-            "Ablation & Human, lagged weather, vegetation & Seven predictor groups and a weather-only model, refitted post hoc",
+            "Tuning & 50 Optuna trials per ensemble & 5 trials (budget changed before test access)",
+            "Spatial blocks & 50, 100, 150\\,km; retuned per fold & 100\\,km with 25\\,km buffer; hyperparameters fixed",
+            "Ablation & Human, lagged weather, vegetation & Seven predictor groups and a weather-only model, refitted after the test",
         ],
     ),
-    "compared with 14.3\\% for the seasonal reference and 8.4\\% for the weather-only model.\n": table(
+    "performance": table(
         "tab:performance",
-        "Test performance 2023--2024 (prevalence $1.96\\times10^{-4}$); thresholds fixed on 2022",
+        "Test performance in 2023--2024 (prevalence $1.96\\times10^{-4}$); thresholds fixed on 2022",
         "l" + f" {C}" * 9,
-        "Model & AP & AP/prev. & ROC-AUC & BSS & Precision & Recall & $F_1$ & Top-5\\% capture & XGBoost $-$ model AP (95\\% CI)",
+        "Model & AP & AP/ prev. & ROC-AUC & BSS & Precision & Recall & $F_1$ & Top-5\\% capture & XGBoost $-$ model AP (95\\% CI)",
         [
             "XGBoost & 0.0204 & 104 & 0.924 & 0.0002 & 0.098 & 0.052 & 0.068 & 0.556 & --",
             "CatBoost & 0.0175 & 89 & 0.908 & 0.0085 & 0.046 & 0.072 & 0.056 & 0.502 & $-$0.0017, 0.0124",
@@ -153,37 +154,20 @@ floats = {
             "Weather-only logistic & 0.0004 & 2 & 0.662 & 0.0002 & 0.000 & 0.055 & 0.001 & 0.084 & 0.0162, 0.0307",
             "Seasonal frequency & 0.0006 & 3 & 0.731 & 0.0000 & 0.002 & 0.055 & 0.003 & 0.143 & 0.0161, 0.0306",
         ],
-        "BSS is relative to the seasonal reference; intervals from 1,000 paired space--time block-bootstrap resamples.",
+        "BSS is relative to the seasonal reference. Top-5\\% capture is the share of new starts inside each day's 5\\% highest-scoring area. Intervals come from 1,000 paired space--time block-bootstrap resamples.",
     )
     + figure(
-        "fig:pr",
-        "figures/F1_precision_recall.pdf",
-        "Precision--recall curves on the test years 2023--2024; the dotted line marks the no-skill precision (prevalence).",
+        "fig:performance",
+        "figures/fig_performance.pdf",
+        "Performance on the test years 2023--2024. (a) Precision--recall curves; the dotted line is the no-skill precision (prevalence). (b) Share of new fire starts captured when a growing share of each day's area is flagged, starting from the highest scores; the dotted line is a random ranking.",
     ),
-    "close to the weather-only logistic reference. Rolling validation agreed: terrain was again the largest loss (mean AP 0.0096 against 0.0159).\n": table(
-        "tab:ablation",
-        "Predictor-group ablation of XGBoost (frozen hyperparameters, refitted)",
-        "l" + f" {C}" * 4,
-        "Variant & Inputs & Test AP & AP lost (95\\% CI) & Rolling-validation mean AP",
-        [
-            "Full model & 26 & 0.0234 & -- & 0.0159",
-            "Without daily weather ($t-7$) & 20 & 0.0303 & $-$0.0068 ($-$0.0144, 0.0011) & 0.0166",
-            "Without 7/14-day weather & 22 & 0.0241 & $-$0.0007 ($-$0.0082, 0.0029) & 0.0162",
-            "Without vegetation & 23 & 0.0211 & 0.0023 ($-$0.0028, 0.0062) & 0.0156",
-            "Without land cover & 21 & 0.0140 & 0.0094 (0.0021, 0.0134) & 0.0150",
-            "Without terrain & 22 & 0.0081 & 0.0154 (0.0118, 0.0233) & 0.0096",
-            "Without human pressure & 24 & 0.0155 & 0.0079 (0.0002, 0.0123) & 0.0145",
-            "Without season & 24 & 0.0190 & 0.0045 (0.0006, 0.0076) & 0.0144",
-            "Weather only & 10 & 0.0006 & 0.0228 (0.0184, 0.0321) & 0.0018",
-        ],
-        "Post hoc analysis after the final test; it explains the result and selects nothing.",
-    )
-    + figure(
+    "ablation": figure(
         "fig:ablation",
-        "figures/F14_ablation.pdf",
-        "Average precision lost when each predictor group is removed (test 2023--2024, paired 95\\% intervals); red bars exclude zero.",
+        "figures/fig_ablation.pdf",
+        "Average precision lost when each predictor group is removed from XGBoost (test 2023--2024, paired 95\\% CIs). Red bars have intervals above zero. Negative values mean that the model improved without the group.",
+        "0.8\\textwidth",
     ),
-    "but Brier skill was negative in four of five folds.\n": table(
+    "transfer": table(
         "tab:transfer",
         "Temporal and geographic transfer of XGBoost",
         "l" + f" {C}" * 4,
@@ -200,53 +184,80 @@ floats = {
             "Spatial fold 5 & 0.0031 & 12 & 0.890 & $-$0.010",
             "Spatial folds (mean) & 0.0039 & 15 & 0.866 & $-$0.017",
         ],
-        "Spatial folds: 100\\,km blocks with a 25\\,km buffer, development period, hyperparameters fixed.",
+        "Spatial folds hold out 100\\,km blocks with a 25\\,km buffer inside the development period; hyperparameters were not retuned.",
+    )
+    + figure(
+        "fig:transfer",
+        "figures/fig_transfer.pdf",
+        "Transfer of XGBoost. (a) Average precision divided by prevalence on the two test years and on the five held-out spatial folds; the dotted line is no skill. (b) Average precision by administrative region in 2023--2024, compared with the seasonal reference.",
     ),
-    "Accuracy (0.9997) is uninformative at this prevalence.\n": table(
+    "classes": table(
         "tab:classes",
-        "XGBoost map classes fixed on 2022: predicted and observed frequency, 2023--2024",
-        "l" + f" {C}" * 5,
-        "Class & Probability range & Cell-days ($\\times10^{6}$) & Mean predicted & Observed & Predicted/observed",
+        "XGBoost map classes fixed on 2022: coverage, predicted and observed frequency in 2023--2024",
+        "l" + f" {C}" * 6,
+        "Class & Probability range & Cell-days (\\%) & New starts (\\%) & Mean predicted & Observed & Predicted/ observed",
         [
-            "1 & 0 -- $4.8\\times10^{-5}$ & 39.8 & $1.2\\times10^{-5}$ & $9.0\\times10^{-6}$ & 1.33",
-            "2 & $4.8\\times10^{-5}$ -- $2.3\\times10^{-4}$ & 25.3 & $1.2\\times10^{-4}$ & $6.7\\times10^{-5}$ & 1.82",
-            "3 & $2.3\\times10^{-4}$ -- $7.9\\times10^{-4}$ & 11.0 & $3.9\\times10^{-4}$ & $3.0\\times10^{-4}$ & 1.28",
-            "4 & $7.9\\times10^{-4}$ -- 1 & 4.0 & $3.4\\times10^{-3}$ & $2.6\\times10^{-3}$ & 1.32",
+            "1 & 0 -- $4.8\\times10^{-5}$ & 49.7 & 2.3 & $1.2\\times10^{-5}$ & $9.0\\times10^{-6}$ & 1.33",
+            "2 & $4.8\\times10^{-5}$ -- $2.3\\times10^{-4}$ & 31.6 & 10.8 & $1.2\\times10^{-4}$ & $6.7\\times10^{-5}$ & 1.82",
+            "3 & $2.3\\times10^{-4}$ -- $7.9\\times10^{-4}$ & 13.8 & 21.1 & $3.9\\times10^{-4}$ & $3.0\\times10^{-4}$ & 1.28",
+            "4 & $7.9\\times10^{-4}$ -- 1 & 5.0 & 65.8 & $3.4\\times10^{-3}$ & $2.6\\times10^{-3}$ & 1.32",
         ],
     )
     + figure(
         "fig:reliability",
-        "figures/F3_reliability.pdf",
-        "Reliability diagrams on the test years; marker size grows with the number of cell-days per bin.",
+        "figures/fig_reliability.pdf",
+        "Reliability of the calibrated XGBoost and CatBoost probabilities on the test years, with logarithmic bins. (a) Observed frequency against mean predicted probability; points on the dotted line are perfectly calibrated. (b) Weighted number of cell-days in each bin.",
+        "0.62\\textwidth",
     ),
-    "the dominant factors change between land-cover groups and regions.\n": table(
+    "shap": figure(
+        "fig:shap",
+        "figures/fig_shap.pdf",
+        "TreeSHAP explanations of XGBoost in uncalibrated log-odds. (a) The twelve predictors with the largest mean absolute contribution, coloured by predictor group. (b) Mean absolute contribution of each predictor group by dominant land cover.",
+    )
+    + table(
         "tab:landcover",
         "XGBoost performance and leading SHAP groups by dominant land cover, 2023--2024",
         "l" + f" {C}" * 4 + " X",
         "Land cover & Test starts & AP & AP/prev. & BSS & Leading predictor groups (mean $|$SHAP$|$)",
         [
-            "Grassland & 12,805 & 0.0413 & 225 & 0.016 & human 0.65; season 0.61; antecedent weather 0.57",
-            "Cropland & 1,947 & 0.0134 & 21 & 0.005 & antecedent weather 1.15; land cover 0.81; season 0.44",
-            "Other & 947 & 0.0359 & 263 & $-$0.228 & land cover 1.20; terrain 0.77; human 0.73",
-            "Forest & 5 & 0.0014 & 40 & $-$0.005 & land cover 0.94; antecedent weather 0.81; human 0.73",
-            "Shrubland & 0 & -- & -- & -- & land cover 1.75; weather 0.74; season 0.47",
+            "Grassland & 12,805 & 0.0413 & 225 & 0.016 & human 0.65; season 0.61; 7/14-day weather 0.57",
+            "Cropland & 1,947 & 0.0134 & 21 & 0.005 & 7/14-day weather 1.15; land cover 0.81; season 0.44",
+            "Other & 947 & 0.0359 & 263 & $-$0.228 & land cover 1.20; terrain 0.76; human 0.73",
+            "Forest & 5 & 0.0014 & 40 & $-$0.005 & land cover 0.94; 7/14-day weather 0.81; human 0.73",
+            "Shrubland & 0 & -- & -- & -- & land cover 1.75; daily weather 0.74; season 0.47",
         ],
-        "SHAP values are in uncalibrated log-odds and describe predictive associations, not causes.",
-    )
-    + figure(
-        "fig:shap",
-        "figures/F5_shap_global.pdf",
-        "Global TreeSHAP importance of the fifteen strongest predictors of XGBoost.",
+        "SHAP values describe predictive associations, not causes.",
     ),
-    "the distinction between occurrence probability and risk \\cite{dossi2026infrastructure,berchtold2025tipping}.\n": figure(
+    "comparison": table(
+        "tab:comparison",
+        "Results reported by related studies and by this study",
+        "p{2.1cm} p{2.0cm} X X X",
+        "Study & Area & Prediction target & Evaluation data & Reported result",
+        [
+            "\\cite{babu2025sfri} & Kazakhstan & Fire-risk index (static RF with dynamic layers) & FIRMS fire points, 2018--2023 & RF: accuracy 0.78, AUC 0.80",
+            "\\cite{chepashev2025maxent} & Kazakhstan & Static hazard map (MaxEnt, 1\\,km) & Independent 2023 FIRMS hotspots & AUC 0.79; 72.5\\% of hotspots in high/very high classes (37.5\\% of area)",
+            "\\cite{iban2024shap} & \\.{I}zmir, T\\\"urkiye & Static susceptibility & Balanced fire/non-fire test points & RF: AUC 0.966, accuracy 95.6\\%",
+            "\\cite{bouzeraa2025wsm} & Jijel, Algeria & Static susceptibility & Fire/non-fire points; fires of 2024--2025 & RF: AUC 0.99; 87.7\\% of later fires in high/very high zones",
+            "\\cite{kondylatos2022danger} & Eastern Mediterranean & Next-day fire danger & Balanced samples & LSTM/ConvLSTM: $F_1>0.80$; XGBoost: $F_1$ 0.78--0.79",
+            "\\cite{apostolakis2025interpretation} & Greece & Daily occurrence (500\\,m) & Daily cells, June--September & Sensitivity 0.89, specificity 0.81",
+            "\\cite{jadouli2024morocco} & Morocco & Next-day occurrence & Balanced 1:1, data after January 2022 & LightGBM: AUC 0.95, accuracy 0.91",
+            "\\cite{ouazri2026catboost} & Northern Morocco & Fire occurrence & Balanced, random 20\\% split & CatBoost--Transformer: ROC-AUC 0.973, PR-AUC 0.987",
+            "This study & Kazakhstan & Next-day new fire starts (5\\,km) & All cell-days 2023--2024, prevalence 0.02\\% & XGBoost: AP 0.020 (0.925 at 1:1 balance), ROC-AUC 0.924; daily top 5\\% area holds 55.6\\% of starts",
+        ],
+        "Values are taken from the cited papers. The studies use different data, targets, and test designs, so the numbers are not directly comparable. The 1:1 value of this study re-weights the same test predictions; nothing is refitted.",
+    ),
+    "case": figure(
         "fig:case",
-        "figures/F13_case_june_2023.pdf",
-        "Next-day forecasts for 7--9 June 2023 as daily percentile classes, with the new event starts of each day.",
+        "figures/fig_case.pdf",
+        "XGBoost next-day forecasts for 7--9 June 2023, shown as daily percentile classes with region borders and the new fire starts of each day. The arrow marks the start near Semei on 8 June.",
+        "0.72\\textwidth",
     ),
 }
-for anchor, block in floats.items():
-    assert body.count(anchor) == 1, anchor[:60]
-    body = body.replace(anchor, anchor + "\n" + block)
+for name, block in floats.items():
+    marker = f"%FLOAT:{name}\n"
+    assert body.count(marker) == 1, name
+    body = body.replace(marker, "\n" + block)
+assert "%FLOAT:" not in body
 
 tex = tex.replace("\n\n\\bibliography{references}", "\n\n" + body + "\n\\bibliography{references}")
 (HERE / "sn-article.tex").write_text(tex, encoding="utf-8")
@@ -293,7 +304,9 @@ extra = r"""
 (HERE / "references.bib").write_text(BIB.read_text(encoding="utf-8").rstrip() + "\n" + extra, encoding="utf-8")
 
 out = HERE / "figures"
-out.mkdir(exist_ok=True)
-for name in ["F1_precision_recall", "F3_reliability", "F5_shap_global", "F13_case_june_2023", "F14_ablation"]:
-    shutil.copyfile(FIGS / f"{name}.pdf", out / f"{name}.pdf")
+for old in out.glob("*.pdf"):
+    if re.fullmatch(r"F\d+_\w+\.pdf", old.name):  # case-sensitive: Windows glob is not
+        old.unlink()  # earlier evidence-pack copies; the article figures come from article_figures.py
+for name in ["fig_performance", "fig_ablation", "fig_transfer", "fig_reliability", "fig_shap", "fig_case"]:
+    assert (out / f"{name}.pdf").exists(), name
 print("ok")

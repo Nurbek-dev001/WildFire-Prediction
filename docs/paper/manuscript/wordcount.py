@@ -5,6 +5,7 @@ from pathlib import Path
 
 s = (Path(__file__).parent / "results_section.tex").read_text(encoding="utf-8")
 rd, conclusion = s.split(r"\section{Conclusion}")
+conclusion = conclusion.split(r"ackmatter")[0]
 
 
 def words(text: str) -> int:
