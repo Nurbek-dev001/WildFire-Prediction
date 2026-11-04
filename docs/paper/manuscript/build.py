@@ -35,10 +35,14 @@ SUBJECTS = [
 ]
 for phrase, key in SUBJECTS:
     start = tex.index(phrase)
-    verb = phrase.split(" ")[-1] if " similarly " not in phrase and " directly " not in phrase else " ".join(phrase.split(" ")[-2:])
-    tex = tex[:start] + f"\\cite{{{key}}} {verb}" + tex[start + len(phrase):]
+    verb = (
+        phrase.split(" ")[-1]
+        if " similarly " not in phrase and " directly " not in phrase
+        else " ".join(phrase.split(" ")[-2:])
+    )
+    tex = tex[:start] + f"\\cite{{{key}}} {verb}" + tex[start + len(phrase) :]
     end = tex.index(f" \\cite{{{key}}}", start + 10)
-    tex = tex[:end] + tex[end + len(f" \\cite{{{key}}}"):]
+    tex = tex[:end] + tex[end + len(f" \\cite{{{key}}}") :]
 
 PAIRS = [
     (
@@ -290,10 +294,18 @@ extra = r"""
   note   = {Accessed October 2026}
 }
 """
-(HERE / "references.bib").write_text(BIB.read_text(encoding="utf-8").rstrip() + "\n" + extra, encoding="utf-8")
+(HERE / "references.bib").write_text(
+    BIB.read_text(encoding="utf-8").rstrip() + "\n" + extra, encoding="utf-8"
+)
 
 out = HERE / "figures"
 out.mkdir(exist_ok=True)
-for name in ["F1_precision_recall", "F3_reliability", "F5_shap_global", "F13_case_june_2023", "F14_ablation"]:
+for name in [
+    "F1_precision_recall",
+    "F3_reliability",
+    "F5_shap_global",
+    "F13_case_june_2023",
+    "F14_ablation",
+]:
     shutil.copyfile(FIGS / f"{name}.pdf", out / f"{name}.pdf")
 print("ok")
