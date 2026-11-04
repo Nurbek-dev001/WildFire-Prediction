@@ -1,0 +1,16 @@
+{
+  "synthetic": false,
+  "frozen_utc": "2026-11-04T20:23:34.732970+00:00",
+  "recipe": "v6 (runs/model_v6) with ERA5 predictors ending on D-8",
+  "v6_release_sha256": "6575d61a84036b5964155f7966c28282271d359e936f1aa1e8754e6018b848d9",
+  "artifacts": {
+    "model.joblib": "72e1f02399726c3b2a654f3e9e6ba14c22890ae1c663e82a91055144ee3049e2",
+    "calibrator.joblib": "7c00bd39f99a9cb34e93ea78c2a538073e6bd5a3ed335303211a240148de0b82",
+    "frozen.json": "9c8f2b253b2e276108fd4d86087a379b86ac77c6a56c3bc0085f5b91eef86e5d",
+    "training.json": "c78757575bcbd040d9da88430b36f1af7bd3bbc24e911156d020aebe97c6c527",
+    "lag_comparison.csv": "5a8344e95caa591404e72ff4557953cdada7b0591d7f96725ffad91016fa28d7"
+  },
+  "code": {
+    "scripts\\develop_model_v6da.py": "a5758da4c152758dfbe37e93797b120ed7c539dc892c07c993297ecee78404ab"
+  }
+}
