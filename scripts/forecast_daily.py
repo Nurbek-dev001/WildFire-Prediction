@@ -2,11 +2,12 @@
 
 Usage: forecast_daily.py [--day YYYY-MM-DD] [--replay]   (default: the UTC day 12 hours ahead)
 
-Inputs are what exists at issue time: S-NPP detections from NASA GIBS (D-1 up to 21 UTC, as v7
-was trained), ERA5 through D-7 (v6's lag), NDVI through D-12, the GFS 18 UTC run of D-1 and the
-two runs before it. Run after about 23:00 UTC of D-1. An entry counts for the prospective test
-(2027-03-01..2027-10-31) only if it is issued before 06:00 UTC of D, before the first S-NPP pass
-over Kazakhstan. One entry per day: the first issue stands, a second run for the same day stops.
+Day ahead: the forecast for D is issued during D-1, from 12:00 UTC, and counts as on time
+before 19:00 UTC of D-1 (midnight in Kazakhstan). Inputs are what exists then: S-NPP
+detections from NASA GIBS (D-1 up to 12:00 UTC, its day pass; v7 was trained with D-1 to
+21 UTC), ERA5 through D-7 (v6's lag), NDVI through D-12, GFS for D from the 06 UTC run of D-1
+(v7 was trained against the 18 UTC run) and for D-1 and D-2 from the 18 UTC runs before them.
+One entry per day: the first issue stands, a second run for the same day stops.
 """
 
 from __future__ import annotations
@@ -32,7 +33,7 @@ import test_2026 as t26  # noqa: E402
 
 from wildfire_kz import forecast_log as fl  # noqa: E402
 from wildfire_kz import model_upgrade as mu  # noqa: E402
-from wildfire_kz.data import checksum, dump_json, gfs_forecasts  # noqa: E402
+from wildfire_kz.data import checksum, dump_json, gfs_dayahead, gfs_forecasts  # noqa: E402
 from wildfire_kz.data import public_predictors as pp  # noqa: E402
 from wildfire_kz.data import public_study as study  # noqa: E402
 from wildfire_kz.data.gibs_fires import fetch_day  # noqa: E402
@@ -40,6 +41,7 @@ from wildfire_kz.data.gibs_fires import fetch_day  # noqa: E402
 LIVE = ROOT / "runs/forecast_live"
 LOG = LIVE / "log.jsonl"
 TEST = (date(2027, 3, 1), date(2027, 10, 31))
+DAYAHEAD_RUN_HOUR = gfs_dayahead.RUN_HOUR
 LAND = ["forest", "grassland", "shrubland", "cropland", "other"]
 # Sealed inputs of the 2026 test end here; later days come only from the live feeds.
 SEALED_DETECTIONS, SEALED_NDVI = t26.END.date(), (t26.END - pd.Timedelta(days=12)).date()
@@ -118,7 +120,8 @@ def firms_day(day: date) -> pd.DataFrame:
 def detections_day(day: date) -> tuple[pd.DataFrame, str]:
     """Raw points of one UTC day and their source; refetched until complete (D+1 06 UTC)."""
     path = LIVE / f"gibs/{day}.parquet"
-    complete_after = fl.midnight(day + timedelta(days=1)) + fl.DEADLINE_AFTER_MIDNIGHT
+    # S-NPP's night pass over Kazakhstan ends about 21 UTC; a day is complete by 06 UTC next day.
+    complete_after = fl.midnight(day + timedelta(days=1)) + timedelta(hours=6)
     if path.exists() and datetime.fromtimestamp(path.stat().st_mtime, UTC) >= complete_after:
         return pd.read_parquet(path), "gibs"
     try:
@@ -295,20 +298,22 @@ def ndvi(day: date) -> str | None:
 
 
 # ---------- GFS ----------
-def gfs_day(day: date) -> None:
-    """One day from the 18 UTC run of the day before, as gfs_forecasts.build writes it.
+def gfs_day(day: date, run_hour: int = 18) -> Path:
+    """One day from the 18 UTC run of the day before, as gfs_forecasts.build writes it, or from
+    an earlier run (day-ahead forecasts) in its own folder.
 
     Sequential on purpose: eccodes loads its definitions unsafely when the first messages
     are decoded in several threads at once.
     """
-    path = v7.GFS / f"{day}.npz"
+    path = v7.GFS / (f"{day}.npz" if run_hour == 18 else f"run{run_hour:02}/{day}.npz")
     if path.exists():
-        return
-    values = gfs_forecasts.daily(day)
+        return path
+    values = gfs_forecasts.daily(day) if run_hour == 18 else gfs_dayahead.daily(day, run_hour)
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary = path.with_suffix(".working.npz")
     np.savez_compressed(temporary, **{k: np.asarray(v) for k, v in values.items()})  # type: ignore[arg-type]
     temporary.replace(path)
+    return path
 
 
 # ---------- features ----------
@@ -380,7 +385,9 @@ def cover_override(year: int, release: Path | None = None) -> dict:
     return study.cover_year(min(year, t26.COVER_YEAR), release)
 
 
-def h3_h2(day: pd.Timestamp, detections: pd.DataFrame, cells: pd.Series) -> pd.DataFrame:
+def h3_h2(
+    day: pd.Timestamp, detections: pd.DataFrame, cells: pd.Series, today_file: Path | None = None
+) -> pd.DataFrame:
     """v7's H3 and H2 inputs for every grid cell, with the equations of develop_model_v7."""
     from scipy.ndimage import distance_transform_edt, uniform_filter
 
@@ -413,6 +420,9 @@ def h3_h2(day: pd.Timestamp, detections: pd.DataFrame, cells: pd.Series) -> pd.D
     weather = v7.Weather("gfs")
     y, x = weather.ny, weather.nx
     today, yesterday, before = (weather.day(day - pd.Timedelta(days=k)) for k in (0, 1, 2))
+    if today_file is not None:
+        with np.load(today_file) as z:
+            today = {k: z[k] for k in v7.DAILY}
     if today is None or yesterday is None or before is None:
         raise FileNotFoundError("GFS for D, D-1 or D-2 is missing")
     h2 = {c: np.full(n, np.nan, dtype=np.float32) for c in v7.H2}
@@ -556,7 +566,7 @@ def forecast(target: date, replay: bool = False) -> None:
     earliest, deadline = fl.window(target)
     if not replay and issued < earliest:
         raise RuntimeError(
-            f"Too early: D-1 detections to 21 UTC and GFS 18 UTC exist after {earliest}"
+            f"Too early: the day-ahead forecast is issued from {earliest} (D-1 12:00 UTC)"
         )
     check_versions()
     verify(t26.V6)
@@ -565,6 +575,11 @@ def forecast(target: date, replay: bool = False) -> None:
 
     log(f"{target}: inputs")
     detections, det_meta = live_detections(target - timedelta(days=1))
+    # Day-ahead: D-1 counts only up to 12:00 UTC (its day pass), whatever time the run starts,
+    # so every attempt and every replay sees the same inputs.
+    cutoff = pd.Timestamp(fl.midnight(target) - timedelta(hours=12))
+    detections = detections[detections.timestamp < cutoff].reset_index(drop=True)
+    det_meta["last_detection_utc"] = str(detections.timestamp.max())
     # The 14-day windows run D-20..D-7; each year they touch must reach as far as they need.
     lasts = {
         y: extend_weather(y, target - timedelta(days=7))
@@ -574,9 +589,10 @@ def forecast(target: date, replay: bool = False) -> None:
     if era5_last is None or era5_last < target - timedelta(days=7):
         raise FileNotFoundError(f"ERA5 published only through {era5_last}; v6 needs D-7")
     ndvi_last = ndvi(target)
-    gfs_days = [target - timedelta(days=k) for k in (2, 1, 0)]
-    for d in gfs_days:
-        gfs_day(d)
+    # D-2 and D-1 from the 18 UTC runs before them (as trained); D itself from the 06 UTC run of
+    # D-1, the latest out during the issue window.
+    gfs_files = [gfs_day(target - timedelta(days=k)) for k in (2, 1)]
+    gfs_files.append(gfs_day(target, DAYAHEAD_RUN_HOUR))
 
     log(f"{target}: features")
     study.weather_arrays = live_weather_arrays
@@ -617,7 +633,7 @@ def forecast(target: date, replay: bool = False) -> None:
         ]
     )
     eligible = f.required_features_valid.to_numpy() & ~industrial & ~ids.isin(recent)
-    extras = h3_h2(day, detections, cells)
+    extras = h3_h2(day, detections, cells, gfs_files[-1])
     for c in extras:
         f[c] = extras[c].to_numpy()
     # H1 persistent heat sources as known before D: the 2027 test's primary risk set.
@@ -651,7 +667,7 @@ def forecast(target: date, replay: bool = False) -> None:
             "mean_probability": float(np.nanmean(p)),
         }
     # Heat sources in cells.bin order, as the map indexes cells.
-    with np.load(v7.GFS / f"{target}.npz") as z:
+    with np.load(gfs_files[-1]) as z:
         gfs_today = {k: z[k] for k in v7.DAILY}
     checks, warnings = health(
         target, det_meta, era5_last, ndvi_last, f, eligible, gfs_today, models
@@ -683,7 +699,9 @@ def forecast(target: date, replay: bool = False) -> None:
                 "detections": det_meta,
                 "era5_last_day": str(era5_last),
                 "ndvi_last_week": ndvi_last,
-                "gfs": {str(d): checksum(v7.GFS / f"{d}.npz") for d in gfs_days},
+                "gfs": {str(f.relative_to(v7.GFS)): checksum(f) for f in gfs_files},
+                "issue": "day_ahead",
+                "detections_cutoff_utc": str(cutoff),
                 "land_cover_year": t26.COVER_YEAR,
                 "v7_frozen_utc": v7_release["frozen_utc"],
             },

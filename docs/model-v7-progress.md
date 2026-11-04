@@ -184,3 +184,24 @@ Climatology, persistence, FWI of D-1 and a simple logistic model on them, on the
 mean AP 0.0107, 0.0088, 0.0003, 0.0184; v6 recipe 0.0195, v7 0.0213. v7 beats the best of them
 at 5 of 6 origins, the v6 recipe at 4 of 6. On cropland v7 0.0311 against 0.0273; elsewhere
 v7 0.0198 against 0.0175. Details and the table by land type: docs/operations.md.
+
+## Amendment 2026-11-04-03: day-ahead issue
+
+Management asked that the forecast for day D be ready during D-1 rather than in the morning
+of D. From 2026-11-05 both models are issued between 12:00 and 19:00 UTC of D-1 (17:00 to
+midnight in Kazakhstan); on time means before 19:00 UTC of D-1. Neither frozen model is
+retrained; their inputs change as follows, identically for both, so the 2027 comparison stays
+paired on the same days and inputs:
+
+| Input | Before (issue 23:00-06:00 UTC) | Day-ahead (issue 12:00-19:00 UTC of D-1) |
+|---|---|---|
+| D-1 detections | to 21:00 UTC (v7 H3 as trained) | to 12:00 UTC (day pass only) |
+| 48 h exclusion | detections in the 48 h before D | the same, through 12:00 UTC of D-1 |
+| GFS for D | 18 UTC run of D-1, lead 6-30 h | 06 UTC run of D-1, lead 18-42 h |
+| GFS for D-1, D-2 | 18 UTC runs | unchanged |
+| ERA5, NDVI | D-7, D-12 | unchanged |
+
+On 2026-11-03 the 06 UTC run reproduced the 18 UTC daily fields closely (correlation 0.999
+tmax, 0.998 tmin, 0.994 RH, 0.991 wind, 0.987 precipitation over the window). v7's H3 inputs
+now see only the day pass of D-1, which v7 was not trained on: its 2027 scores measure the
+model as served day-ahead. Entries record `issue: day_ahead` and the detection cut-off.

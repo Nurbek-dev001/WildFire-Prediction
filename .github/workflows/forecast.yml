@@ -1,13 +1,13 @@
 name: Nightly forecast
 # v6 and v7 for the next UTC day, issued in the cloud every night (docs/cloud-setup.md).
-# GitHub starts scheduled runs late (often 1-3 hours), so attempts come every 30 minutes from
-# 23:05 to 05:35 UTC; a quick check skips every attempt once the day is in the log. The record goes to the
+# Day ahead: the forecast for D is issued during D-1 (17:00-23:30 in Kazakhstan). GitHub starts
+# scheduled runs late (often 1-3 hours), so attempts come every 30 minutes from 12:05 to
+# 18:35 UTC; a quick check skips every attempt once the day is in the log. The record goes to the
 # forecast-log branch (its push time is the external timestamp of each forecast), the site to
 # Cloudflare Workers static assets, and the Telegram bot reads the new bulletin from the site.
 on:
   schedule:
-    - cron: '5,35 23 * * *'
-    - cron: '5,35 0-5 * * *'
+    - cron: '5,35 12-18 * * *'
   workflow_dispatch:
     inputs:
       day:

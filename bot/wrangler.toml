@@ -5,10 +5,10 @@ name = "steppe-wildfire-bot"
 main = "src/worker.js"
 compatibility_date = "2024-12-01"
 
-# Every 2 minutes during 00:00-08:59 UTC (05:00-13:59 in Kazakhstan): sends the morning summary
-# in batches once a new bulletin is on the site.
+# Every 2 minutes during 12:00-21:59 UTC (17:00-02:59 in Kazakhstan): sends the evening summary
+# for the next day in batches once a new bulletin is on the site.
 [triggers]
-crons = ["*/2 0-8 * * *"]
+crons = ["*/2 12-21 * * *"]
 
 [[kv_namespaces]]
 binding = "SUBS"
