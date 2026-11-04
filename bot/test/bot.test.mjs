@@ -31,7 +31,7 @@ test('a summary lists only the subscriber regions and explains cropland alerts',
   assert.match(text, /🟠 🌾 Кызылординская · степь · <b>шанс 2%/);
   assert.match(text, /🔴 высокий риск/);
   assert.match(text, /плановый пал/);
-  assert.equal(summary(bulletin, { ...sub, regions: [0] }), null, 'quiet when nothing to say');
+  assert.equal(summary(bulletin, { ...sub, regions: [0], quiet: true }), null, 'silent only when asked');
   assert.match(summary(bulletin, { ...sub, regions: [0], quiet: false }), /тревог нет/);
   assert.match(summary(bulletin, { ...defaults('en'), regions: [1] }), /Alerts in your regions/);
 });
@@ -58,7 +58,7 @@ test('cropland burns can be hidden; a saved point gets its own section', () => {
   assert.match(text, /Скрыто палов на пашне: 1/);
   const home = { ...defaults('ru'), home: { lat: 45.13, lon: 65.0 }, radius: 25 };
   assert.match(summary(bulletin, home), /Рядом с вами<\/b> \(до 25 км\): тревог <b>2<\/b>/);
-  assert.equal(summary(bulletin, { ...home, home: { lat: 51, lon: 71 } }), null, 'quiet when nothing near');
+  assert.equal(summary(bulletin, { ...home, home: { lat: 51, lon: 71 }, quiet: true }), null, 'silent only when asked');
   assert.equal(applySetting(defaults('ru'), 'crop').crop, false);
 });
 
@@ -78,7 +78,8 @@ test('region toggles, all and the keyboard marks', () => {
 test('settings switch push, quiet and language', () => {
   const s = defaults('ru');
   assert.equal(applySetting(s, 'push').push, false);
-  assert.equal(applySetting(s, 'quiet').quiet, false);
+  assert.equal(s.quiet, false, 'a daily message by default');
+  assert.equal(applySetting(s, 'quiet').quiet, true);
   assert.equal(applySetting(s, 'lang:kk').lang, 'kk');
   assert.equal(applySetting(s, 'lang:xx').lang, 'ru');
 });
@@ -164,7 +165,7 @@ test('broadcast sends once per day in batches and drops blocked users', async ()
   assert.equal(first.done, false);
   const second = await broadcast(env);
   assert.equal(second.done, true);
-  assert.equal(sent.filter((s) => s.method === 'sendMessage').length, 46, '45 subscribers plus the blocked one; region 0 stays quiet');
+  assert.equal(sent.filter((s) => s.method === 'sendMessage').length, 47, '45 subscribers, the blocked one and region 0 ("no alerts")');
   await env.SUBS.put('chat:3000', '1', { metadata: { ...defaults('ru') } });
   await env.SUBS.put('broadcast', JSON.stringify({ day: '2026-10-30', done: true }));
   const before = sent.length;
@@ -196,4 +197,24 @@ test('the evening day-ahead bulletin is marked as tomorrow\'s and read on one sc
   assert.ok(kz.indexOf('2,3%') < kz.indexOf('0,81%'), 'highest chance first');
   // The morning bulletin keeps its header without the day-ahead note.
   assert.doesNotMatch(summary(bulletin, sub), /уточняется/);
+});
+
+test('old subscribers get the daily message; evening and morning issues are each sent once', async () => {
+  const { env, sent } = harness();
+  // Saved before v2: quiet true was a default nobody chose.
+  await env.SUBS.put('chat:1', '1', { metadata: { lang: 'ru', regions: [0], push: true, quiet: true, crop: true, home: null, radius: 50 } });
+  const ahead = { ...bulletin, kind: 'dayahead', target_day: '2026-11-06' };
+  env.SITE = { fetch: async () => new Response(JSON.stringify(ahead)) };
+  while (!(await broadcast(env)).done);
+  assert.match(sent.at(-1).body.text, /тревог нет/);
+  assert.match(sent.at(-1).body.text, /Прогноз на завтра: выпущен накануне/);
+  assert.equal((await broadcast(env)).reason, 'done');
+  const morning = { ...bulletin, kind: 'morning', target_day: '2026-11-06' };
+  env.SITE = { fetch: async () => new Response(JSON.stringify(morning)) };
+  while (!(await broadcast(env)).done);
+  assert.match(sent.at(-1).body.text, /Утреннее уточнение/);
+  assert.equal((await broadcast(env)).reason, 'done');
+  // A redeploy that briefly serves the previous day sends nothing.
+  env.SITE = { fetch: async () => new Response(JSON.stringify({ ...bulletin, target_day: '2026-11-05' })) };
+  assert.equal((await broadcast(env)).reason, 'older');
 });

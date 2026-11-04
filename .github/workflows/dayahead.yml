@@ -9,6 +9,11 @@ on:
   schedule:
     - cron: '5,35 12-18 * * *'
     - cron: '5 19-23 * * *'
+  # A push of the day-ahead code issues the target day when it is missing (a start that needs no
+  # token); a day already in the log stops at once and the site is redeployed.
+  push:
+    branches: [main]
+    paths: ['scripts/forecast_dayahead.py', 'scripts/develop_model_v6da.py', '.github/workflows/dayahead.yml']
   workflow_dispatch:
     inputs:
       day:

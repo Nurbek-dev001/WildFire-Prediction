@@ -33,6 +33,7 @@ export const T = {
     map: '🗺 Открыть карту',
     noData: 'Прогноз ещё не выпущен. Прогноз на завтра появляется вечером, обычно в 17:00–20:00 по Казахстану.',
     ahead: 'Прогноз на завтра: выпущен накануне вечером, утром он уточняется.',
+    refined: 'Утреннее уточнение: модели v6 и v7 на свежих данных.',
     near: (r, n) => `📍 <b>Рядом с вами</b> (до ${r} км): тревог <b>${n}</b>.`,
     nearNone: (r) => `📍 Рядом с вами (до ${r} км) тревог нет.`,
     km: 'км',
@@ -71,6 +72,7 @@ export const T = {
     map: '🗺 Картаны ашу',
     noData: 'Болжам әлі шықпады. Ертеңгі болжам кешке, әдетте Қазақстан уақытымен 17:00–20:00 аралығында шығады.',
     ahead: 'Ертеңгі болжам: алдыңғы күні кешке шықты, таңертең нақтыланады.',
+    refined: 'Таңғы нақтылау: v6 және v7 модельдері жаңа деректермен.',
     near: (r, n) => `📍 <b>Жаныңызда</b> (${r} км дейін): дабылдар <b>${n}</b>.`,
     nearNone: (r) => `📍 Жаныңызда (${r} км дейін) дабыл жоқ.`,
     km: 'км',
@@ -109,6 +111,7 @@ export const T = {
     map: '🗺 Open the map',
     noData: 'The forecast is not issued yet. Tomorrow’s forecast appears in the evening, usually 17:00–20:00 Kazakhstan time.',
     ahead: 'Tomorrow’s forecast: issued the evening before, refined in the morning.',
+    refined: 'Morning update: models v6 and v7 on the latest data.',
     near: (r, n) => `📍 <b>Near you</b> (within ${r} km): <b>${n}</b> alerts.`,
     nearNone: (r) => `📍 No alerts near you (within ${r} km).`,
     km: 'km',
@@ -131,7 +134,11 @@ export const T = {
 
 export const langOf = (code) => (LANGS.includes((code || '').slice(0, 2)) ? code.slice(0, 2) : 'ru');
 export const escape = (s) => String(s).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c]);
-export const defaults = (lang) => ({ lang, regions: [], push: true, quiet: true, crop: true, home: null, radius: 50 });
+// v2: a daily message by default ("no alerts in your regions" is news too). Subscribers saved
+// before v2 never chose silence, quiet: true was the old default, so they are moved to v2.
+export const defaults = (lang) => ({ lang, regions: [], push: true, quiet: false, crop: true, home: null, radius: 50, v: 2 });
+// Applied to the saved settings before the defaults are merged in.
+export const migrate = (saved) => (saved.v >= 2 ? saved : { ...saved, quiet: false, v: 2 });
 
 export function command(text) {
   const m = /^\/([a-z_]+)(@\w+)?(?:\s+(.*))?$/i.exec((text || '').trim());
@@ -216,7 +223,8 @@ export function distanceKm(lat1, lon1, lat2, lon2) {
 
 // A one-line key under any message that lists alerts.
 // The evening (day-ahead) bulletin is marked as tomorrow's preliminary forecast.
-const heading = (b, lang) => T[lang].header(dayText(b.target_day, lang)) + (b.kind === 'dayahead' ? `\n<i>${T[lang].ahead}</i>` : '');
+const note = (b, lang) => (b.kind === 'dayahead' ? T[lang].ahead : b.refined ? T[lang].refined : '');
+const heading = (b, lang) => T[lang].header(dayText(b.target_day, lang)) + (note(b, lang) ? `\n<i>${note(b, lang)}</i>` : '');
 const withLegend = (text, lang) => (/🔴|🟠/.test(text) ? `${text}\n\n<i>${T[lang].legend}</i>` : text);
 
 // Alerts the subscriber wants to see: cropland burns only if they keep them.
@@ -290,7 +298,7 @@ export function national(bulletin, sub, previous = null) {
   const shown = visible(bulletin, sub);
   const counts = {};
   for (const a of shown) counts[a.region] = (counts[a.region] || 0) + 1;
-  const lines = [t.kz(dayText(bulletin.target_day, sub.lang), shown.length), ...(bulletin.kind === 'dayahead' ? [`<i>${t.ahead}</i>`] : []), ''];
+  const lines = [t.kz(dayText(bulletin.target_day, sub.lang), shown.length), ...(note(bulletin, sub.lang) ? [`<i>${note(bulletin, sub.lang)}</i>`] : []), ''];
   const order = Object.keys(counts).map(Number).sort((a, b) => counts[b] - counts[a]);
   for (const r of order) {
     const before = previous ? previous[r] || 0 : null;

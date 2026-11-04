@@ -3,7 +3,7 @@ import {t,num,pctText,onLang,bindSwitch,regionName,cityName,coords,longDate,week
 import {populationNote,readiness,quality} from './quality.js?v=20261105-da';
 import {probability,modelLabel,modelInputs,loadForecast,validateManifest,sources,methodology,evaluation} from './model-results.js?v=20261105-da';
 import {loadOperatingPolicy,activeProfile,profileMetrics} from './operating-policy.js';
-import {isV6,isV7,loadV6,loadLive} from './model-v6.js?v=20261105-da';
+import {isV6,isV7,isDayAhead,loadV6,loadLive} from './model-v6.js?v=20261105-da';
 const $ = id => document.getElementById(id);
 const nf = {format:v=>num(v)};
 const df = {format:d=>longDate(d)};
@@ -191,7 +191,7 @@ function drawPoints(v){
 }
 function renderLegend(bounds,counts){
   const hist=state.layer==='history',real=state.mode==='real'&&manifest?.ready;
-  $('legend-title').textContent=hist?t('legend.title.history',{year:state.year}):t(real&&isV7(manifest)?'legend.title.v7':real&&isV6(manifest)?'legend.title.v6':'legend.title')+(state.mode==='demo'?t('legend.demo'):'');
+  $('legend-title').textContent=hist?t('legend.title.history',{year:state.year}):t(real&&isV7(manifest)?'legend.title.v7':real&&isDayAhead(manifest)?'legend.title.v6da':real&&isV6(manifest)?'legend.title.v6':'legend.title')+(state.mode==='demo'?t('legend.demo'):'');
   $('legend-ticks').innerHTML=(hist?['1',...bounds.map((b,i)=>i===bounds.length-1?b+'+':String(b))]:['0',...bounds.map(pct)]).map(t=>`<span>${t}</span>`).join('');
   $('legend-threshold').hidden=hist;
   $('legend-counts').innerHTML=counts?counts.map(n=>`<span>${nf.format(n)}</span>`).join(''):'';
