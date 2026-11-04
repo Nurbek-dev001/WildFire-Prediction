@@ -1,19 +1,19 @@
 {
   "synthetic": false,
   "kind": "daily_forecasts",
-  "updated_utc": "2026-11-03T03:55:52+00:00",
+  "updated_utc": "2026-11-04T03:02:54+00:00",
   "test_period": [
     "2027-03-01",
     "2027-10-31"
   ],
-  "log_last_entry_sha256": "f4b4350cb54182c65b8c39a34cb2250c30183d755e110eeed91e122965a2b413",
+  "log_last_entry_sha256": "643d6bf55a1e93541c79bae96e41ec8670fe12d2d8a15d9e322f4c9179c63b69",
   "summary": {
-    "entries": 5,
+    "entries": 6,
     "test_days_total": 245,
     "test_days_on_time": 0,
     "test_days_late": 0,
     "test_days_missed": 0,
-    "last": "2026-11-03"
+    "last": "2026-11-04"
   },
   "missed_days": [],
   "days": [
@@ -21,7 +21,8 @@
     "2026-10-31",
     "2026-11-01",
     "2026-11-02",
-    "2026-11-03"
+    "2026-11-03",
+    "2026-11-04"
   ],
   "models": {
     "v6": {
@@ -365,6 +366,21 @@
         "issued_utc": "2026-11-03T03:55:12+00:00",
         "on_time": true,
         "log_entry_sha256": "f4b4350cb54182c65b8c39a34cb2250c30183d755e110eeed91e122965a2b413"
+      },
+      "2026-11-04": {
+        "target_day": "2026-11-04",
+        "synthetic": false,
+        "model": "xgboost_v6",
+        "format": "little_endian_float16_byte_shuffle_gzip",
+        "count": 110129,
+        "finite_cells": 110046,
+        "alert_cells": 70,
+        "payload_sha256": "103135e590f3a3c98ce120bd88801b9cfbe46a4460fed225b0e41c2758b7ef53",
+        "release_sha256": "6575d61a84036b5964155f7966c28282271d359e936f1aa1e8754e6018b848d9",
+        "retrospective": false,
+        "issued_utc": "2026-11-04T02:59:42+00:00",
+        "on_time": true,
+        "log_entry_sha256": "643d6bf55a1e93541c79bae96e41ec8670fe12d2d8a15d9e322f4c9179c63b69"
       }
     },
     "v7": {
@@ -442,6 +458,21 @@
         "issued_utc": "2026-11-03T03:55:12+00:00",
         "on_time": true,
         "log_entry_sha256": "f4b4350cb54182c65b8c39a34cb2250c30183d755e110eeed91e122965a2b413"
+      },
+      "2026-11-04": {
+        "target_day": "2026-11-04",
+        "synthetic": false,
+        "model": "xgboost_v7",
+        "format": "little_endian_float16_byte_shuffle_gzip",
+        "count": 110129,
+        "finite_cells": 110046,
+        "alert_cells": 45,
+        "payload_sha256": "8f1b739490549a68348cc0bc64b8569f883ca8182dce2929e0c070e46b8c17fe",
+        "release_sha256": "a17dfa714f26f6aebc8e2ed883b2e3a98238a48ec585475833d6210478fb4e2b",
+        "retrospective": false,
+        "issued_utc": "2026-11-04T02:59:42+00:00",
+        "on_time": true,
+        "log_entry_sha256": "643d6bf55a1e93541c79bae96e41ec8670fe12d2d8a15d9e322f4c9179c63b69"
       }
     }
   },
