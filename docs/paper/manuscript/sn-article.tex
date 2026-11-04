@@ -180,11 +180,11 @@ Map usefulness will be assessed by the proportion of detected event starts captu
 
 \section{Results and Discussion}\label{sec:results}
 
-All results in this section are real outputs of the retrospective experiment described in Section~\ref{sec:methods}; no simulated or borrowed values are used. Unless stated otherwise, the numbers refer to the test years 2023--2024, which were not used for training, tuning, or calibration. The 95\% confidence intervals (CIs) come from 1,000 paired space--time block-bootstrap resamples (100\,km $\times$ 30 days).
+This section presents the results of the experiment described in Section~\ref{sec:methods} and discusses them together with earlier studies. All numbers are real outputs of our retrospective experiment for 2015--2024; we did not use simulated or borrowed values. If not stated otherwise, the results refer to the test years 2023--2024, which were not used for training, tuning, or calibration. The 95\% confidence intervals (CIs) were calculated with 1,000 paired space--time block-bootstrap resamples of 100\,km $\times$ 30 days.
 
 \subsection{Dataset and experimental setup}\label{sec:res_data}
 
-The final grid has 110,129 cells of 5\,km. Table~\ref{tab:dataset} shows that new fire starts are very rare: in the test years, only about 2 of every 10,000 cell-days had a new start. Fire activity also decreased, from a prevalence of $3.2$--$5.4\times10^{-4}$ in 2015--2021 to $1.5\times10^{-4}$ in 2024, so the models were tested on fewer fires than they saw in training. Unlike \cite{jadouli2024morocco}, who balanced their dataset to equal numbers of fire and non-fire points, we kept every fire and weighted the sampled non-fire cells, so the test data keep the real prevalence.
+The final national grid has 110,129 cells of 5\,km. Table~\ref{tab:dataset} gives the number of new fire starts and the prevalence for each year. New fire starts are rare events: in the test years, only about 2 of every 10,000 eligible cell-days had a new start. The number of fires also went down over the decade. The prevalence was between $3.2$ and $5.4\times10^{-4}$ in 2015--2021, but only $1.5\times10^{-4}$ in 2024. This means that the models were tested on a period with fewer fires than the period they learned from.
 
 \begin{table}[htbp]
 \caption{New fire starts and prevalence by year and role in the experiment}\label{tab:dataset}
@@ -209,7 +209,9 @@ Year & Role & New fire starts & Eligible cell-days ($\times10^{6}$) & Prevalence
 \par\smallskip\raggedright\scriptsize All positives are kept; eligible cell-days are inverse-inclusion weighted totals of the sampled negatives and the positives.
 \end{table}
 
-Like other multisource studies, our dataset combines weather, vegetation, terrain, land-cover, and human information. \cite{jadouli2024morocco} used NDVI, soil moisture, population density, and weather for Morocco, and \cite{chepashev2025maxent} used climate, terrain, vegetation, and road distance for Kazakhstan. However, some parts of our plan had to change (Table~\ref{tab:implementation}). The most important change is the timing of weather. ERA5 data are published about five days late, so we used the weather of day $t-7$ and 7- and 14-day summaries that end on $t-7$ \cite{hersbach2020era5,openmeteoOpenData}. This keeps the forecast realistic, but the weather information becomes older.
+Our dataset is similar to other multisource datasets because it joins weather, vegetation, terrain, land-cover, and human information. For example, \cite{jadouli2024morocco} used NDVI, soil moisture, population density, and weather data in Morocco, and \cite{chepashev2025maxent} used climate, terrain, vegetation, and distance to roads in Kazakhstan. The main difference is in sampling. \cite{jadouli2024morocco} balanced their data to the same number of fire and non-fire points, while we kept all fires and gave weights to the sampled non-fire cells, so our test data keep the real share of fires.
+
+Some parts of the plan in Section~\ref{sec:methods} had to be changed during the experiment, and Table~\ref{tab:implementation} lists them. The most important change concerns weather. ERA5 data appear about five days after the observation date, so we used the weather of day $t-7$ and 7- and 14-day summaries that end on day $t-7$ \cite{hersbach2020era5,openmeteoOpenData}. In this way, every input was available before the target day, but the weather information was one week old.
 
 \begin{table}[htbp]
 \caption{Planned design (Section~\ref{sec:methods}) and its implementation}\label{tab:implementation}
@@ -229,11 +231,11 @@ Ablation & Human, lagged weather, vegetation & Seven predictor groups and a weat
 \end{tabularx}
 \end{table}
 
-Rolling-origin validation on 2019--2021 selected XGBoost (mean AP 0.0191), ahead of CatBoost (0.0110) and Random Forest (0.0090). The ranking of all six models was the same in every validation year and on the test years.
+Rolling-origin validation on 2019--2021 selected XGBoost, with a mean AP of 0.0191. CatBoost (0.0110) and Random Forest (0.0090) were second and third, while logistic regression (0.0021), the seasonal reference (0.0018), and the weather-only model (0.0009) were much weaker. The order of the six models did not change between validation years, and it was the same in the test years.
 
 \subsection{Predictive performance compared with the reference models}\label{sec:res_performance}
 
-Table~\ref{tab:performance} and Fig.~\ref{fig:performance} compare all models. XGBoost reached an AP of 0.0204 (95\% CI 0.0166--0.0311), which is 104 times the no-skill level (the prevalence). It was significantly better than the seasonal reference (difference 0.0161--0.0306) and the weather-only model (0.0162--0.0307), but not significantly better than CatBoost ($-0.0017$ to $0.0124$). When the 5\% of the area with the highest scores is flagged each day, these cells contain 55.6\% of all new starts, against 14.3\% for the seasonal reference and 8.4\% for the weather-only model (Fig.~\ref{fig:performance}b).
+Table~\ref{tab:performance} shows the test results of all models. XGBoost reached the highest AP, 0.0204 (95\% CI 0.0166--0.0311). This number may look small, but the no-skill AP is equal to the prevalence ($1.96\times10^{-4}$), so XGBoost was about 104 times better than a random ranking. Its AP was significantly higher than that of the seasonal reference (difference 0.0161--0.0306) and the weather-only model (0.0162--0.0307). The difference between XGBoost and CatBoost was not significant ($-0.0017$ to $0.0124$), so the two boosting models performed at a similar level.
 
 \begin{table}[htbp]
 \caption{Test performance in 2023--2024 (prevalence $1.96\times10^{-4}$); thresholds fixed on 2022}\label{tab:performance}
@@ -253,41 +255,22 @@ Seasonal frequency & 0.0006 & 3 & 0.731 & 0.0000 & 0.002 & 0.055 & 0.003 & 0.143
 \end{tabularx}
 \par\smallskip\raggedright\scriptsize BSS is relative to the seasonal reference. Top-5\% capture is the share of new starts inside each day's 5\% highest-scoring area. Intervals come from 1,000 paired space--time block-bootstrap resamples.
 \end{table}
+
+Logistic regression used the same predictors as XGBoost, but its AP was only 0.0010. This large gap shows that the useful information comes from nonlinear combinations of predictors, for example population, land cover, and month together. Earlier studies found a similar order of models. In \cite{jadouli2024morocco}, logistic regression was the weakest model with an AUC of 0.75, while LightGBM reached 0.95, and in \cite{ouazri2026catboost}, CatBoost was the best of the classical machine-learning models. However, as \cite{biswas2025geoai} explain, good results of tree ensembles do not mean that a deeper network is necessary.
+
+Fig.~\ref{fig:performance} shows the same ranking in two ways. The precision--recall curves of the two boosting models stay above the other curves for almost all recall levels (Fig.~\ref{fig:performance}a). The capture curve is easier to use in practice (Fig.~\ref{fig:performance}b). If the 5\% of the area with the highest XGBoost scores is checked each day, these cells contain 55.6\% of all new fire starts. With the same area, the seasonal reference catches 14.3\% and the weather-only model catches 8.4\%.
+
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=\textwidth]{figures/fig_performance.pdf}
 \caption{Performance on the test years 2023--2024. (a) Precision--recall curves; the dotted line is the no-skill precision (prevalence). (b) Share of new fire starts captured when a growing share of each day's area is flagged, starting from the highest scores; the dotted line is a random ranking.}\label{fig:performance}
 \end{figure}
 
-Logistic regression used the same inputs but reached an AP of only 0.0010, so the useful signal lies in nonlinear combinations of predictors. Other studies show the same order. In \cite{jadouli2024morocco}, logistic regression was the weakest model (AUC 0.75) and LightGBM reached 0.95, while in \cite{ouazri2026catboost} CatBoost was the best machine-learning model. As \cite{biswas2025geoai} note, this does not mean that a deeper model is needed.
-
-At first sight, our AP looks much weaker than the AUC values of 0.95--0.99 reported in Morocco, T\"urkiye, and Algeria (Table~\ref{tab:comparison}). However, those studies tested on fire and non-fire point samples, often balanced 1:1, while only 0.02\% of our test cell-days are fires. ROC-AUC does not depend on this balance, and our value of 0.92 is close to theirs. When we re-weighted our test predictions to a 1:1 balance, without retraining, the AP of XGBoost rose to 0.925. So the gap comes mostly from the test design, which is why rare-event metrics at the real prevalence are needed \cite{ejaz2025pipeline,mambile2024systematic}.
-
-\begin{table}[htbp]
-\caption{Results reported by related studies and by this study}\label{tab:comparison}
-\centering\footnotesize
-\setlength{\tabcolsep}{3pt}
-\begin{tabularx}{\textwidth}{@{}p{2.1cm} p{2.0cm} X X X@{}}
-\toprule
-Study & Area & Prediction target & Evaluation data & Reported result \\
-\midrule
-\cite{babu2025sfri} & Kazakhstan & Fire-risk index (static RF with dynamic layers) & FIRMS fire points, 2018--2023 & RF: accuracy 0.78, AUC 0.80 \\
-\cite{chepashev2025maxent} & Kazakhstan & Static hazard map (MaxEnt, 1\,km) & Independent 2023 FIRMS hotspots & AUC 0.79; 72.5\% of hotspots in high/very high classes (37.5\% of area) \\
-\cite{iban2024shap} & \.{I}zmir, T\"urkiye & Static susceptibility & Balanced fire/non-fire test points & RF: AUC 0.966, accuracy 95.6\% \\
-\cite{bouzeraa2025wsm} & Jijel, Algeria & Static susceptibility & Fire/non-fire points; fires of 2024--2025 & RF: AUC 0.99; 87.7\% of later fires in high/very high zones \\
-\cite{kondylatos2022danger} & Eastern Mediterranean & Next-day fire danger & Balanced samples & LSTM/ConvLSTM: $F_1>0.80$; XGBoost: $F_1$ 0.78--0.79 \\
-\cite{apostolakis2025interpretation} & Greece & Daily occurrence (500\,m) & Daily cells, June--September & Sensitivity 0.89, specificity 0.81 \\
-\cite{jadouli2024morocco} & Morocco & Next-day occurrence & Balanced 1:1, data after January 2022 & LightGBM: AUC 0.95, accuracy 0.91 \\
-\cite{ouazri2026catboost} & Northern Morocco & Fire occurrence & Balanced, random 20\% split & CatBoost--Transformer: ROC-AUC 0.973, PR-AUC 0.987 \\
-This study & Kazakhstan & Next-day new fire starts (5\,km) & All cell-days 2023--2024, prevalence 0.02\% & XGBoost: AP 0.020 (0.925 at 1:1 balance), ROC-AUC 0.924; daily top 5\% area holds 55.6\% of starts \\
-\bottomrule
-\end{tabularx}
-\par\smallskip\raggedright\scriptsize Values are taken from the cited papers. The studies use different data, targets, and test designs, so the numbers are not directly comparable. The 1:1 value of this study re-weights the same test predictions; nothing is refitted.
-\end{table}
+Our AP values are much lower than the AUC values of 0.95--0.99 reported in Morocco, T\"urkiye, and Algeria \cite{jadouli2024morocco,ouazri2026catboost,iban2024shap,bouzeraa2025wsm}. The main reason is the test design: those studies tested their models on fire and non-fire points, often in equal numbers, while only 0.02\% of our test cell-days had a fire. Our ROC-AUC, which does not depend on this balance, was 0.92, and when we re-weighted our test predictions to a 1:1 balance, the AP of XGBoost became 0.925. Our ROC-AUC is also higher than the AUC of 0.79--0.80 reported for the national fire maps of Kazakhstan \cite{chepashev2025maxent,babu2025sfri}, although these maps predict a different target.
 
 \subsection{Contribution of predictor groups}\label{sec:res_ablation}
 
-To find where the improvement comes from, XGBoost was refitted with one predictor group removed each time (Fig.~\ref{fig:ablation}). The refitted full model had a test AP of 0.0234. Removing terrain caused the largest loss (0.0153; CI 0.0118--0.0233), followed by land cover (0.0094), human pressure (0.0079), and season (0.0045). All four losses were significant. Removing vegetation or the 7/14-day weather made no significant difference, and removing the daily weather even increased AP to 0.0303 (not significant). A weather-only model reached just 0.0006.
+To understand where the improvement comes from, we trained XGBoost again with one group of predictors removed each time. The hyperparameters stayed the same, and Fig.~\ref{fig:ablation} shows the AP lost in each case. The full refitted model had a test AP of 0.0234. Removing terrain caused the largest loss, 0.0153 (CI 0.0118--0.0233). Land cover (0.0094), human pressure (0.0079), and season (0.0045) also caused significant losses. In contrast, removing vegetation or the 7/14-day weather did not change AP significantly. Removing the daily weather even increased AP to 0.0303, although this change was not significant. A model that used only weather reached an AP of 0.0006. The rolling validation years gave the same picture, with terrain again as the most important group.
 
 \begin{figure}[htbp]
 \centering
@@ -295,11 +278,13 @@ To find where the improvement comes from, XGBoost was refitted with one predicto
 \caption{Average precision lost when each predictor group is removed from XGBoost (test 2023--2024, paired 95\% CIs). Red bars have intervals above zero. Negative values mean that the model improved without the group.}\label{fig:ablation}
 \end{figure}
 
-This result differs from \cite{kondylatos2022danger}, where wetness and soil moisture were the strongest drivers of next-day danger. It is closer to the Kazakhstan study of \cite{babu2025sfri}, where slope and elevation were the most important factors. We see two reasons. First, seven-day-old weather cannot show the short hot and dry periods that prepare fuel \cite{ding2026vegetation}. Second, most steppe fires are started by people, for example during field and pasture burning \cite{jones2022fireclimate,chepashev2025maxent}, and land use, population, terrain, and the calendar describe this better than old weather.
+These results are different from \cite{kondylatos2022danger}, where wetness and soil moisture were the strongest drivers of next-day fire danger. They are closer to the Kazakhstan study of \cite{babu2025sfri}, in which slope and elevation were the most important factors. We see two possible reasons for the weak role of weather. First, one-week-old weather cannot show the short hot and dry periods that quickly dry the fuel, such as the compound drought and heat events described for Central Asia \cite{ding2026vegetation}. Second, most fires in the Kazakh steppe are started by people, for example during field and pasture burning \cite{jones2022fireclimate,chepashev2025maxent}, and their place and time are better described by land use, population, terrain, and the calendar.
+
+Taken together, these findings answer the first research question with qualified support. Combining several data sources improved next-day prediction over both the seasonal and the weather-only references, but the gain came mainly from terrain, land-cover, human, and seasonal information. The weather and vegetation predictors, as they were used in this study, added no measurable value.
 
 \subsection{Transfer to future years and new regions}\label{sec:res_transfer}
 
-Table~\ref{tab:transfer} and Fig.~\ref{fig:transfer}a show that XGBoost was stable over time. AP was 0.0192 in 2023 and 0.0277 in 2024, with ROC-AUC 0.92 in both years. In held-out regions, however, the mean AP fell to 0.0039, which is 15 times the no-skill level (6--37 by fold) against 104 times in the temporal test. The ranking still worked (ROC-AUC 0.81--0.89), but Brier skill was negative in four of five folds. Skill also differed between regions (Fig.~\ref{fig:transfer}b): AP was highest in Atyrau (0.163) and Aktobe (0.121), and lowest in Akmola (0.0006) and Kostanay (0.0024), where many small cropland fires are hard to predict.
+Table~\ref{tab:transfer} compares XGBoost on future years and on regions that were held out in space. Over time, the model was stable. Its AP was 0.0192 in 2023 and 0.0277 in 2024, which is similar to the validation mean of 0.0191, and ROC-AUC was 0.92 in both test years. In the spatial test, whole 100\,km blocks were held out, and the result was much weaker. The mean AP fell to 0.0039, which is 15 times the no-skill level, compared with 104 times in the temporal test. The ranking still worked (ROC-AUC 0.81--0.89), but the Brier skill score was negative in four of the five folds.
 
 \begin{table}[htbp]
 \caption{Temporal and geographic transfer of XGBoost}\label{tab:transfer}
@@ -323,17 +308,32 @@ Spatial folds (mean) & 0.0039 & 15 & 0.866 & $-$0.017 \\
 \end{tabularx}
 \par\smallskip\raggedright\scriptsize Spatial folds hold out 100\,km blocks with a 25\,km buffer inside the development period; hyperparameters were not retuned.
 \end{table}
+
+Most related studies did not test their models in separate regions. \cite{ouazri2026catboost} used a random 20\% split, so test points could lie very close to training points, and \cite{jadouli2024morocco,chepashev2025maxent} tested their models only on later years. Our temporal result agrees with them that later years can be predicted, but the spatial test shows that this does not guarantee good results in new places. Reviews also describe transfer between regions as an open problem for wildfire models \cite{xu2025deep,galvanlara2026systematic}.
+
+Skill also changed strongly between administrative regions (Fig.~\ref{fig:regions}). AP was highest in Atyrau (0.163), Aktobe (0.121), and East Kazakhstan (0.110). It was lowest in Akmola (0.0006), Kostanay (0.0024), and North Kazakhstan (0.0030). These northern regions are the main grain-growing area of the country, where many small fires on cropland are difficult to predict for a single cell. The ablation results also help to explain the weak spatial transfer: the strongest predictors mostly show places where fires happen again and again, and this knowledge is local.
+
 \begin{figure}[htbp]
 \centering
-\includegraphics[width=\textwidth]{figures/fig_transfer.pdf}
-\caption{Transfer of XGBoost. (a) Average precision divided by prevalence on the two test years and on the five held-out spatial folds; the dotted line is no skill. (b) Average precision by administrative region in 2023--2024, compared with the seasonal reference.}\label{fig:transfer}
+\includegraphics[width=0.7\textwidth]{figures/fig_regions.pdf}
+\caption{Average precision of XGBoost and of the seasonal reference by administrative region, test years 2023--2024 (logarithmic scale).}\label{fig:regions}
 \end{figure}
 
-Most related studies did not test separate regions. \cite{ouazri2026catboost} used a random 20\% split, so test points can lie close to training points, while \cite{jadouli2024morocco} and \cite{chepashev2025maxent} tested on later years only. Our temporal result agrees that later years can be predicted, but the spatial test shows that this does not guarantee transfer to new places, a problem also noted in reviews \cite{xu2025deep,galvanlara2026systematic}. The strongest predictors show where fires repeat, and this knowledge is local. Because hyperparameters were not retuned, the spatial test is only conditional.
+Taken together, these findings give a mixed answer to the second research question. The models performed well on future years in the same area, but in unseen regions they kept only part of their ranking skill and lost most of their probability skill. Because the hyperparameters were not tuned again for each fold, the spatial result should be seen as a conditional test.
 
 \subsection{Calibration of the predicted probabilities}\label{sec:res_calibration}
 
-The expected calibration error was very small (about $8\times10^{-5}$), but mainly because almost all probabilities are near zero. Brier skill against the seasonal reference was close to zero for every model (XGBoost 0.0002; CatBoost 0.0085). Fig.~\ref{fig:reliability} shows that XGBoost predicted 1.2--1.8 times more fires than observed between $10^{-5}$ and $2\times10^{-2}$. In the highest bin, the mean prediction was 0.57 but the observed frequency only 0.16, based on 142 sampled cell-days. The map classes also over-predicted, but they ordered the risk correctly (Table~\ref{tab:classes}): the two highest classes held 86.9\% of the new starts on 18.8\% of the cell-days.
+After sigmoid calibration on 2022, the expected calibration error was very small, about $8\times10^{-5}$. However, this mainly happened because almost all predicted probabilities are close to zero. The Brier skill score relative to the seasonal reference was also close to zero for all models (XGBoost 0.0002, CatBoost 0.0085). Fig.~\ref{fig:reliability} uses logarithmic bins, so both small and large probabilities can be seen. For predictions between $10^{-5}$ and $2\times10^{-2}$, XGBoost predicted 1.2--1.8 times more fires than were observed. In the highest bin, the mean prediction was 0.57, but the observed frequency was only 0.16, and this bin contained only 142 sampled cell-days.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.62\textwidth]{figures/fig_reliability.pdf}
+\caption{Reliability of the calibrated XGBoost and CatBoost probabilities on the test years, with logarithmic bins. (a) Observed frequency against mean predicted probability; points on the dotted line are perfectly calibrated. (b) Weighted number of cell-days in each bin.}\label{fig:reliability}
+\end{figure}
+
+The main reason for this over-prediction is the falling number of fires. The probabilities were calibrated on 2022, when the prevalence was $2.5\times10^{-4}$, but in 2024 it was only $1.5\times10^{-4}$. \cite{choi2026burnedarea} also showed that a small overall calibration error can hide over-confident high probabilities. Similarly, \cite{apostolakis2025interpretation} found that raw model scores differ from true probabilities, and they therefore mapped the scores into probability-based levels.
+
+We followed a similar idea and fixed four map classes on the 2022 data (Table~\ref{tab:classes}). In the test years, every class over-predicted by 1.3--1.8 times, but the classes ordered the risk correctly. The highest class covered 5.0\% of the cell-days and contained 65.8\% of the new starts, and the two highest classes together contained 86.9\% of the starts on 18.8\% of the cell-days. This concentration is at least as strong as in the static hazard maps of \cite{bouzeraa2025wsm}, where 87.7\% of later fires fell in the high and very high zones, and of \cite{chepashev2025maxent}, where 72.5\% of the 2023 hotspots fell in classes covering 37.5\% of Kazakhstan. Accuracy was not useful for this task: at the 2022 threshold it was 0.9997, although only 9.8\% of the alerts were correct.
 
 \begin{table}[htbp]
 \caption{XGBoost map classes fixed on 2022: coverage, predicted and observed frequency in 2023--2024}\label{tab:classes}
@@ -350,46 +350,44 @@ Class & Probability range & Cell-days (\%) & New starts (\%) & Mean predicted & 
 \bottomrule
 \end{tabularx}
 \end{table}
-\begin{figure}[htbp]
-\centering
-\includegraphics[width=0.62\textwidth]{figures/fig_reliability.pdf}
-\caption{Reliability of the calibrated XGBoost and CatBoost probabilities on the test years, with logarithmic bins. (a) Observed frequency against mean predicted probability; points on the dotted line are perfectly calibrated. (b) Weighted number of cell-days in each bin.}\label{fig:reliability}
-\end{figure}
-
-The main reason is the falling prevalence: probabilities fitted to 2022 ($2.5\times10^{-4}$) became too high for 2024 ($1.5\times10^{-4}$). \cite{choi2026burnedarea} also found that a small overall calibration error can hide over-confident high probabilities, and \cite{apostolakis2025interpretation} reported that raw model scores differ from true probabilities. Therefore, our classes should be used as relative warning levels. Their concentration of fires is similar to hazard maps: \cite{chepashev2025maxent} found 72.5\% of 2023 hotspots in classes covering 37.5\% of the country, and \cite{bouzeraa2025wsm} found 87.7\% of later fires in their high and very high zones.
 
 \subsection{Model explanations across land cover and regions}\label{sec:res_shap}
 
-Fig.~\ref{fig:shap}a shows the global TreeSHAP importance. Population density had the largest contribution (0.59), followed by month (0.41), 14-day temperature (0.40), cropland fraction (0.33), and elevation (0.30). The leading groups changed with land cover (Fig.~\ref{fig:shap}b, Table~\ref{tab:landcover}). In cropland, recent weather (1.15) and land cover (0.81) dominated, which fits stubble burning after dry weather. In grassland, human pressure (0.65) and season (0.61) dominated. Grassland held 81\% of the test starts and had the best AP (0.041), while forest cells had only five starts.
+Fig.~\ref{fig:shap}a shows the global TreeSHAP importance of the XGBoost predictors. Population density had the largest mean contribution (0.59). It was followed by the month (0.41 for its cosine), the 14-day mean temperature (0.40), the cropland fraction (0.33), and elevation (0.30). Fig.~\ref{fig:shap}b shows that the most important groups changed with the land cover. In cropland, the 7/14-day weather (1.15) and land cover (0.81) were the strongest groups, which fits stubble burning after a dry period. In grassland, human pressure (0.65) and season (0.61) were the strongest, and forest cells depended mostly on land cover, recent weather, and human pressure.
 
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=\textwidth]{figures/fig_shap.pdf}
 \caption{TreeSHAP explanations of XGBoost in uncalibrated log-odds. (a) The twelve predictors with the largest mean absolute contribution, coloured by predictor group. (b) Mean absolute contribution of each predictor group by dominant land cover.}\label{fig:shap}
 \end{figure}
+
+Model performance also changed with the land cover (Table~\ref{tab:landcover}). Grassland had 81\% of all test starts and the best AP among the main land-cover groups (0.041). Cropland had a much lower AP (0.013), which agrees with the weak results in the northern grain regions. Forest cells had only five starts in the test years, which is too few for a reliable evaluation at 5\,km.
+
 \begin{table}[htbp]
-\caption{XGBoost performance and leading SHAP groups by dominant land cover, 2023--2024}\label{tab:landcover}
+\caption{XGBoost performance by dominant land cover, test years 2023--2024}\label{tab:landcover}
 \centering\footnotesize
 \setlength{\tabcolsep}{3pt}
-\begin{tabularx}{\textwidth}{@{}l >{\centering\arraybackslash}X >{\centering\arraybackslash}X >{\centering\arraybackslash}X >{\centering\arraybackslash}X X@{}}
+\begin{tabularx}{\textwidth}{@{}l >{\centering\arraybackslash}X >{\centering\arraybackslash}X >{\centering\arraybackslash}X >{\centering\arraybackslash}X >{\centering\arraybackslash}X@{}}
 \toprule
-Land cover & Test starts & AP & AP/prev. & BSS & Leading predictor groups (mean $|$SHAP$|$) \\
+Land cover & Test starts & Prevalence ($\times10^{-4}$) & AP & AP/prevalence & BSS \\
 \midrule
-Grassland & 12,805 & 0.0413 & 225 & 0.016 & human 0.65; season 0.61; 7/14-day weather 0.57 \\
-Cropland & 1,947 & 0.0134 & 21 & 0.005 & 7/14-day weather 1.15; land cover 0.81; season 0.44 \\
-Other & 947 & 0.0359 & 263 & $-$0.228 & land cover 1.20; terrain 0.76; human 0.73 \\
-Forest & 5 & 0.0014 & 40 & $-$0.005 & land cover 0.94; 7/14-day weather 0.81; human 0.73 \\
-Shrubland & 0 & -- & -- & -- & land cover 1.75; daily weather 0.74; season 0.47 \\
+Grassland & 12,805 & 1.84 & 0.0413 & 225 & 0.016 \\
+Cropland & 1,947 & 6.29 & 0.0134 & 21 & 0.005 \\
+Other & 947 & 1.36 & 0.0359 & 263 & $-$0.228 \\
+Forest & 5 & 0.35 & 0.0014 & 40 & $-$0.005 \\
+Shrubland & 0 & 0.00 & -- & -- & -- \\
 \bottomrule
 \end{tabularx}
-\par\smallskip\raggedright\scriptsize SHAP values describe predictive associations, not causes.
+\par\smallskip\raggedright\scriptsize Cells are grouped by their largest land-cover fraction; BSS is relative to the seasonal reference.
 \end{table}
 
-The leading role of population density agrees with \cite{iban2024shap}, where distance to villages was a top factor, and with \cite{bouzeraa2025wsm}, where human activities ranked first. In contrast, NDVI was among the strongest predictors in \cite{jadouli2024morocco} but added little in our model, possibly because our NDVI was weekly and at least 12 days old. The high SHAP value of 14-day temperature also seems to contradict the ablation. Temperature is strongly linked to the month, and SHAP shares credit between correlated predictors. Thus, SHAP shows predictive associations, not causes \cite{iban2024shap,ouazri2026catboost}.
+The leading role of population density agrees with \cite{iban2024shap}, where distance to villages was one of the main factors, and with \cite{bouzeraa2025wsm}, where human activities were the most important. In \cite{jadouli2024morocco}, NDVI was among the strongest predictors, but in our model it added little, possibly because our NDVI was weekly and at least 12 days old. The high SHAP value of the 14-day temperature seems to contradict the ablation result. The reason is that temperature is strongly related to the month, and SHAP shares credit between related predictors. For this reason, SHAP values show predictive associations and not causes \cite{iban2024shap,ouazri2026catboost}.
+
+Taken together with the calibration results, these findings answer the third research question. The calibrated probabilities were reliable for ranking and on average, but their absolute size was too high in the test years. The model outputs were explained mainly by human, seasonal, and land-surface factors, and the main factors were different for cropland, grassland, and forest.
 
 \subsection{Case study: the June 2023 fire in Abay Region}\label{sec:res_case}
 
-Fig.~\ref{fig:case} shows the forecasts for 7--9 June 2023. On these days, 19--31\% of each day's new starts fell in the daily top 5\% of cells. The start near Semei on 8 June was only at the 78th percentile, while four of the seven other eastern starts on 8--9 June were at or above the 96th percentile. Interestingly, the static map of \cite{chepashev2025maxent} placed the Semey Ormany reserve in a high-hazard zone. A static map can show that a forest is dangerous, but our daily model did not show that a fire would start there on that day \cite{sentinel2023abayfire}. Occurrence probability is only one part of risk \cite{dossi2026infrastructure,berchtold2025tipping}.
+Fig.~\ref{fig:case} shows the XGBoost forecasts for 7--9 June 2023, when the Semei Ormany fire started. On these three days, 19--31\% of each day's new starts were inside that day's top 5\% of cells. The start near Semei on 8 June was only at the 78th percentile, so it was not flagged. On the other hand, four of the seven other starts in the east on 8--9 June were at or above the 96th percentile.
 
 \begin{figure}[htbp]
 \centering
@@ -397,19 +395,21 @@ Fig.~\ref{fig:case} shows the forecasts for 7--9 June 2023. On these days, 19--3
 \caption{XGBoost next-day forecasts for 7--9 June 2023, shown as daily percentile classes with region borders and the new fire starts of each day. The arrow marks the start near Semei on 8 June.}\label{fig:case}
 \end{figure}
 
+The static map of \cite{chepashev2025maxent} placed the Semei Ormany reserve in a high-hazard zone. So a static map can show that a forest is dangerous in general, but our daily model did not show that a fire would start there on that day \cite{sentinel2023abayfire}. This supports the caution in the Introduction that occurrence probability is only one part of wildfire risk \cite{dossi2026infrastructure,berchtold2025tipping}.
+
 \subsection{Limitations and unexpected results}\label{sec:res_limits}
 
-The labels come from one sensor and show detections, not true ignition times. Agricultural burning cannot be separated from wildfires, and remaining industrial heat sources may raise some western scores. Weather enters with a seven-day delay, tuning used five trials instead of fifty, and forest fires were too rare for separate testing. Three results were unexpected: weather added no value, CatBoost had the best Brier skill, and 2024 scored higher than 2023 despite fewer fires.
+This study has several limitations. The labels come from one satellite sensor and show the first detection of a fire, not the true ignition time. Agricultural burning cannot be separated from wildfires, and some remaining industrial heat sources may increase the scores in western regions. The weather enters with a seven-day delay, the tuning used five trials instead of the planned fifty, and forest fires were too rare to be tested separately. We also found three unexpected results. The weather predictors did not add value, CatBoost had a better Brier skill than XGBoost although XGBoost had the best AP, and 2024 had a higher AP than 2023 even though it had fewer fires.
 
 \section{Conclusion}\label{sec:conclusion}
 
-This study developed and tested an explainable machine-learning framework that predicts new vegetation-fire starts for the next day on a 5\,km grid covering Kazakhstan. It combined weather, vegetation, terrain, land-cover, and human data for 2015--2024. The models were trained on 2015--2021, calibrated on 2022, and tested on 2023--2024 against seasonal fire frequency and a weather-only model.
+This study developed and tested an explainable machine-learning framework for predicting new vegetation-fire starts one day ahead on a 5\,km grid covering Kazakhstan. The models used weather, vegetation, terrain, land-cover, and human data for 2015--2024. They were trained on 2015--2021, calibrated on 2022, and tested on 2023--2024 against seasonal fire frequency and a weather-only model.
 
-XGBoost gave the best results. Its average precision was about 100 times the no-skill level and significantly higher than both references. The top 5\% of the daily area captured more than half of all new fire starts. Performance stayed stable in later years but dropped strongly in regions not used for training. Most of the useful information came from terrain, land cover, human pressure, and season, while weather with a seven-day delay and vegetation indices added no measurable value. The calibrated probabilities ranked locations well, but their size was too high because fires became less frequent. SHAP showed that the main factors differ between cropland and grassland. The June 2023 case showed that the model would not have flagged the start of the Abay fire.
+The results answer the three research questions. First, combining several data sources improved next-day prediction. XGBoost had an average precision about 100 times higher than the no-skill level and significantly higher than both references, and the top 5\% of each day's area contained more than half of all new fire starts. Most of this gain came from terrain, land cover, human pressure, and season, while one-week-old weather and vegetation added no measurable value. Second, the models worked well on future years but much less well in regions that were not used for training. Third, the calibrated probabilities ranked locations well but were too high in size because fires became less frequent, and the main explaining factors differed between cropland, grassland, and forest. The June 2023 case also showed that the model would not have flagged the start of the Abay fire.
 
-The main contribution of this work is that it reports these results together for Kazakhstan: rare-event metrics with confidence intervals, separate tests in time and space, calibration checks, group ablation, and explanations by land cover and region. It also shows that results on balanced samples look much better than results at the real fire prevalence. For emergency services, the framework is most useful as a daily ranking tool that shows where to look first. It should not yet be used as an exact probability or in regions without training data.
+The study completed the contributions planned in the Introduction. It prepared a Kazakhstan dataset that combines satellite fire detections with environmental and human information available before the target day. It compared four machine-learning models with two simple references and measured the value of seven predictor groups. It tested transfer in time and space with rare-event measures and bootstrap confidence intervals, calibrated the probabilities and checked their reliability, and used SHAP to describe predictive associations. Finally, it produced daily probability maps and documented the data, settings, and limitations. For emergency services, the framework is most useful as a daily ranking tool that shows where to look first, but not yet as an exact probability or in regions without training data.
 
-Future work should use weather forecasts for the target day instead of week-old weather. It should also combine several satellites, separate agricultural burning from wildfires, and recalibrate probabilities by season and region. A finer grid would allow forest fires to be studied separately. Finally, real-time forecasts should be checked against official fire records.
+Future work should use weather forecasts for the target day instead of week-old weather. It should also combine several satellites, separate agricultural burning from wildfires, and recalibrate the probabilities by season and region. A finer grid would allow forest fires to be studied separately. Finally, real-time forecasts should be compared with official fire records to see whether the skill remains in daily use.
 
 \backmatter
 

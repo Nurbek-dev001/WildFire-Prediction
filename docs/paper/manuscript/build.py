@@ -155,8 +155,8 @@ floats = {
             "Seasonal frequency & 0.0006 & 3 & 0.731 & 0.0000 & 0.002 & 0.055 & 0.003 & 0.143 & 0.0161, 0.0306",
         ],
         "BSS is relative to the seasonal reference. Top-5\\% capture is the share of new starts inside each day's 5\\% highest-scoring area. Intervals come from 1,000 paired space--time block-bootstrap resamples.",
-    )
-    + figure(
+    ),
+    "fig_performance": figure(
         "fig:performance",
         "figures/fig_performance.pdf",
         "Performance on the test years 2023--2024. (a) Precision--recall curves; the dotted line is the no-skill precision (prevalence). (b) Share of new fire starts captured when a growing share of each day's area is flagged, starting from the highest scores; the dotted line is a random ranking.",
@@ -185,11 +185,12 @@ floats = {
             "Spatial folds (mean) & 0.0039 & 15 & 0.866 & $-$0.017",
         ],
         "Spatial folds hold out 100\\,km blocks with a 25\\,km buffer inside the development period; hyperparameters were not retuned.",
-    )
-    + figure(
-        "fig:transfer",
-        "figures/fig_transfer.pdf",
-        "Transfer of XGBoost. (a) Average precision divided by prevalence on the two test years and on the five held-out spatial folds; the dotted line is no skill. (b) Average precision by administrative region in 2023--2024, compared with the seasonal reference.",
+    ),
+    "regions": figure(
+        "fig:regions",
+        "figures/fig_regions.pdf",
+        "Average precision of XGBoost and of the seasonal reference by administrative region, test years 2023--2024 (logarithmic scale).",
+        "0.7\\textwidth",
     ),
     "classes": table(
         "tab:classes",
@@ -202,8 +203,8 @@ floats = {
             "3 & $2.3\\times10^{-4}$ -- $7.9\\times10^{-4}$ & 13.8 & 21.1 & $3.9\\times10^{-4}$ & $3.0\\times10^{-4}$ & 1.28",
             "4 & $7.9\\times10^{-4}$ -- 1 & 5.0 & 65.8 & $3.4\\times10^{-3}$ & $2.6\\times10^{-3}$ & 1.32",
         ],
-    )
-    + figure(
+    ),
+    "reliability": figure(
         "fig:reliability",
         "figures/fig_reliability.pdf",
         "Reliability of the calibrated XGBoost and CatBoost probabilities on the test years, with logarithmic bins. (a) Observed frequency against mean predicted probability; points on the dotted line are perfectly calibrated. (b) Weighted number of cell-days in each bin.",
@@ -213,38 +214,20 @@ floats = {
         "fig:shap",
         "figures/fig_shap.pdf",
         "TreeSHAP explanations of XGBoost in uncalibrated log-odds. (a) The twelve predictors with the largest mean absolute contribution, coloured by predictor group. (b) Mean absolute contribution of each predictor group by dominant land cover.",
-    )
-    + table(
-        "tab:landcover",
-        "XGBoost performance and leading SHAP groups by dominant land cover, 2023--2024",
-        "l" + f" {C}" * 4 + " X",
-        "Land cover & Test starts & AP & AP/prev. & BSS & Leading predictor groups (mean $|$SHAP$|$)",
-        [
-            "Grassland & 12,805 & 0.0413 & 225 & 0.016 & human 0.65; season 0.61; 7/14-day weather 0.57",
-            "Cropland & 1,947 & 0.0134 & 21 & 0.005 & 7/14-day weather 1.15; land cover 0.81; season 0.44",
-            "Other & 947 & 0.0359 & 263 & $-$0.228 & land cover 1.20; terrain 0.76; human 0.73",
-            "Forest & 5 & 0.0014 & 40 & $-$0.005 & land cover 0.94; 7/14-day weather 0.81; human 0.73",
-            "Shrubland & 0 & -- & -- & -- & land cover 1.75; daily weather 0.74; season 0.47",
-        ],
-        "SHAP values describe predictive associations, not causes.",
     ),
-    "comparison": table(
-        "tab:comparison",
-        "Results reported by related studies and by this study",
-        "p{2.1cm} p{2.0cm} X X X",
-        "Study & Area & Prediction target & Evaluation data & Reported result",
+    "landcover": table(
+        "tab:landcover",
+        "XGBoost performance by dominant land cover, test years 2023--2024",
+        "l" + f" {C}" * 5,
+        "Land cover & Test starts & Prevalence ($\\times10^{-4}$) & AP & AP/prevalence & BSS",
         [
-            "\\cite{babu2025sfri} & Kazakhstan & Fire-risk index (static RF with dynamic layers) & FIRMS fire points, 2018--2023 & RF: accuracy 0.78, AUC 0.80",
-            "\\cite{chepashev2025maxent} & Kazakhstan & Static hazard map (MaxEnt, 1\\,km) & Independent 2023 FIRMS hotspots & AUC 0.79; 72.5\\% of hotspots in high/very high classes (37.5\\% of area)",
-            "\\cite{iban2024shap} & \\.{I}zmir, T\\\"urkiye & Static susceptibility & Balanced fire/non-fire test points & RF: AUC 0.966, accuracy 95.6\\%",
-            "\\cite{bouzeraa2025wsm} & Jijel, Algeria & Static susceptibility & Fire/non-fire points; fires of 2024--2025 & RF: AUC 0.99; 87.7\\% of later fires in high/very high zones",
-            "\\cite{kondylatos2022danger} & Eastern Mediterranean & Next-day fire danger & Balanced samples & LSTM/ConvLSTM: $F_1>0.80$; XGBoost: $F_1$ 0.78--0.79",
-            "\\cite{apostolakis2025interpretation} & Greece & Daily occurrence (500\\,m) & Daily cells, June--September & Sensitivity 0.89, specificity 0.81",
-            "\\cite{jadouli2024morocco} & Morocco & Next-day occurrence & Balanced 1:1, data after January 2022 & LightGBM: AUC 0.95, accuracy 0.91",
-            "\\cite{ouazri2026catboost} & Northern Morocco & Fire occurrence & Balanced, random 20\\% split & CatBoost--Transformer: ROC-AUC 0.973, PR-AUC 0.987",
-            "This study & Kazakhstan & Next-day new fire starts (5\\,km) & All cell-days 2023--2024, prevalence 0.02\\% & XGBoost: AP 0.020 (0.925 at 1:1 balance), ROC-AUC 0.924; daily top 5\\% area holds 55.6\\% of starts",
+            "Grassland & 12,805 & 1.84 & 0.0413 & 225 & 0.016",
+            "Cropland & 1,947 & 6.29 & 0.0134 & 21 & 0.005",
+            "Other & 947 & 1.36 & 0.0359 & 263 & $-$0.228",
+            "Forest & 5 & 0.35 & 0.0014 & 40 & $-$0.005",
+            "Shrubland & 0 & 0.00 & -- & -- & --",
         ],
-        "Values are taken from the cited papers. The studies use different data, targets, and test designs, so the numbers are not directly comparable. The 1:1 value of this study re-weights the same test predictions; nothing is refitted.",
+        "Cells are grouped by their largest land-cover fraction; BSS is relative to the seasonal reference.",
     ),
     "case": figure(
         "fig:case",
@@ -307,6 +290,6 @@ out = HERE / "figures"
 for old in out.glob("*.pdf"):
     if re.fullmatch(r"F\d+_\w+\.pdf", old.name):  # case-sensitive: Windows glob is not
         old.unlink()  # earlier evidence-pack copies; the article figures come from article_figures.py
-for name in ["fig_performance", "fig_ablation", "fig_transfer", "fig_reliability", "fig_shap", "fig_case"]:
+for name in ["fig_performance", "fig_ablation", "fig_regions", "fig_reliability", "fig_shap", "fig_case"]:
     assert (out / f"{name}.pdf").exists(), name
 print("ok")

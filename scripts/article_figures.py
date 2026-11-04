@@ -188,42 +188,24 @@ def fig_ablation() -> None:
     save(fig, "fig_ablation")
 
 
-def fig_transfer() -> None:
-    """(a) AP/prevalence on future years and held-out regions, (b) AP by administrative region."""
-    t3 = pd.read_csv(TAB / "T3_test_by_year.csv").set_index("model").loc["xgboost"]
-    t1 = pd.read_csv(TAB / "T1_dataset.csv").set_index("year").prevalence
-    s = pd.read_csv(TAB / "T6_spatial_blocks.csv")
-    s = s[s.fold.str.startswith("spatial")]
-    labels = ["Test\n2023", "Test\n2024"] + [f"Fold\n{i + 1}" for i in range(len(s))]
-    lift = [t3.average_precision_2023 / t1[2023], t3.average_precision_2024 / t1[2024],
-            *s.ap_lift]
-    colors = ["#c0392b"] * 2 + ["#e6ab02"] * len(s)
+def fig_regions() -> None:
+    """Average precision by administrative region, XGBoost against the seasonal reference
+    (the year and spatial-fold numbers are in the transfer table of the article)."""
     st = pd.read_csv(EVAL / "stratified_metrics.csv")
     reg = st[(st.dimension == "region") & st.model.isin(["xgboost", "seasonal"])]
     piv = reg.pivot(index="group", columns="model", values="average_precision")
     piv = piv.dropna().sort_values("xgboost")
-    fig, (a, b) = plt.subplots(1, 2, figsize=(7.0, 3.3), gridspec_kw={"width_ratios": [1, 1.15]})
-    a.bar(range(len(lift)), lift, color=colors)
-    a.axhline(1, color="black", ls=":", lw=0.8)
-    a.set_xticks(range(len(lift)), labels)
-    a.set(yscale="log", ylabel="AP / prevalence (log scale)", ylim=(1, 400))
-    a.legend(handles=[matplotlib.patches.Patch(color="#c0392b", label="Future years"),
-                      matplotlib.patches.Patch(color="#e6ab02", label="Held-out 100 km blocks")],
-             loc="upper right", frameon=False)
-    a.grid(axis="x", visible=False)
+    fig, ax = plt.subplots(figsize=(4.8, 3.8))
     yy = np.arange(len(piv))
-    b.barh(yy + 0.2, piv.xgboost, height=0.4, color=COLOR["xgboost"], label="XGBoost")
-    b.barh(yy - 0.2, piv.seasonal, height=0.4, color=COLOR["seasonal"],
-           label="Seasonal frequency")
-    b.set_yticks(yy, [g.replace(" Region", "") if "Region" in g else f"{g} (city)"
-                      for g in piv.index])
-    b.set(xscale="log", xlabel="Average precision, 2023-2024 (log scale)")
-    b.legend(loc="lower right", frameon=False)
-    b.grid(axis="y", visible=False)
-    panel(a, "a")
-    panel(b, "b")
-    fig.tight_layout(w_pad=2.0)
-    save(fig, "fig_transfer")
+    ax.barh(yy + 0.2, piv.xgboost, height=0.4, color=COLOR["xgboost"], label="XGBoost")
+    ax.barh(yy - 0.2, piv.seasonal, height=0.4, color=COLOR["seasonal"],
+            label="Seasonal frequency")
+    ax.set_yticks(yy, [g.replace(" Region", "") if "Region" in g else f"{g} (city)"
+                       for g in piv.index])
+    ax.set(xscale="log", xlabel="Average precision, 2023-2024 (log scale)")
+    ax.legend(loc="lower right", frameon=False)
+    ax.grid(axis="y", visible=False)
+    save(fig, "fig_regions")
 
 
 def fig_reliability() -> None:
@@ -374,7 +356,7 @@ def main() -> None:
     OUT.mkdir(parents=True, exist_ok=True)
     fig_performance()
     fig_ablation()
-    fig_transfer()
+    fig_regions()
     fig_reliability()
     fig_shap()
     fig_case()

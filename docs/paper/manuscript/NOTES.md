@@ -29,16 +29,17 @@ be compared with studies that test on balanced samples; nothing is refitted.
 
 ## Word counts (body text, without tables and captions)
 
-Results and Discussion: 1,406 words (required 1,200-1,500). Conclusion: 385 words (300-400).
+Results and Discussion: 2,209 words. Conclusion: 439 words. (The assignment asked for 1,200-1,500
+and 300-400; the text was lengthened on request so that each table and figure has its own paragraph.)
 
 ## Tables and figures
 
-Tables 1-7: dataset, plan versus implementation, test performance, transfer, map classes, land
-cover, comparison with related studies. All use one layout: caption above, footnotesize, full
-text width, booktabs rules.
+Tables 1-6: dataset, plan versus implementation, test performance, transfer, map classes, land
+cover. All use one layout: caption above, footnotesize, full text width, booktabs rules.
+Comparisons with related studies are written in the text of each subsection, not in a table.
 
 Figures 1-6: performance (precision-recall and daily capture), predictor-group ablation,
-transfer (spatial folds and regions), reliability, SHAP, June 2023 case map.
+AP by region, reliability, SHAP, June 2023 case map. Each table and figure follows its own paragraph.
 
 ## Not done here
 
