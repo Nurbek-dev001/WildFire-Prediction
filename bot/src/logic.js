@@ -22,10 +22,11 @@ export const T = {
     header: (day) => `🔥 <b>Прогноз пожарной опасности на ${day}</b>`,
     count: (n, total) => `Тревог в ваших областях: <b>${n}</b> (по Казахстану: ${total}).`,
     regionCount: (name, n) => `${name}: тревог <b>${n}</b>.`,
-    none: '✅ В ваших областях тревог на завтра нет.',
-    noneRegion: (name) => `✅ ${name}: тревог на завтра нет.`,
+    none: '✅ В ваших областях тревог нет.',
+    noneRegion: (name) => `✅ ${name}: тревог нет.`,
     more: (n) => `…и ещё ${n}. Все тревоги — на карте.`,
-    chance: 'шанс', index: 'индекс v6',
+    chance: 'шанс',
+    legend: '🔴 высокий риск (обе модели) · 🟠 повышенный (одна модель)',
     crop: '🚜 На пашне тревога чаще всего означает плановый пал, а не природный пожар.',
     cropHidden: (n) => `🚜 Скрыто палов на пашне: ${n} (настройки).`,
     warn: '⚠️ Часть входных данных сегодня неполная, прогноз может быть менее точным.',
@@ -58,10 +59,11 @@ export const T = {
     header: (day) => `🔥 <b>${day} күнгі өрт қаупінің болжамы</b>`,
     count: (n, total) => `Сіздің облыстардағы дабылдар: <b>${n}</b> (Қазақстан бойынша: ${total}).`,
     regionCount: (name, n) => `${name}: дабылдар <b>${n}</b>.`,
-    none: '✅ Сіздің облыстарда ертеңге дабыл жоқ.',
-    noneRegion: (name) => `✅ ${name}: ертеңге дабыл жоқ.`,
+    none: '✅ Сіздің облыстарда дабыл жоқ.',
+    noneRegion: (name) => `✅ ${name}: дабыл жоқ.`,
     more: (n) => `…тағы ${n}. Барлық дабылдар — картада.`,
-    chance: 'мүмкіндік', index: 'v6 индексі',
+    chance: 'мүмкіндік',
+    legend: '🔴 жоғары қауіп (екі модель) · 🟠 жоғарылаған (бір модель)',
     crop: '🚜 Егістіктегі дабыл көбіне табиғи өрт емес, жоспарлы өртеуді білдіреді.',
     cropHidden: (n) => `🚜 Жасырылған егістік өртеулері: ${n} (баптаулар).`,
     warn: '⚠️ Бүгін кіріс деректердің бір бөлігі толық емес, болжам дәлдігі төмен болуы мүмкін.',
@@ -94,10 +96,11 @@ export const T = {
     header: (day) => `🔥 <b>Fire danger forecast for ${day}</b>`,
     count: (n, total) => `Alerts in your regions: <b>${n}</b> (all Kazakhstan: ${total}).`,
     regionCount: (name, n) => `${name}: <b>${n}</b> alerts.`,
-    none: '✅ No alerts for tomorrow in your regions.',
-    noneRegion: (name) => `✅ ${name}: no alerts for tomorrow.`,
+    none: '✅ No alerts in your regions.',
+    noneRegion: (name) => `✅ ${name}: no alerts.`,
     more: (n) => `…and ${n} more. All alerts are on the map.`,
-    chance: 'chance', index: 'v6 index',
+    chance: 'chance',
+    legend: '🔴 high risk (both models) · 🟠 elevated (one model)',
     crop: '🚜 On cropland an alert usually means a planned burn, not a wildfire.',
     cropHidden: (n) => `🚜 Cropland burns hidden: ${n} (settings).`,
     warn: '⚠️ Some inputs are incomplete today; the forecast may be less accurate.',
@@ -196,8 +199,10 @@ function alertLine(a, bulletin, lang) {
   const t = T[lang];
   const region = escape(bulletin.regions[a.region]?.[lang] || '');
   const link = `https://maps.google.com/?q=${a.lat},${a.lon}`;
-  const score = a.v7 ? `${t.chance} ${pct(a.p_v7)}` : `${t.index} ${pct(a.p_v6)}`;
-  return `${LAND[a.land] || '▫️'} ${region} · ${LAND_NAME[lang][a.land] || ''} · <b>${score}</b> · <a href="${link}">${a.lat.toFixed(3)}, ${a.lon.toFixed(3)}</a>`;
+  // One scale for every alert: v7's calibrated chance; a red mark when v7 itself is on alert,
+  // orange when only v6 flags the cell.
+  const level = a.v7 ? '🔴' : '🟠';
+  return `${level} ${LAND[a.land] || '▫️'} ${region} · ${LAND_NAME[lang][a.land] || ''} · <b>${t.chance} ${pct(a.p_v7)}</b> · <a href="${link}">${a.lat.toFixed(3)}, ${a.lon.toFixed(3)}</a>`;
 }
 
 export function distanceKm(lat1, lon1, lat2, lon2) {
@@ -206,7 +211,11 @@ export function distanceKm(lat1, lon1, lat2, lon2) {
   return 2 * 6371 * Math.asin(Math.sqrt(h));
 }
 
+// A one-line key under any message that lists alerts.
+const withLegend = (text, lang) => (/🔴|🟠/.test(text) ? `${text}\n\n<i>${T[lang].legend}</i>` : text);
+
 // Alerts the subscriber wants to see: cropland burns only if they keep them.
+
 const visible = (bulletin, sub) => bulletin.alerts.filter((a) => sub.crop || a.land !== 'пашня');
 
 function nearLines(bulletin, sub, lat, lon, radius) {
@@ -245,7 +254,7 @@ export function summary(bulletin, sub, { forced = false } = {}) {
   if (sub.crop && [...mine, ...(near ? near.alerts : [])].some((a) => a.land === 'пашня')) lines.push('', t.crop);
   if (!sub.crop && hiddenCrop) lines.push('', t.cropHidden(hiddenCrop));
   if (bulletin.warnings?.length) lines.push('', t.warn);
-  return lines.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+  return withLegend(lines.join('\n').replace(/\n{3,}/g, '\n\n').trim(), sub.lang);
 }
 
 export function regionSummary(bulletin, sub, region) {
@@ -260,12 +269,12 @@ export function regionSummary(bulletin, sub, region) {
     if (alerts.length > MAX_ROWS) lines.push(t.more(alerts.length - MAX_ROWS));
     if (alerts.some((a) => a.land === 'пашня')) lines.push('', t.crop);
   }
-  return lines.join('\n');
+  return withLegend(lines.join('\n'), sub.lang);
 }
 
 export function nearby(bulletin, lat, lon, lang, sub = defaults(lang)) {
   const s = { ...sub, lang };
-  return [T[lang].header(dayText(bulletin.target_day, lang)), ...nearLines(bulletin, s, lat, lon, s.home ? s.radius : NEAR_KM).lines].join('\n');
+  return withLegend([T[lang].header(dayText(bulletin.target_day, lang)), ...nearLines(bulletin, s, lat, lon, s.home ? s.radius : NEAR_KM).lines].join('\n'), lang);
 }
 
 // Counts per region for a day, kept for the trend in the national summary.
@@ -287,7 +296,7 @@ export function national(bulletin, sub, previous = null) {
     for (const a of [...shown].sort((x, y) => y.p_v7 - x.p_v7).slice(0, 5)) lines.push(alertLine(a, bulletin, sub.lang));
   }
   if (!sub.crop && bulletin.alerts.length > shown.length) lines.push('', t.cropHidden(bulletin.alerts.length - shown.length));
-  return lines.join('\n');
+  return withLegend(lines.join('\n'), sub.lang);
 }
 
 export function radiusKeyboard(lang) {

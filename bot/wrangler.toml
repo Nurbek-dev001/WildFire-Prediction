@@ -4,6 +4,14 @@
 name = "steppe-wildfire-bot"
 main = "src/worker.js"
 compatibility_date = "2024-12-01"
+# Fetches to another Worker of the same account through its public workers.dev address are
+# refused (error 1042) without this flag; the service binding below is the primary path.
+compatibility_flags = ["global_fetch_strictly_public"]
+
+# The site Worker (site/wrangler.toml), read directly rather than over the internet.
+[[services]]
+binding = "SITE"
+service = "steppe-wildfire"
 
 # Every 2 minutes during 12:00-21:59 UTC (17:00-02:59 in Kazakhstan): sends the evening summary
 # for the next day in batches once a new bulletin is on the site.

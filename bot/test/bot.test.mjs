@@ -28,10 +28,11 @@ test('a summary lists only the subscriber regions and explains cropland alerts',
   const text = summary(bulletin, sub);
   assert.match(text, /Тревог в ваших областях: <b>2<\/b>/);
   assert.match(text, /шанс 16,6%/);
-  assert.match(text, /индекс v6 1,2%/);
+  assert.match(text, /🟠 🌾 Кызылординская · степь · <b>шанс 2%/);
+  assert.match(text, /🔴 высокий риск/);
   assert.match(text, /плановый пал/);
   assert.equal(summary(bulletin, { ...sub, regions: [0] }), null, 'quiet when nothing to say');
-  assert.match(summary(bulletin, { ...sub, regions: [0], quiet: false }), /тревог на завтра нет/);
+  assert.match(summary(bulletin, { ...sub, regions: [0], quiet: false }), /тревог нет/);
   assert.match(summary(bulletin, { ...defaults('en'), regions: [1] }), /Alerts in your regions/);
 });
 
@@ -44,7 +45,7 @@ test('menu buttons, typed region names and the national summary', () => {
   assert.equal(findRegion(bulletin, 'Pavlodar'), 0);
   assert.equal(findRegion(bulletin, 'ок'), -1);
   assert.match(regionSummary(bulletin, defaults('ru'), 1), /Кызылординская: тревог <b>2<\/b>/);
-  assert.match(regionSummary(bulletin, defaults('ru'), 0), /Павлодарская: тревог на завтра нет/);
+  assert.match(regionSummary(bulletin, defaults('ru'), 0), /Павлодарская: тревог нет/);
   const kz = national(bulletin, defaults('ru'), { 1: 5 });
   assert.match(kz, /Всего тревог: <b>2<\/b>/);
   assert.match(kz, /Кызылординская: <b>2<\/b> ↓3/);

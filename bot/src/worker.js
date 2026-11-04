@@ -26,12 +26,26 @@ async function tg(env, method, body) {
   return r.json();
 }
 
-async function bulletin(env) {
-  const r = await fetch(`${env.SITE_URL}/assets/bulletin-latest.json`, { cf: { cacheTtl: 300 } });
-  if (!r.ok) return null;
-  const b = await r.json();
-  return b?.synthetic === false && Array.isArray(b.alerts) ? b : null;
+// The latest bulletin: through the service binding to the site Worker, else its public address.
+async function readBulletin(env) {
+  const tries = [];
+  if (env.SITE) tries.push(['service', () => env.SITE.fetch('https://site/assets/bulletin-latest.json')]);
+  tries.push(['public', () => fetch(`${env.SITE_URL}/assets/bulletin-latest.json`, { cf: { cacheTtl: 120 } })]);
+  const errors = [];
+  for (const [via, get] of tries) {
+    try {
+      const r = await get();
+      if (!r.ok) { errors.push(`${via}: HTTP ${r.status}`); continue; }
+      const b = await r.json();
+      if (b?.synthetic === false && Array.isArray(b.alerts)) return { bulletin: b, via, errors };
+      errors.push(`${via}: unexpected content`);
+    } catch (e) {
+      errors.push(`${via}: ${e.message}`);
+    }
+  }
+  return { bulletin: null, via: null, errors };
 }
+const bulletin = async (env) => (await readBulletin(env)).bulletin;
 
 // Alert counts per region of recent days, written once per new day by the broadcast.
 async function history(env) {
@@ -213,6 +227,15 @@ export default {
     const url = new URL(request.url);
     const secret = await webhookSecret(env);
     if (url.pathname === '/health') return new Response('ok');
+    // Public self-check without secrets: can the bot read the forecast, and which one.
+    if (url.pathname === '/diag') {
+      const r = await readBulletin(env);
+      return Response.json({
+        bulletin_day: r.bulletin?.target_day ?? null, issued_utc: r.bulletin?.issued_utc ?? null,
+        alerts: r.bulletin?.alerts.length ?? null, via: r.via, errors: r.errors,
+        broadcast: JSON.parse((await env.SUBS.get('broadcast')) || 'null'),
+      });
+    }
     // Called by the deploy workflow: registers the webhook and the command menu.
     if (url.pathname === '/setup' && url.searchParams.get('key') === secret) {
       const hook = await tg(env, 'setWebhook', {
