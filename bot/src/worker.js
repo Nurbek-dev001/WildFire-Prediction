@@ -204,11 +204,13 @@ export async function broadcast(env) {
   }
   const cursor = state.day === b.target_day ? state.cursor : undefined;
   const page = await env.SUBS.list({ prefix: 'chat:', cursor, limit: BATCH });
+  const previous = previousCounts(await history(env), b.target_day);
   let sent = 0;
   for (const k of page.keys) {
     const sub = { ...defaults('ru'), ...(k.metadata || {}) };
     if (!sub.push) continue;
-    const text = summary(b, sub);
+    // Without regions or a point a subscriber still hears something: the national summary.
+    const text = sub.regions.length || sub.home ? summary(b, sub) : national(b, sub, previous);
     if (!text) continue;
     const r = await send(env, k.name.slice(5), text, { reply_markup: mapButton(env, sub.lang) });
     // A user who blocked the bot is removed, as Telegram asks.
@@ -234,6 +236,7 @@ export default {
         bulletin_day: r.bulletin?.target_day ?? null, issued_utc: r.bulletin?.issued_utc ?? null,
         alerts: r.bulletin?.alerts.length ?? null, via: r.via, errors: r.errors,
         broadcast: JSON.parse((await env.SUBS.get('broadcast')) || 'null'),
+        subscribers: (await allSubscribers(env)).length,
       });
     }
     // Called by the deploy workflow: registers the webhook and the command menu.

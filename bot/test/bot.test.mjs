@@ -165,6 +165,11 @@ test('broadcast sends once per day in batches and drops blocked users', async ()
   const second = await broadcast(env);
   assert.equal(second.done, true);
   assert.equal(sent.filter((s) => s.method === 'sendMessage').length, 46, '45 subscribers plus the blocked one; region 0 stays quiet');
+  await env.SUBS.put('chat:3000', '1', { metadata: { ...defaults('ru') } });
+  await env.SUBS.put('broadcast', JSON.stringify({ day: '2026-10-30', done: true }));
+  const before = sent.length;
+  while (!(await broadcast(env)).done);
+  assert.ok(sent.slice(before).some((s) => s.body.chat_id === '3000' && /Казахстан/.test(s.body.text)), 'no regions: national summary');
   assert.ok(!kv.has('chat:403'));
   assert.equal((await broadcast(env)).reason, 'done');
   assert.deepEqual(JSON.parse(kv.get('history').value)['2026-10-31'], { 1: 2 });
