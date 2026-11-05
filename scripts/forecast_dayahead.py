@@ -161,7 +161,7 @@ def forecast(target: date, replay: bool = False) -> None:
         "ndvi_age_days": (target - date.fromisoformat(ndvi_last)).days if ndvi_last else None,
         "eligible_share": round(float(eligible.mean()), 4),
     }
-    warnings = fd.feed_gap(target, det_meta)
+    warnings = fd.feed_gap(target, det_meta) + fd.fill_warning(det_meta)
     if det_meta.get("firms_days"):
         warnings.append(f"FIRMS fallback used for {det_meta['firms_days']}")
     if checks["ndvi_age_days"] is None or checks["ndvi_age_days"] > 26:

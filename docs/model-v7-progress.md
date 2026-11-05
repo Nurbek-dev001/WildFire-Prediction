@@ -216,3 +216,35 @@ issue D. The scheduled attempts of 2026-11-04 also fell into two GitHub Actions 
 23:00 UTC of D-1 and 06:00 UTC of D with the inputs of the table's left column, as they were
 through 2026-11-04; no log entry was ever written under the amendment. A day-ahead forecast
 would need v6 to take older weather (D-8), which is a new model version, not an amendment.
+
+## Amendment 2026-11-05-01: NOAA-20 fills an S-NPP outage
+
+NASA's S-NPP VIIRS fire feed (GIBS and FIRMS) stopped at 10:21 UTC on 2026-11-02, while
+NOAA-20, NOAA-21 and MODIS stayed current. Every model reads its fire history from S-NPP only,
+so the history froze: the last known fires repeated in each forecast (v7 alerts of 4 and 5
+November overlapped 70%, against about 30% normally) and v7's "fires yesterday" inputs were
+empty. NOAA-20 carries the same VIIRS instrument and active-fire algorithm in the same orbit,
+about 50 minutes ahead of S-NPP.
+
+Rule (`scripts/forecast_daily.py`, `noaa20_fill`): when the last S-NPP point is more than 24 h
+older than the end of D-1 (or the issue time, if earlier), NOAA-20 points from the GIBS layer
+`VIIRS_NOAA20_Thermal_Anomalies_375m_All` after that last S-NPP point are added. With S-NPP
+current nothing changes. Entries record `inputs.detections.noaa20_fill` and a warning; the
+models, thresholds and every other input are unchanged.
+
+Check on days both satellites exist (16 days, 20 October – 4 November): NOAA-20 found
+0.9–1.6 times as many nominal/high fire cells per day as S-NPP; 57–74% of S-NPP's fire cells
+were also NOAA-20 fire cells the same day. Replays of 31 October and 1 November with the last
+three days of S-NPP replaced (`scripts/check_noaa20_fill.py`), compared with S-NPP as issued:
+
+| Day, model | NOAA-20 fill: alerts / same alerts / same top 1% | Outage (no data): alerts / same / top 1% | S-NPP alerts |
+|---|---|---|---|
+| 31 Oct, v6 | 53 / 75% / 92% | 75 / 62% / 86% | 50 |
+| 31 Oct, v7 | 57 / 60% / 83% | 50 / 31% / 77% | 74 |
+| 1 Nov, v6 | 59 / 74% / 93% | 78 / 57% / 85% | 54 |
+| 1 Nov, v7 | 193 / 62% / 86% | 52 / 14% / 72% | 210 |
+
+("Same alerts": shared alert cells over all alert cells of either run.) The fill is much
+closer to S-NPP than the outage is, above all for v7. It is a fallback for outages only: the
+2027 prospective scores are computed on S-NPP labels, and days issued with the fill are
+flagged in the log.

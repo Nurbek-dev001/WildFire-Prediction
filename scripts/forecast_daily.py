@@ -169,9 +169,90 @@ def live_detections(last: date) -> tuple[pd.DataFrame, dict]:
         "live_points": 0 if points is None else len(points),
         "points_last_day": len(frames[-1]) if frames else None,
         "firms_days": [str(d) for d, (_, src) in zip(days, fetched, strict=True) if src == "firms"],
-        "last_detection_utc": str(both.timestamp.max()),
+        "last_snpp_utc": str(both.timestamp.max()),
     }
+    both, meta["noaa20_fill"] = noaa20_fill(both, last)
+    if meta["noaa20_fill"]:
+        meta["points_last_day"] = meta["noaa20_fill"]["points_last_day"]
+    meta["last_detection_utc"] = str(both.timestamp.max())
     return both, meta
+
+
+# Amendment 2026-11-05-01 (docs/model-v7-progress.md): when NASA's S-NPP feed stops, the fire
+# history the models read freezes and every forecast repeats the last known fires. NOAA-20
+# carries the same VIIRS instrument and the same active-fire algorithm in the same orbit,
+# about 50 minutes ahead of S-NPP; its points continue the record from the moment S-NPP stops.
+# Only then: with S-NPP current, nothing changes.
+N20_LAYER = "VIIRS_NOAA20_Thermal_Anomalies_375m_All"
+N20_AFTER = pd.Timedelta(hours=24)
+
+
+def noaa20_day(day: date) -> pd.DataFrame:
+    path = LIVE / f"gibs-n20/{day}.parquet"
+    complete_after = fl.midnight(day + timedelta(days=1)) + fl.DEADLINE_AFTER_MIDNIGHT
+    if path.exists() and datetime.fromtimestamp(path.stat().st_mtime, UTC) >= complete_after:
+        return pd.read_parquet(path)
+    raw = fetch_day(str(day), t26.BBOX, layer=N20_LAYER)
+    if len(raw):
+        raw = raw.astype(str).drop_duplicates(["LATITUDE", "LONGITUDE", "ACQ_TIME"])
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_suffix(".working")
+    raw.to_parquet(temporary, index=False)
+    temporary.replace(path)
+    return raw
+
+
+def noaa20_fill(snpp: pd.DataFrame, last: date) -> tuple[pd.DataFrame, dict | None]:
+    """S-NPP points plus NOAA-20 points after the last S-NPP one, when S-NPP is more than
+    24 hours behind (the end of `last`, or now if earlier)."""
+    seen = snpp.timestamp.max()
+    reference = min(pd.Timestamp(fl.midnight(last + timedelta(days=1))), pd.Timestamp.now(tz="UTC"))
+    if pd.notna(seen) and reference - seen <= N20_AFTER:
+        return snpp, None
+    first = seen.date() if pd.notna(seen) else last
+    days = [first + timedelta(days=k) for k in range((last - first).days + 1)]
+    frames = []
+    for d in days:
+        try:
+            frames.append(noaa20_day(d))
+        except Exception as error:  # noqa: BLE001 - the forecast goes on with what exists
+            log(f"NOAA-20 {d} failed ({error})")
+    raw = (
+        pd.concat([f for f in frames if len(f)], ignore_index=True)
+        if any(len(f) for f in frames)
+        else None
+    )
+    if raw is None:
+        return snpp, {
+            "from_utc": str(seen),
+            "days": [str(d) for d in days],
+            "points": 0,
+            "points_last_day": 0,
+        }
+    if not raw.SATELLITE.isin(["N20"]).all():
+        raise ValueError("NOAA-20 layer returned other satellites")
+    n20 = t26.normalise(raw).assign(satellite="N20")
+    if pd.notna(seen):
+        n20 = n20[n20.timestamp > seen]
+    both = pd.concat([snpp, n20], ignore_index=True)
+    on_last = int((n20.timestamp.dt.date == last).sum())
+    log(f"S-NPP stops at {seen}; NOAA-20 fills {days[0]}..{last} with {len(n20)} points")
+    return both, {
+        "from_utc": str(seen),
+        "days": [str(d) for d in days],
+        "points": len(n20),
+        "points_last_day": on_last,
+    }
+
+
+def fill_warning(det_meta: dict) -> list[str]:
+    fill = det_meta.get("noaa20_fill")
+    if not fill:
+        return []
+    return [
+        f"S-NPP feed stopped at {fill['from_utc'][:16]} UTC; NOAA-20 VIIRS detections fill "
+        f"{fill['days'][0]}..{fill['days'][-1]} ({fill['points']} points)"
+    ]
 
 
 # ---------- ERA5 through the latest published day ----------
@@ -477,15 +558,15 @@ def check_versions() -> None:
 
 
 def feed_gap(target: date, det_meta: dict) -> list[str]:
-    """In any season: S-NPP points must reach D-2; an older last point means NASA's feeds are
-    behind (GIBS 404 and a stale FIRMS file on 2026-11-04), not a quiet fire day."""
+    """In any season: VIIRS points (S-NPP, or NOAA-20 filling an S-NPP gap) must reach D-2; an
+    older last point means NASA's feeds are behind, not a quiet fire day."""
     last = det_meta.get("last_detection_utc")
     if not last or last == "NaT":
-        return ["No S-NPP detections at all"]
+        return ["No VIIRS detections at all"]
     seen = pd.Timestamp(last).date()
     if seen < target - timedelta(days=2):
         return [
-            f"S-NPP detections end on {seen}; days {seen + timedelta(days=1)}..{target - timedelta(days=1)} are missing"
+            f"VIIRS detections end on {seen}; days {seen + timedelta(days=1)}..{target - timedelta(days=1)} are missing"
         ]
     return []
 
@@ -505,10 +586,10 @@ def health(
     warnings = []
     points = det_meta.get("points_last_day") or 0
     if season and points == 0:
-        warnings.append("No S-NPP detections over Kazakhstan for D-1: feed gap or full cloud cover")
+        warnings.append("No VIIRS detections over Kazakhstan for D-1: feed gap or full cloud cover")
     if det_meta.get("firms_days"):
         warnings.append(f"FIRMS fallback used for {det_meta['firms_days']}")
-    warnings += feed_gap(target, det_meta)
+    warnings += feed_gap(target, det_meta) + fill_warning(det_meta)
     ndvi_age = (target - date.fromisoformat(ndvi_last)).days if ndvi_last else None
     if ndvi_age is None or ndvi_age > 26:
         warnings.append(f"NDVI is {ndvi_age} days old (normal 12-19)")
