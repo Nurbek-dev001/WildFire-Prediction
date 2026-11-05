@@ -8,8 +8,8 @@
   <link rel="icon" href="./assets/mark.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600&display=swap">
-  <link rel="stylesheet" href="./tokens.css?v=20261105-da">
-  <link rel="stylesheet" href="./style.css?v=20261105-da">
+  <link rel="stylesheet" href="./tokens.css?v=20261105-m">
+  <link rel="stylesheet" href="./style.css?v=20261105-m">
 </head>
 <body>
   <svg class="icon-library" aria-hidden="true"><defs>
@@ -29,11 +29,7 @@
     <a class="wordmark" href="./" data-i18n-attr="aria-label:brand.aria" aria-label="Steppe, карта">steppe<span>.</span></a>
     <nav class="nav" data-i18n-attr="aria-label:nav.sections" aria-label="Разделы">
       <a href="./" id="nav-map" aria-current="page" data-i18n="nav.map">Карта</a>
-      <a href="./reports/model.html" data-i18n="nav.model">Модель</a>
-      <a href="./reports/stack.html" data-i18n="nav.stack">Модель v5</a>
-      <a href="./reports/previous.html" data-i18n="nav.previous">Исходная модель</a>
-      <a href="./reports/alerts.html" data-i18n="nav.alerts">Пороги тревоги</a>
-      <a href="./reports/quality.html" data-i18n="nav.quality">Качество данных</a>
+      <a href="./reports/models.html" data-i18n="nav.models">Модели</a>
       <button id="nav-data" data-i18n="nav.sources">Источники</button>
       <button id="nav-method" data-i18n="nav.method">Методика</button>
     </nav>
@@ -56,7 +52,7 @@
           <button id="view-2d" aria-pressed="true">2D</button><button id="view-3d" aria-pressed="false">3D</button>
         </div>
       </div>
-      <div class="basemap-row model-row" id="model-row" hidden><span data-i18n="model.version">Версия модели</span><div class="segmented" role="group" data-i18n-attr="aria-label:model.version" aria-label="Версия модели"><button id="model-v6da" aria-pressed="false" hidden data-i18n="model.tomorrow" data-i18n-attr="title:model.v6da" title="Прогноз на завтра · v6da, выпускается накануне">Завтра</button><button id="model-v7" aria-pressed="false" hidden data-i18n-attr="title:model.v7" title="v7 · погода дня прогноза">v7</button><button id="model-v6" aria-pressed="true" data-i18n-attr="title:model.v6" title="v6 · история очагов">v6</button><button id="model-v5" aria-pressed="false" data-i18n-attr="title:model.stack" title="XGBoost + второй уровень">v5</button></div></div>
+      <div class="basemap-row model-row" id="model-row" hidden><span data-i18n="model.version">Версия модели</span><div class="segmented" role="group" data-i18n-attr="aria-label:model.version" aria-label="Версия модели"><button id="model-v6da" aria-pressed="false" hidden data-i18n="model.tomorrow" data-i18n-attr="title:model.v6da" title="Прогноз на завтра · v6da, выпускается накануне">Завтра</button><button id="model-v7" aria-pressed="false" hidden data-i18n-attr="title:model.v7" title="v7 · погода дня прогноза">v7</button><button id="model-v6" aria-pressed="true" data-i18n-attr="title:model.v6" title="v6 · история очагов">v6</button><button id="model-v5" aria-pressed="false" hidden data-i18n-attr="title:model.stack" title="XGBoost + второй уровень">v5</button></div></div>
       <div class="note" id="mode-note"></div>
 
       <div class="stats" aria-live="polite">
@@ -175,6 +171,6 @@
   </main>
 
   <dialog id="info-dialog"><div class="dialog-heading"><span class="label" id="dialog-eyebrow">STEPPE</span><button class="btn is-icon" id="close-dialog" data-i18n-attr="aria-label:close" aria-label="Закрыть"><svg><use href="#i-close"/></svg></button></div><div id="dialog-content"></div></dialog>
-  <script type="module" src="./app.js?v=20261105-da"></script>
+  <script type="module" src="./app.js?v=20261105-m"></script>
 </body>
 </html>

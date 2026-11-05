@@ -130,6 +130,7 @@ export const DICT = {
   'nav.sections': L('Разделы', 'Sections', 'Бөлімдер'),
   'nav.map': L('Карта', 'Map', 'Карта'),
   'nav.model': L('Модель', 'Model', 'Модель'),
+  'nav.models': L('Модели', 'Models', 'Модельдер'),
   'nav.stack': L('Модель v5', 'Model v5', 'v5 моделі'),
   'nav.previous': L('Исходная модель', 'Original model', 'Бастапқы модель'),
   'nav.alerts': L('Пороги тревоги', 'Alert thresholds', 'Дабыл шектері'),

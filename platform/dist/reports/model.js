@@ -1,4 +1,4 @@
-import { $, t, pct, num, run, loadRefs, table, dotPanel, panelWidth, reliability } from './report.js?v=20261105-da';
+import { $, t, pct, num, run, loadRefs, table, dotPanel, panelWidth, reliability } from './report.js?v=20261105-m';
 
 const CANDIDATES = ['reference', 'R0_base', 'R1_history', 'R2_cell', 'R3_cell_weather', 'R4_weather'];
 

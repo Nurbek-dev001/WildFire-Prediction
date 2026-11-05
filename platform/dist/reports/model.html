@@ -7,19 +7,15 @@
 <link rel="icon" href="../assets/mark.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600&display=swap">
-<link rel="stylesheet" href="../tokens.css?v=20261105-da">
-<link rel="stylesheet" href="./report.css?v=20261105-da">
+<link rel="stylesheet" href="../tokens.css?v=20261105-m">
+<link rel="stylesheet" href="./report.css?v=20261105-m">
 </head>
 <body>
 <header class="topbar">
   <a class="wordmark" href="../" data-i18n-attr="aria-label:brand.aria" aria-label="Steppe, карта">steppe<span>.</span></a>
   <nav class="nav" data-i18n-attr="aria-label:nav.sections" aria-label="Разделы">
     <a href="../" data-i18n="nav.map">Карта</a>
-    <a href="./model.html" aria-current="page" data-i18n="nav.model">Модель</a>
-    <a href="./stack.html" data-i18n="nav.stack">Модель v5</a>
-    <a href="./previous.html" data-i18n="nav.previous">Исходная модель</a>
-    <a href="./alerts.html" data-i18n="nav.alerts">Пороги тревоги</a>
-    <a href="./quality.html" data-i18n="nav.quality">Качество данных</a>
+    <a href="./models.html" data-i18n="nav.models">Модели</a>
   </nav>
   <span class="release" id="release"></span>
   <div class="lang-switch" role="group" data-i18n-attr="aria-label:lang.switch" aria-label="Язык интерфейса"><button data-lang="ru" lang="ru" aria-pressed="true" title="Русский">РУС</button><button data-lang="en" lang="en" aria-pressed="false" title="English">ENG</button><button data-lang="kk" lang="kk" aria-pressed="false" title="Қазақша">ҚАЗ</button></div>
@@ -27,7 +23,7 @@
 
 <main class="report">
   <div class="report-head">
-    <div class="crumbs"><span data-i18n-html="v6p.2">Модель v6 · текущий релиз</span><span class="chip" id="status" data-i18n="rep.checking">Сверяем файлы релиза…</span></div>
+    <div class="crumbs"><span data-i18n-html="v6p.2">Модель v6 · модель научной статьи</span><span class="chip" id="status" data-i18n="rep.checking">Сверяем файлы релиза…</span></div>
     <h1 data-i18n-html="v6p.3">История очагов в каждой ячейке</h1>
     <p class="lead" data-i18n-html="v6p.4">Один XGBoost с 37 признаками: к погоде, растительности, покрову и рельефу добавлены пожары по соседству и история самой ячейки. Разработка и выбор шли на 2015–2022 годах, независимая проверка проведена на 2026 годе.</p>
   </div>
@@ -73,7 +69,7 @@
     <h2 data-i18n-html="v6p.15">Что изменилось</h2>
     <p data-i18n-html="v6p.16">К 26 физическим признакам v5 добавлены шесть признаков пожаров по соседству (окрестности 15 и 55 км, окна от 7 до 365 дней) и пять признаков самой ячейки: очаги за 30 и 365 дней, дни с последнего очага, многолетняя частота очагов в этом месяце в ячейке и в окрестности 15 км. Второго уровня нет: это один XGBoost с параметрами исходной модели, обученный на 2015–2021 и откалиброванный на 2022.</p>
     <p data-i18n-html="v6p.17">История очагов заканчивается не позднее чем за двое суток до цели, погода — не позднее чем за семь. Будущие метки и связи событий не используются.</p>
-    <p data-i18n-html="v6p.18">На карте v6 доступна за 2023–2024 и 2026 годы. Даты 2023–2024 показаны для непрерывности: аудит этих лет повлиял на разработку v6, поэтому тестом они не считаются. Карты 2026 года совпадают с тестовыми прогнозами ячейка в ячейку. Модель v5 доступна в переключателе на карте и на странице <a href="./stack.html">«Модель v5»</a>.</p>
+    <p data-i18n-html="v6p.18">С 30 октября 2026 года v6 выпускается каждый день вместе с v7; карта по умолчанию открывается на v7 (см. <a href="./models.html">«Модели»</a>). На карте v6 также доступна за 2023–2024 и 2026 годы: даты 2023–2024 показаны для непрерывности, тестом они не считаются, а карты 2026 года совпадают с тестовыми прогнозами ячейка в ячейку.</p>
   </section>
 
   <section class="section">
@@ -93,6 +89,6 @@
     <p class="muted" data-after-load hidden data-i18n-html="v6p.29">SHA-256 релиза: <code id="release-hash"></code></p>
   </section>
 </main>
-<script type="module" src="./model.js?v=20261105-da"></script>
+<script type="module" src="./model.js?v=20261105-m"></script>
 </body>
 </html>
