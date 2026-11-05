@@ -5,6 +5,7 @@ import {
   menuAction, menuKeyboard, findRegion, national, regionSummary,
 } from '../src/logic.js';
 import worker, { broadcast } from '../src/worker.js';
+import { context, messages, answer, DAILY_LIMIT } from '../src/assistant.js';
 
 const bulletin = {
   synthetic: false, target_day: '2026-10-31', warnings: [],
@@ -29,7 +30,7 @@ test('a summary lists only the subscriber regions and explains cropland alerts',
   assert.match(text, /Тревог в ваших областях: <b>2<\/b>/);
   assert.match(text, /шанс 16,6%/);
   assert.match(text, /🟠 🌾 Кызылординская · степь · <b>шанс 2%/);
-  assert.match(text, /🔴 высокий риск/);
+  assert.match(text, /🔴 тревога v7/);
   assert.match(text, /плановый пал/);
   assert.equal(summary(bulletin, { ...sub, regions: [0], quiet: true }), null, 'silent only when asked');
   assert.match(summary(bulletin, { ...sub, regions: [0], quiet: false }), /тревог нет/);
@@ -217,4 +218,47 @@ test('old subscribers get the daily message; evening and morning issues are each
   // A redeploy that briefly serves the previous day sends nothing.
   env.SITE = { fetch: async () => new Response(JSON.stringify({ ...bulletin, target_day: '2026-11-05' })) };
   assert.equal((await broadcast(env)).reason, 'older');
+});
+
+test('the assistant sees only the service data and answers in plain text within a daily limit', async () => {
+  const ctx = context({ ...bulletin, kind: 'morning', issued_utc: '2026-10-31T03:25:00+00:00' }, { ...defaults('ru'), regions: [1] }, { 1: 3 });
+  assert.match(ctx, /Кызылординская: 2 \(3\)/);
+  assert.match(ctx, /v7: 1, v6: 2/);
+  assert.match(ctx, /Подписка пользователя: области — Кызылординская/);
+  const m = messages('Где риск выше?', ctx);
+  assert.equal(m[0].role, 'system');
+  assert.match(m[0].content, /ТОЛЬКО по разделам/);
+  assert.equal(answer({ response: '  **Риск** выше в Кызылорде.  ' }), 'Риск выше в Кызылорде.');
+
+  const { env, sent } = harness();
+  const hex = async (t) => Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(t))), (b) => b.toString(16).padStart(2, '0')).join('');
+  const secret = (await hex('webhook:test-token')).slice(0, 48);
+  // Without the Workers AI binding the bot says so instead of failing.
+  await update(env, { message: { chat: { id: 9 }, text: 'Где сегодня самый высокий риск?' } }, secret);
+  assert.match(sent.at(-1).body.text, /недоступен/);
+  const calls = [];
+  env.AI = { async run(model, input) { calls.push({ model, input }); return { response: 'Больше всего тревог в Кызылординской области: 2.' }; } };
+  await update(env, { message: { chat: { id: 9 }, text: 'Где сегодня самый высокий риск?' } }, secret);
+  assert.equal(calls.length, 1);
+  assert.match(calls[0].input.messages[0].content, /Кызылординская: 2/);
+  assert.equal(calls[0].input.messages[1].content, 'Где сегодня самый высокий риск?');
+  assert.match(sent.at(-1).body.text, /^Больше всего тревог/);
+  assert.equal(sent.at(-1).body.parse_mode, undefined);
+  assert.ok(sent.some((s) => s.method === 'sendChatAction'));
+  // Region names and menu buttons still work as before, without the model.
+  await update(env, { message: { chat: { id: 9 }, text: 'Кызылорда' } }, secret);
+  assert.equal(calls.length, 1);
+  await update(env, { message: { chat: { id: 9 }, text: '/ask' } }, secret);
+  assert.match(sent.at(-1).body.text, /Напишите вопрос/);
+  await update(env, { message: { chat: { id: 9 }, text: '/ask сколько тревог?' } }, secret);
+  assert.equal(calls.length, 2);
+  // The model failing gives a short apology, not silence.
+  env.AI = { async run() { throw new Error('busy'); } };
+  await update(env, { message: { chat: { id: 9 }, text: 'а завтра?' } }, secret);
+  assert.match(sent.at(-1).body.text, /Не удалось/);
+  // The daily limit.
+  const day = new Date().toISOString().slice(0, 10);
+  await env.SUBS.put(`ai:9:${day}`, String(DAILY_LIMIT));
+  await update(env, { message: { chat: { id: 9 }, text: 'ещё вопрос' } }, secret);
+  assert.match(sent.at(-1).body.text, /лимит/);
 });

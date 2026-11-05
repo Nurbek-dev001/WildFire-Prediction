@@ -26,7 +26,14 @@ export const T = {
     noneRegion: (name) => `✅ ${name}: тревог нет.`,
     more: (n) => `…и ещё ${n}. Все тревоги — на карте.`,
     chance: 'шанс',
-    legend: '🔴 высокий риск (обе модели) · 🟠 повышенный (одна модель)',
+    legend: '🔴 тревога v7, самой точной модели · 🟠 тревога только v6',
+    legendAhead: '🟠 тревога модели прогноза на завтра (v6da)',
+    byModel: (s) => `По моделям: ${s}`,
+    aiHow: '💬 Напишите вопрос обычным сообщением, например: «Где сегодня самый высокий риск?» или «Сколько тревог в Костанайской области?»',
+    aiOff: 'ИИ-ассистент сейчас недоступен. Используйте кнопки внизу или /help.',
+    aiLimit: (n) => `На сегодня лимит вопросов исчерпан (${n}). Завтра можно снова.`,
+    aiError: 'Не удалось получить ответ ассистента. Попробуйте ещё раз через минуту или используйте /today.',
+    aiNote: '🤖 Ответ ИИ-ассистента по данным сервиса Steppe.',
     crop: '🚜 На пашне тревога чаще всего означает плановый пал, а не природный пожар.',
     cropHidden: (n) => `🚜 Скрыто палов на пашне: ${n} (настройки).`,
     warn: '⚠️ Часть входных данных сегодня неполная, прогноз может быть менее точным.',
@@ -48,7 +55,7 @@ export const T = {
     pushOn: '🔔 Рассылка: вкл', pushOff: '🔕 Рассылка: выкл', quietOn: 'Без тревог — не писать', quietOff: 'Без тревог — писать',
     cropOn: '🚜 Палы: показывать', cropOff: '🚜 Палы: скрывать',
     stopped: 'Подписка удалена, данные о вас стёрты. Вернуться: /start',
-    help: 'Кнопки внизу:\n🔥 Прогноз — по вашим областям и точке\n📍 Рядом со мной — тревоги рядом\n🇰🇿 Весь Казахстан — сводка по областям\n🗺 Области — подписка\n⚙️ Настройки — рассылка, палы, язык\n\nНапишите название области (например, «Костанай») — покажу прогноз по ней.\n/about — что это и насколько точно · /stop — отписаться',
+    help: 'Кнопки внизу:\n💬 Любой вопрос текстом — ответит ИИ-ассистент по данным сервиса\n🔥 Прогноз — по вашим областям и точке\n📍 Рядом со мной — тревоги рядом\n🇰🇿 Весь Казахстан — сводка по областям\n🗺 Области — подписка\n⚙️ Настройки — рассылка, палы, язык\n\nНапишите название области (например, «Костанай») — покажу прогноз по ней.\n/about — что это и насколько точно · /stop — отписаться',
     unknown: 'Не понял. Нажмите кнопку внизу или напишите название области. /help — подсказка.',
     menu: ['🔥 Прогноз', '📍 Рядом со мной', '🇰🇿 Весь Казахстан', '🗺 Области', '⚙️ Настройки'],
   },
@@ -65,7 +72,14 @@ export const T = {
     noneRegion: (name) => `✅ ${name}: дабыл жоқ.`,
     more: (n) => `…тағы ${n}. Барлық дабылдар — картада.`,
     chance: 'мүмкіндік',
-    legend: '🔴 жоғары қауіп (екі модель) · 🟠 жоғарылаған (бір модель)',
+    legend: '🔴 v7 дабылы, ең дәл модель · 🟠 тек v6 дабылы',
+    legendAhead: '🟠 ертеңгі болжам моделінің дабылы (v6da)',
+    byModel: (s) => `Модельдер бойынша: ${s}`,
+    aiHow: '💬 Сұрағыңызды кәдімгі хабарламамен жазыңыз, мысалы: «Бүгін қауіп қай жерде ең жоғары?»',
+    aiOff: 'ЖИ-көмекші қазір қолжетімсіз. Төмендегі батырмаларды немесе /help пайдаланыңыз.',
+    aiLimit: (n) => `Бүгінгі сұрақ лимиті таусылды (${n}). Ертең қайта болады.`,
+    aiError: 'Көмекшінің жауабы алынбады. Бір минуттан кейін қайталаңыз немесе /today пайдаланыңыз.',
+    aiNote: '🤖 Steppe деректері бойынша ЖИ-көмекшінің жауабы.',
     crop: '🚜 Егістіктегі дабыл көбіне табиғи өрт емес, жоспарлы өртеуді білдіреді.',
     cropHidden: (n) => `🚜 Жасырылған егістік өртеулері: ${n} (баптаулар).`,
     warn: '⚠️ Бүгін кіріс деректердің бір бөлігі толық емес, болжам дәлдігі төмен болуы мүмкін.',
@@ -87,7 +101,7 @@ export const T = {
     pushOn: '🔔 Тарату: қосулы', pushOff: '🔕 Тарату: өшірулі', quietOn: 'Дабылсыз — жазбау', quietOff: 'Дабылсыз — жазу',
     cropOn: '🚜 Өртеулер: көрсету', cropOff: '🚜 Өртеулер: жасыру',
     stopped: 'Жазылым жойылды, сіз туралы деректер өшірілді. Қайту: /start',
-    help: 'Төмендегі батырмалар:\n🔥 Болжам — облыстарыңыз бен нүктеңіз бойынша\n📍 Жанымда — жақын дабылдар\n🇰🇿 Бүкіл Қазақстан — облыстар бойынша шолу\n🗺 Облыстар — жазылым\n⚙️ Баптаулар — тарату, өртеулер, тіл\n\nОблыс атын жазыңыз (мысалы, «Қостанай») — сол бойынша болжамды көрсетемін.\n/about — бұл не · /stop — жазылымнан шығу',
+    help: 'Төмендегі батырмалар:\n💬 Кез келген сұрақ мәтінмен — сервис деректері бойынша ЖИ-көмекші жауап береді\n🔥 Болжам — облыстарыңыз бен нүктеңіз бойынша\n📍 Жанымда — жақын дабылдар\n🇰🇿 Бүкіл Қазақстан — облыстар бойынша шолу\n🗺 Облыстар — жазылым\n⚙️ Баптаулар — тарату, өртеулер, тіл\n\nОблыс атын жазыңыз (мысалы, «Қостанай») — сол бойынша болжамды көрсетемін.\n/about — бұл не · /stop — жазылымнан шығу',
     unknown: 'Түсінбедім. Төмендегі батырманы басыңыз немесе облыс атын жазыңыз. /help — көмек.',
     menu: ['🔥 Болжам', '📍 Жанымда', '🇰🇿 Бүкіл Қазақстан', '🗺 Облыстар', '⚙️ Баптаулар'],
   },
@@ -104,7 +118,14 @@ export const T = {
     noneRegion: (name) => `✅ ${name}: no alerts.`,
     more: (n) => `…and ${n} more. All alerts are on the map.`,
     chance: 'chance',
-    legend: '🔴 high risk (both models) · 🟠 elevated (one model)',
+    legend: '🔴 alert of v7, the most accurate model · 🟠 alert of v6 only',
+    legendAhead: '🟠 alert of tomorrow’s model (v6da)',
+    byModel: (s) => `By model: ${s}`,
+    aiHow: '💬 Type your question as a normal message, e.g. “Where is the risk highest today?”',
+    aiOff: 'The AI assistant is not available now. Use the buttons below or /help.',
+    aiLimit: (n) => `Today’s question limit is used up (${n}). Try again tomorrow.`,
+    aiError: 'The assistant did not answer. Try again in a minute or use /today.',
+    aiNote: '🤖 AI assistant answer from Steppe’s data.',
     crop: '🚜 On cropland an alert usually means a planned burn, not a wildfire.',
     cropHidden: (n) => `🚜 Cropland burns hidden: ${n} (settings).`,
     warn: '⚠️ Some inputs are incomplete today; the forecast may be less accurate.',
@@ -126,7 +147,7 @@ export const T = {
     pushOn: '🔔 Summary: on', pushOff: '🔕 Summary: off', quietOn: 'No alerts — stay silent', quietOff: 'No alerts — tell me',
     cropOn: '🚜 Burns: show', cropOff: '🚜 Burns: hide',
     stopped: 'Unsubscribed; your data is deleted. Come back: /start',
-    help: 'Buttons below:\n🔥 Forecast — your regions and point\n📍 Near me — alerts nearby\n🇰🇿 All Kazakhstan — summary by region\n🗺 Regions — subscription\n⚙️ Settings — summary, burns, language\n\nType a region name (e.g. “Kostanay”) to see its forecast.\n/about — what this is · /stop — unsubscribe',
+    help: 'Buttons below:\n💬 Any question as text — the AI assistant answers from the service’s data\n🔥 Forecast — your regions and point\n📍 Near me — alerts nearby\n🇰🇿 All Kazakhstan — summary by region\n🗺 Regions — subscription\n⚙️ Settings — summary, burns, language\n\nType a region name (e.g. “Kostanay”) to see its forecast.\n/about — what this is · /stop — unsubscribe',
     unknown: 'Not understood. Press a button below or type a region name. /help — hints.',
     menu: ['🔥 Forecast', '📍 Near me', '🇰🇿 All Kazakhstan', '🗺 Regions', '⚙️ Settings'],
   },
@@ -225,7 +246,13 @@ export function distanceKm(lat1, lon1, lat2, lon2) {
 // The evening (day-ahead) bulletin is marked as tomorrow's preliminary forecast.
 const note = (b, lang) => (b.kind === 'dayahead' ? T[lang].ahead : b.refined ? T[lang].refined : '');
 const heading = (b, lang) => T[lang].header(dayText(b.target_day, lang)) + (note(b, lang) ? `\n<i>${note(b, lang)}</i>` : '');
-const withLegend = (text, lang) => (/🔴|🟠/.test(text) ? `${text}\n\n<i>${T[lang].legend}</i>` : text);
+const withLegend = (text, lang, b = null) =>
+  (/🔴|🟠/.test(text) ? `${text}\n\n<i>${b?.kind === 'dayahead' ? T[lang].legendAhead : T[lang].legend}</i>` : text);
+// Alerts per model, as the site counts them per model.
+export const modelCounts = (b, alerts = b.alerts) =>
+  b.kind === 'dayahead'
+    ? `v6da ${alerts.length}`
+    : `v7 ${alerts.filter((a) => a.strong ?? a.v7).length} · v6 ${alerts.filter((a) => a.v6).length}`;
 
 // Alerts the subscriber wants to see: cropland burns only if they keep them.
 
@@ -267,7 +294,7 @@ export function summary(bulletin, sub, { forced = false } = {}) {
   if (sub.crop && [...mine, ...(near ? near.alerts : [])].some((a) => a.land === 'пашня')) lines.push('', t.crop);
   if (!sub.crop && hiddenCrop) lines.push('', t.cropHidden(hiddenCrop));
   if (bulletin.warnings?.length) lines.push('', t.warn);
-  return withLegend(lines.join('\n').replace(/\n{3,}/g, '\n\n').trim(), sub.lang);
+  return withLegend(lines.join('\n').replace(/\n{3,}/g, '\n\n').trim(), sub.lang, bulletin);
 }
 
 export function regionSummary(bulletin, sub, region) {
@@ -282,12 +309,12 @@ export function regionSummary(bulletin, sub, region) {
     if (alerts.length > MAX_ROWS) lines.push(t.more(alerts.length - MAX_ROWS));
     if (alerts.some((a) => a.land === 'пашня')) lines.push('', t.crop);
   }
-  return withLegend(lines.join('\n'), sub.lang);
+  return withLegend(lines.join('\n'), sub.lang, bulletin);
 }
 
 export function nearby(bulletin, lat, lon, lang, sub = defaults(lang)) {
   const s = { ...sub, lang };
-  return withLegend([heading(bulletin, lang), ...nearLines(bulletin, s, lat, lon, s.home ? s.radius : NEAR_KM).lines].join('\n'), lang);
+  return withLegend([heading(bulletin, lang), ...nearLines(bulletin, s, lat, lon, s.home ? s.radius : NEAR_KM).lines].join('\n'), lang, bulletin);
 }
 
 // Counts per region for a day, kept for the trend in the national summary.
@@ -298,7 +325,7 @@ export function national(bulletin, sub, previous = null) {
   const shown = visible(bulletin, sub);
   const counts = {};
   for (const a of shown) counts[a.region] = (counts[a.region] || 0) + 1;
-  const lines = [t.kz(dayText(bulletin.target_day, sub.lang), shown.length), ...(note(bulletin, sub.lang) ? [`<i>${note(bulletin, sub.lang)}</i>`] : []), ''];
+  const lines = [t.kz(dayText(bulletin.target_day, sub.lang), shown.length), t.byModel(modelCounts(bulletin, shown)), ...(note(bulletin, sub.lang) ? [`<i>${note(bulletin, sub.lang)}</i>`] : []), ''];
   const order = Object.keys(counts).map(Number).sort((a, b) => counts[b] - counts[a]);
   for (const r of order) {
     const before = previous ? previous[r] || 0 : null;
@@ -309,7 +336,7 @@ export function national(bulletin, sub, previous = null) {
     for (const a of [...shown].sort((x, y) => (y.p ?? y.p_v7) - (x.p ?? x.p_v7)).slice(0, 5)) lines.push(alertLine(a, bulletin, sub.lang));
   }
   if (!sub.crop && bulletin.alerts.length > shown.length) lines.push('', t.cropHidden(bulletin.alerts.length - shown.length));
-  return withLegend(lines.join('\n'), sub.lang);
+  return withLegend(lines.join('\n'), sub.lang, bulletin);
 }
 
 export function radiusKeyboard(lang) {
@@ -338,7 +365,7 @@ export function applySetting(sub, data) {
 }
 
 export const COMMANDS = {
-  ru: [['today', 'Прогноз на завтра'], ['kz', 'Сводка по Казахстану'], ['regions', 'Выбрать области'], ['settings', 'Рассылка, палы, язык'], ['about', 'Что это и насколько точно'], ['stop', 'Отписаться']],
-  kk: [['today', 'Ертеңгі болжам'], ['kz', 'Қазақстан бойынша шолу'], ['regions', 'Облыстарды таңдау'], ['settings', 'Тарату, өртеулер, тіл'], ['about', 'Бұл не'], ['stop', 'Жазылымнан шығу']],
-  en: [['today', 'Tomorrow’s forecast'], ['kz', 'All Kazakhstan'], ['regions', 'Choose regions'], ['settings', 'Summary, burns, language'], ['about', 'What this is'], ['stop', 'Unsubscribe']],
+  ru: [['today', 'Прогноз на завтра'], ['kz', 'Сводка по Казахстану'], ['ask', 'Спросить ИИ-ассистента'], ['regions', 'Выбрать области'], ['settings', 'Рассылка, палы, язык'], ['about', 'Что это и насколько точно'], ['stop', 'Отписаться']],
+  kk: [['today', 'Ертеңгі болжам'], ['kz', 'Қазақстан бойынша шолу'], ['ask', 'ЖИ-көмекшіге сұрақ'], ['regions', 'Облыстарды таңдау'], ['settings', 'Тарату, өртеулер, тіл'], ['about', 'Бұл не'], ['stop', 'Жазылымнан шығу']],
+  en: [['today', 'Tomorrow’s forecast'], ['kz', 'All Kazakhstan'], ['ask', 'Ask the AI assistant'], ['regions', 'Choose regions'], ['settings', 'Summary, burns, language'], ['about', 'What this is'], ['stop', 'Unsubscribe']],
 };
