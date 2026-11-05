@@ -7,6 +7,7 @@ import {
   regionList, summary, regionSummary, nearby, national, regionCounts, radiusKeyboard, RADII, migrate,
   settingsKeyboard, applySetting, COMMANDS,
 } from './logic.js';
+import { MODEL, DAILY_LIMIT, context as aiContext, messages as aiMessages, answer as aiAnswer } from './assistant.js';
 
 // Free Workers allow 50 subrequests per run: a broadcast run sends at most this many messages
 // and continues from a saved cursor on the next cron tick.
@@ -83,10 +84,12 @@ async function onMessage(env, msg) {
     return send(env, chat, t.homeAsk, { reply_markup: radiusKeyboard(lang) });
   }
   const c = command(msg.text) || (menuAction(msg.text) ? { name: menuAction(msg.text), arg: '' } : null);
-  const b = !c || ['start', 'regions', 'today', 'kz'].includes(c.name) ? await bulletin(env) : null;
+  const b = !c || ['start', 'regions', 'today', 'kz', 'ask'].includes(c.name) ? await bulletin(env) : null;
   if (!c) {
     const region = b ? findRegion(b, msg.text) : -1;
     if (region >= 0) return send(env, chat, regionSummary(b, sub || defaults(lang), region), { reply_markup: mapButton(env, lang) });
+    // Any other text is a question for the assistant.
+    if (msg.text) return ask(env, chat, msg.text, sub, lang, b);
     return send(env, chat, t.unknown, { reply_markup: menuKeyboard(lang) });
   }
   switch (c.name) {
@@ -121,11 +124,37 @@ async function onMessage(env, msg) {
     case 'stats':
       if (String(chat) !== String(env.ADMIN_CHAT_ID || '')) return send(env, chat, t.unknown);
       return send(env, chat, await stats(env));
+    case 'ask':
+      return c.arg ? ask(env, chat, c.arg, sub, lang, b) : send(env, chat, t.aiHow);
     case 'help':
       return send(env, chat, t.help, { reply_markup: menuKeyboard(lang) });
     default:
       return send(env, chat, t.unknown, { reply_markup: menuKeyboard(lang) });
   }
+}
+
+// The AI assistant: Workers AI, grounded in the bulletin and the service's fact sheet only.
+async function ask(env, chat, question, sub, lang, b) {
+  const t = T[lang];
+  if (!env.AI) return send(env, chat, t.aiOff);
+  const quota = `ai:${chat}:${new Date().toISOString().slice(0, 10)}`;
+  const used = Number((await env.SUBS.get(quota)) || 0);
+  if (used >= DAILY_LIMIT) return send(env, chat, t.aiLimit(DAILY_LIMIT));
+  await env.SUBS.put(quota, String(used + 1), { expirationTtl: 172800 });
+  await tg(env, 'sendChatAction', { chat_id: chat, action: 'typing' });
+  const previous = b ? previousCounts(await history(env), b.target_day) : null;
+  let text = '';
+  try {
+    const result = await env.AI.run(MODEL, {
+      messages: aiMessages(question, aiContext(b, sub, previous)), max_tokens: 600, temperature: 0.2,
+    });
+    text = aiAnswer(result);
+  } catch (e) {
+    console.error('assistant failed', e);
+  }
+  if (!text) return send(env, chat, t.aiError);
+  // Plain text: the model's words are never parsed as HTML.
+  return send(env, chat, `${text}\n\n${t.aiNote}`, { parse_mode: undefined });
 }
 
 async function onCallback(env, cb) {
@@ -238,6 +267,16 @@ export default {
     const url = new URL(request.url);
     const secret = await webhookSecret(env);
     if (url.pathname === '/health') return new Response('ok');
+    // The assistant's model answers (a fixed two-word prompt, no user data).
+    if (url.pathname === '/diag/ai') {
+      if (!env.AI) return Response.json({ ai: false });
+      try {
+        const r = await env.AI.run(MODEL, { messages: [{ role: 'user', content: 'Ответь одним словом: работаешь?' }], max_tokens: 8 });
+        return Response.json({ ai: true, model: MODEL, sample: aiAnswer(r) });
+      } catch (e) {
+        return Response.json({ ai: true, model: MODEL, error: String(e.message || e) });
+      }
+    }
     // Public self-check without secrets: can the bot read the forecast, and which one.
     if (url.pathname === '/diag') {
       const r = await readBulletin(env);
@@ -245,7 +284,7 @@ export default {
         bulletin_day: r.bulletin?.target_day ?? null, issued_utc: r.bulletin?.issued_utc ?? null,
         alerts: r.bulletin?.alerts.length ?? null, via: r.via, errors: r.errors,
         broadcast: JSON.parse((await env.SUBS.get('broadcast')) || 'null'),
-        subscribers: (await allSubscribers(env)).length,
+        subscribers: (await allSubscribers(env)).length, ai: Boolean(env.AI),
       });
     }
     // Called by the deploy workflow: registers the webhook and the command menu.

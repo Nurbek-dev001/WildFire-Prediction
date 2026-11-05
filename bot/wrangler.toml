@@ -19,6 +19,10 @@ service = "steppe-wildfire"
 [triggers]
 crons = ["* * * * *"]
 
+# Workers AI in the same account: the assistant's model; no outside service and no key.
+[ai]
+binding = "AI"
+
 [[kv_namespaces]]
 binding = "SUBS"
 id = "KV_NAMESPACE_ID"
