@@ -1,8 +1,8 @@
 // Shared code for report pages: verified data loading, localised number formats, SVG charts.
 // Every number on a report comes from a release file checked against its SHA-256 record.
 
-import { t, locale, bindSwitch, onLang } from '../i18n.js?v=20261105-da';
-import './pages-i18n.js?v=20261105-da';
+import { t, locale, bindSwitch, onLang } from '../i18n.js?v=20261105-m';
+import './pages-i18n.js?v=20261105-m';
 
 export { t };
 export const $ = (id) => document.getElementById(id);
@@ -62,9 +62,15 @@ export async function loadRefs(refs, names) {
   return out;
 }
 
-// The badge names the model the map opens with: v6 when its manifest is published, else v5.
+// The badge names the model the map opens with: v7 from the live log, else v6, else v5.
 export async function header() {
   try {
+    const live = await fetch('../assets/forecast-live.json');
+    const v7 = live.ok ? (await live.json()).models?.v7 : null;
+    if (v7) {
+      $('release').innerHTML = t('release', { model: 'XGBoost v7', hash: esc(v7.release_sha256.slice(0, 8)) });
+      return;
+    }
     const v6 = await fetch('../assets/forecast-manifest-v6.json');
     const m = v6.ok ? await v6.json() : await (await fetch('../assets/forecast-manifest.json')).json();
     $('release').innerHTML = t('release', { model: v6.ok ? 'XGBoost v6' : t('model.stack'), hash: esc(m.release_sha256.slice(0, 8)) });

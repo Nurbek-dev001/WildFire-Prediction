@@ -1,5 +1,5 @@
 // Model v6: its own manifest, maps and records, verified by hash before the map uses them.
-import {t,pctText as pct,num} from './i18n.js?v=20261105-da';
+import {t,pctText as pct,num} from './i18n.js?v=20261105-m';
 const hex=async bytes=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes)),v=>v.toString(16).padStart(2,'0')).join('');
 const METRICS=['precision','recall','f1','average_precision','roc_auc','brier','bss','top_0.1pct','top_1pct'];
 // v7 shares v6's transport and map; isV7 picks its own texts.

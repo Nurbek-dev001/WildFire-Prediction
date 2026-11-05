@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title data-i18n-html="mods.title">Steppe · модели</title>
+<link rel="icon" href="../assets/mark.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../tokens.css?v=20261105-m">
+<link rel="stylesheet" href="./report.css?v=20261105-m">
+</head>
+<body>
+<header class="topbar">
+  <a class="wordmark" href="../" data-i18n-attr="aria-label:brand.aria" aria-label="Steppe, карта">steppe<span>.</span></a>
+  <nav class="nav" data-i18n-attr="aria-label:nav.sections" aria-label="Разделы">
+    <a href="../" data-i18n="nav.map">Карта</a>
+    <a href="./models.html" aria-current="page" data-i18n="nav.models">Модели</a>
+  </nav>
+  <span class="release" id="release"></span>
+  <div class="lang-switch" role="group" data-i18n-attr="aria-label:lang.switch" aria-label="Язык интерфейса"><button data-lang="ru" lang="ru" aria-pressed="true" title="Русский">РУС</button><button data-lang="en" lang="en" aria-pressed="false" title="English">ENG</button><button data-lang="kk" lang="kk" aria-pressed="false" title="Қазақша">ҚАЗ</button></div>
+</header>
+
+<main class="report">
+  <div class="report-head">
+    <div class="crumbs"><span data-i18n-html="mods.1">Модели · что работает сейчас</span><span class="chip" id="status" data-i18n="mods.loading">Загружаем журнал выпусков…</span></div>
+    <h1 data-i18n-html="mods.2">Два выпуска на каждые сутки</h1>
+    <p class="lead" data-i18n-html="mods.3">Каждый день сервис прогнозирует вероятность нового природного пожара в каждой клетке 5×5 км Казахстана на сутки по UTC. Вечером накануне выходит предварительный прогноз (v6da), утром того же дня — уточнённый (v7 и v6). Карта и Telegram-бот по умолчанию показывают v7.</p>
+  </div>
+
+  <div class="banner is-danger" id="error" hidden><svg class="ico" viewBox="0 0 24 24"><path d="M12 3 2 20h20L12 3z"/><path d="M12 10v4M12 17h.01"/></svg><span><strong data-i18n="mods.failed">Журнал выпусков сейчас недоступен</strong><p></p></span></div>
+
+  <section class="section">
+    <h2 data-i18n-html="mods.4">Модели в работе</h2>
+    <div class="table-wrap"><table class="table">
+      <thead><tr><th data-i18n-html="mods.5">Модель</th><th data-i18n-html="mods.6">Роль</th><th data-i18n-html="mods.7">Выпуск (время Астаны)</th><th data-i18n-html="mods.8">Главное отличие</th></tr></thead>
+      <tbody>
+        <tr class="is-current"><td>v7<span class="tag" data-i18n-html="mods.9">по умолчанию</span></td><td data-i18n-html="mods.10">самая точная модель</td><td data-i18n-html="mods.11">утром дня прогноза, ~04:00–10:30</td><td data-i18n-html="mods.12">пожары накануне до 21:00 UTC и прогноз погоды GFS на сам день</td></tr>
+        <tr><td>v6</td><td data-i18n-html="mods.13">модель научной статьи</td><td data-i18n-html="mods.11">утром дня прогноза, ~04:00–10:30</td><td data-i18n-html="mods.14">история пожаров каждой клетки; погода ERA5 за 7 дней до цели</td></tr>
+        <tr><td>v6da</td><td data-i18n-html="mods.15">прогноз на завтра</td><td data-i18n-html="mods.16">накануне вечером, с 17:00</td><td data-i18n-html="mods.17">рецепт v6 с погодой ERA5 на день старше (8 дней), поэтому выходит заранее</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section class="section">
+    <h2 data-i18n-html="mods.18">Качество</h2>
+    <div class="table-wrap"><table class="table">
+      <thead><tr><th data-i18n-html="mods.19">Проверка</th><th data-i18n-html="mods.20">Результат</th></tr></thead>
+      <tbody>
+        <tr><td data-i18n-html="mods.21">v7 против рецепта v6, 2020–2025, без промышленных источников тепла</td><td data-i18n-html="mods.22">AP 0,0213 против 0,0195; при той же точности находит 8,2% очагов против 3,8%</td></tr>
+        <tr><td data-i18n-html="mods.23">v6, независимый тест 1 января – 15 октября 2026</td><td data-i18n-html="mods.24">AP 0,044 (у v5 0,021); полнота 15,3%; 37,8% новых очагов в 1% клеток с наибольшим риском</td></tr>
+        <tr><td data-i18n-html="mods.25">v6da против v6, 2020–2022</td><td data-i18n-html="mods.26">ROC-AUC тот же; доля очагов в верхнем 1% на 1% ниже; AP в среднем на 10% ниже</td></tr>
+      </tbody>
+    </table></div>
+    <p class="muted" data-i18n-html="mods.27">Значения v7 откалиброваны ступенчато (изотоническая регрессия), поэтому у многих клеток одинаковый процент. Значения v6 и v6da читайте как рейтинг риска: на 2026 году они не откалиброваны. Это прогноз вероятности первого спутникового обнаружения, а не официальное предупреждение.</p>
+  </section>
+
+  <section class="section" id="live" hidden>
+    <h2 data-i18n-html="mods.28">Журнал выпусков</h2>
+    <p data-i18n-html="mods.29">Каждый выпуск записывается в журнал с цепочкой хешей в момент выпуска; первая запись на день остаётся окончательной. Проспективная проверка v6 и v7 пройдёт с 1 марта по 31 октября 2027 года.</p>
+    <div class="metrics" id="tiles"></div>
+    <div id="days"></div>
+    <div class="banner is-accent" id="warnings" hidden><svg class="ico" viewBox="0 0 24 24"><path d="M12 3 2 20h20L12 3z"/><path d="M12 10v4M12 17h.01"/></svg><span><strong data-i18n="mods.warnTitle">Предупреждения последнего выпуска</strong><span id="warn-text"></span></span></div>
+  </section>
+
+  <section class="section">
+    <h2 data-i18n-html="mods.30">Если спутник перестаёт передавать данные</h2>
+    <p data-i18n-html="mods.31">Модели читают историю пожаров со спутника Suomi-NPP (VIIRS). 2 ноября 2026 года в 10:21 UTC NASA перестало публиковать его данные, и прогнозы начали повторять последние известные очаги. С 5 ноября, если Suomi-NPP молчит больше 24 часов, пробел заполняют точки спутника NOAA-20: на нём тот же прибор VIIRS с тем же алгоритмом, на той же орбите. Модели и пороги не меняются; такие выпуски помечены в журнале.</p>
+    <p data-i18n-html="mods.32">Проверка на 31 октября и 1 ноября, когда работали оба спутника: тревоги v7 с заменой совпали с обычными на 60–62%, а без данных за последние три дня — только на 14–31%.</p>
+  </section>
+
+  <section class="section">
+    <h2 data-i18n-html="mods.33">Архив</h2>
+    <p data-i18n-html="mods.34">Прежние релизы и проверки сохранены без изменений как запись истории проекта.</p>
+    <div class="links">
+      <a href="./model.html" data-i18n-html="mods.35">Модель v6: тест 2026 и выбор модели</a>
+      <a href="./stack.html" data-i18n-html="mods.36">Модель v5 (предыдущий релиз)</a>
+      <a href="./previous.html" data-i18n-html="mods.37">Исходная модель (первый релиз)</a>
+      <a href="./alerts.html" data-i18n-html="mods.38">Режимы порогов исходной модели</a>
+      <a href="./quality.html" data-i18n-html="mods.39">Аудит исходной модели: 2025 год и перенос между регионами</a>
+    </div>
+  </section>
+</main>
+<script type="module" src="./models.js?v=20261105-m"></script>
+</body>
+</html>

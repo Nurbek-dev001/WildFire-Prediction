@@ -7,19 +7,15 @@
 <link rel="icon" href="../assets/mark.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600&display=swap">
-<link rel="stylesheet" href="../tokens.css?v=20261105-da">
-<link rel="stylesheet" href="./report.css?v=20261105-da">
+<link rel="stylesheet" href="../tokens.css?v=20261105-m">
+<link rel="stylesheet" href="./report.css?v=20261105-m">
 </head>
 <body>
 <header class="topbar">
   <a class="wordmark" href="../" data-i18n-attr="aria-label:brand.aria" aria-label="Steppe, карта">steppe<span>.</span></a>
   <nav class="nav" data-i18n-attr="aria-label:nav.sections" aria-label="Разделы">
     <a href="../" data-i18n="nav.map">Карта</a>
-    <a href="./model.html" data-i18n="nav.model">Модель</a>
-    <a href="./stack.html" aria-current="page" data-i18n="nav.stack">Модель v5</a>
-    <a href="./previous.html" data-i18n="nav.previous">Исходная модель</a>
-    <a href="./alerts.html" data-i18n="nav.alerts">Пороги тревоги</a>
-    <a href="./quality.html" data-i18n="nav.quality">Качество данных</a>
+    <a href="./models.html" data-i18n="nav.models">Модели</a>
   </nav>
   <span class="release" id="release"></span>
   <div class="lang-switch" role="group" data-i18n-attr="aria-label:lang.switch" aria-label="Язык интерфейса"><button data-lang="ru" lang="ru" aria-pressed="true" title="Русский">РУС</button><button data-lang="en" lang="en" aria-pressed="false" title="English">ENG</button><button data-lang="kk" lang="kk" aria-pressed="false" title="Қазақша">ҚАЗ</button></div>
@@ -32,7 +28,7 @@
     <p class="lead" id="lead" data-i18n-html="model.11">XGBoost дополнен шестью признаками прошлой пожарной активности и обученным логистическим вторым уровнем. Всё обучение и выбор — на данных до 2023 года.</p>
   </div>
 
-  <div class="banner"><svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg><span data-i18n-html="stack.prev"><strong>Это предыдущий релиз</strong>Карта по умолчанию работает на модели v6, см. <a href="./model.html">«Модель»</a>. v5 остаётся в переключателе на карте: на 2026 году её значения лучше откалиброваны, но она находит меньше очагов.</span></div>
+  <div class="banner"><svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg><span data-i18n-html="stack.prev"><strong>Архив</strong>v5 — предыдущий релиз, сейчас не выпускается и убрана с карты. Действующие модели (v7, v6, v6da) — на странице <a href="./models.html">«Модели»</a>.</span></div>
 
   <div class="banner is-danger" id="error" hidden><svg class="ico" viewBox="0 0 24 24"><path d="M12 3 2 20h20L12 3z"/><path d="M12 10v4M12 17h.01"/></svg><span><strong data-i18n="rep.failed">Файлы отчёта не прошли проверку</strong><p></p></span></div>
 
@@ -89,6 +85,6 @@
     <p class="muted" data-i18n-html="model.21">Архивная запись — страница в том виде, в каком она опубликована при фиксации релиза; её хеш записан в complete.json и не меняется. Релиз: <code id="release-hash"></code></p>
   </section>
 </main>
-<script type="module" src="./stack.js?v=20261105-da"></script>
+<script type="module" src="./stack.js?v=20261105-m"></script>
 </body>
 </html>
