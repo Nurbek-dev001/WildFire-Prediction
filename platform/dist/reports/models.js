@@ -24,7 +24,7 @@ try {
     const v7 = live.assets.v7?.[d], v6 = live.assets.v6?.[d];
     return [day(d), time(v7?.issued_utc), v7?.on_time ? t('mods.yes') : t('mods.late'), v7 ? num(v7.alert_cells) : '—', v6 ? num(v6.alert_cells) : '—'];
   });
-  $('days').innerHTML = table([t('mods.hDay'), t('mods.hIssued'), t('mods.hOnTime'), t('mods.hV7'), t('mods.hV6')], rows);
+  $('days').innerHTML = table([t('mods.hDay'), t('mods.hIssued'), t('mods.hOnTime'), t('mods.hV7'), t('mods.hV6')], rows) + `<p class="caption">${esc(t('mods.note'))}</p>`;
   if (bulletin?.warnings?.length) {
     $('warn-text').textContent = bulletin.warnings.join(' · ');
     $('warnings').hidden = false;

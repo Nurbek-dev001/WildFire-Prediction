@@ -396,8 +396,9 @@ Object.assign(DICT, {
   'mods.hDay': L('День прогноза', 'Forecast day', 'Болжам күні'),
   'mods.hIssued': L('Выпущен (Астана)', 'Issued (Astana)', 'Шықты (Астана)'),
   'mods.hOnTime': L('В срок', 'On time', 'Уақытында'),
-  'mods.hV7': L('Тревог v7', 'v7 alerts', 'v7 дабылдары'),
-  'mods.hV6': L('Тревог v6', 'v6 alerts', 'v6 дабылдары'),
+  'mods.hV7': L('Выше порога v7*', 'Above v7 threshold*', 'v7 шегінен жоғары*'),
+  'mods.hV6': L('Выше порога v6*', 'Above v6 threshold*', 'v6 шегінен жоғары*'),
+  'mods.note': L('* Все клетки выше порога, включая заводы и газовые факелы. Карта и бот по умолчанию их скрывают, поэтому тревог там меньше.', '* All cells above the threshold, including factories and gas flares. The map and the bot hide them by default, so they show fewer alerts.', '* Шектен жоғары барлық ұяшық, зауыттар мен газ алауларын қоса. Карта мен бот оларды әдепкіде жасырады, сондықтан онда дабыл аз.'),
   'mods.yes': L('да', 'yes', 'иә'),
   'mods.late': L('позже срока', 'late', 'кешікті'),
 });
