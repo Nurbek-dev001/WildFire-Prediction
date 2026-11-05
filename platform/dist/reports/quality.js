@@ -1,5 +1,5 @@
-import { regionName } from '../i18n.js?v=20261105-m';
-import { $, t, pct, num, run, loadVerified, table, dotPanel, barChart, widthOf, panelWidth } from './report.js?v=20261105-m';
+import { regionName } from '../i18n.js?v=20261105-m2';
+import { $, t, pct, num, run, loadVerified, table, dotPanel, barChart, widthOf, panelWidth } from './report.js?v=20261105-m2';
 
 const MONTHS = t('qj.months');
 const MODEL = { xgboost: t('m.original'), xgboost_stack: t('m.stack') };
