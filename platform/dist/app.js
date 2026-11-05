@@ -1,9 +1,9 @@
-import {loadUpgrade} from './upgrade-results.js?v=20261105-m';
-import {t,num,pctText,onLang,bindSwitch,regionName,cityName,coords,longDate,weekday} from './i18n.js?v=20261105-m';
-import {populationNote,readiness,quality} from './quality.js?v=20261105-m';
-import {probability,modelLabel,modelInputs,loadForecast,validateManifest,sources,methodology,evaluation} from './model-results.js?v=20261105-m';
+import {loadUpgrade} from './upgrade-results.js?v=20261105-m2';
+import {t,num,pctText,onLang,bindSwitch,regionName,cityName,coords,longDate,weekday} from './i18n.js?v=20261105-m2';
+import {populationNote,readiness,quality} from './quality.js?v=20261105-m2';
+import {probability,modelLabel,modelInputs,loadForecast,validateManifest,sources,methodology,evaluation} from './model-results.js?v=20261105-m2';
 import {loadOperatingPolicy,activeProfile,profileMetrics} from './operating-policy.js';
-import {isV6,isV7,isDayAhead,loadV6,loadLive} from './model-v6.js?v=20261105-m';
+import {isV6,isV7,isDayAhead,loadV6,loadLive} from './model-v6.js?v=20261105-m2';
 const $ = id => document.getElementById(id);
 const nf = {format:v=>num(v)};
 const df = {format:d=>longDate(d)};
@@ -167,7 +167,7 @@ function detailData(){
 async function openDetail(i){
   if(!detail){
     $('loading').hidden=false;$('loading').lastElementChild.textContent=t('loading.detail');
-    try{detailRequest=detailRequest||import('./detail.js?v=20261105-m').then(({createDetail})=>createDetail({host:$('map-shell'),geo,cells,onSelect:selectCell}));detail=await detailRequest}
+    try{detailRequest=detailRequest||import('./detail.js?v=20261105-m2').then(({createDetail})=>createDetail({host:$('map-shell'),geo,cells,onSelect:selectCell}));detail=await detailRequest}
     catch(error){detailRequest=null;console.error('Detail view unavailable',error);toast(t('toast.noDetail',{e:error.message}));return}
     finally{syncLayer()}
   }
@@ -214,7 +214,7 @@ async function setView(view){
     $('view-3d').disabled=true;
     $('loading').hidden=false;$('loading').lastElementChild.textContent=t('loading.relief');
     try{
-      reliefRequest=reliefRequest||import('./relief3d.js?v=20261105-m').then(({createRelief})=>createRelief({host:$('map-shell'),geo,cells,onPick:i=>{if(i>=0)selectCell(i);else{state.selected=-1;updateCell();syncRelief()}},onLost:reliefLost}));
+      reliefRequest=reliefRequest||import('./relief3d.js?v=20261105-m2').then(({createRelief})=>createRelief({host:$('map-shell'),geo,cells,onPick:i=>{if(i>=0)selectCell(i);else{state.selected=-1;updateCell();syncRelief()}},onLost:reliefLost}));
       relief=await reliefRequest;
       if(satellite)relief.setSatellite(satellite.img,satellite.extent);
       relief.setBasemap(state.basemap==='satellite'&&!!satellite);renderPoints();

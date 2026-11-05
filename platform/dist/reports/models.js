@@ -1,6 +1,6 @@
 // The models page: static description plus the live log of issues from forecast-live.json.
-import { $, t, num, esc, header, table } from './report.js?v=20261105-m';
-import { bindSwitch, onLang, locale } from '../i18n.js?v=20261105-m';
+import { $, t, num, esc, header, table } from './report.js?v=20261105-m2';
+import { bindSwitch, onLang, locale } from '../i18n.js?v=20261105-m2';
 
 bindSwitch();
 onLang(() => location.reload());
