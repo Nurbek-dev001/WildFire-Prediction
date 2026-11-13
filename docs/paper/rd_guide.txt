@@ -1,0 +1,32 @@
+--- page 1 ---
+Results and Discussion 
+1. Present the main results. Describe the most important findings clearly and directly. 
+Example: Pollutant concentrations increased during periods of low temperature and low wind 
+speed. 
+2. Use figures and tables. Support the findings with relevant figures, tables, or numerical values. 
+Figure: Shows trends, patterns, or relationships. 
+Table: Presents exact numerical values. 
+ Example: Figure 3 shows that NO₂ concentrations were generally higher when the temperature 
+was below 0°C. 
+3. Explain the results. Describe what the results mean and why the observed patterns may have 
+occurred.  
+Explain: What does the result mean? Why might this pattern occur? Does it answer the research 
+question? Was the result expected? 
+Example: Low temperatures may increase pollution levels because of greater heating emissions 
+and reduced atmospheric mixing. 
+4. Compare with previous studies. Explain whether the findings agree with or differ from earlier 
+research. 
+ Example: This finding agrees with previous studies reporting that weak winds contribute to 
+pollutant accumulation in urban areas. 
+5. Discuss the importance. State the scientific or practical value of the findings. 
+    Example: The results can help identify weather conditions associated with increased air-pollution 
+and health risks in Almaty. 
+6. Mention the limitations. Identify the main limitations of the data, method, or study design. 
+ Examples: limited observation period, missing measurements, small number of monitoring 
+stations, unmeasured environmental factors, limitations of the selected method 
+7. Summarise the findings. End the section with a short statement that answers the research 
+objective. 
+ Example: The results indicate that low temperature and weak wind conditions contribute to 
+pollutant accumulation. The proposed method successfully identified the main pollution patterns, 
+although further validation using longer observation periods is required. 
+Simple structure: Finding + Evidence + Explanation + Comparison + Importance 
