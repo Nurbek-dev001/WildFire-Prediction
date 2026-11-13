@@ -252,7 +252,7 @@ and [protocol.md](docs/protocol.md) before interpreting any output.
 
 ```bibtex
 @unpublished{zharylkap2026steppe,
-  author = {Zharylkap, Samat and Bolarbek, Nurbek},
+  author = {},
   title  = {An Explainable Multisource Machine Learning Framework for Spatiotemporal
             Wildfire Risk Prediction and Mapping in {Kazakhstan}},
   note   = {Research manuscript, Astana IT University},
@@ -262,8 +262,6 @@ and [protocol.md](docs/protocol.md) before interpreting any output.
 
 ## Authors and license
 
-Samat Zharylkap and Nurbek Bolarbek, School of Data Science and Artificial Intelligence,
-Astana IT University. Parts of the code, analysis and documentation were written with the help of
-an AI assistant (Claude, Anthropic); the authors reviewed them.
+Sa
 
 Released under the [MIT License](LICENSE).
