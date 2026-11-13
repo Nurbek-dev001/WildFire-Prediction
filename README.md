@@ -214,13 +214,6 @@ for the same log. Full runbook: [operations.md](docs/operations.md).
 Only public data are downloaded, and nothing is uploaded. The FIRMS key and Cloudflare tokens live
 in GitHub Actions secrets, never in the repository.
 
-**Data licences.** The MIT licence covers the code only. Data and derived files in
-`platform/dist/assets` keep their sources' terms:
-- NASA (FIRMS, MODIS, Blue Marble) and NOAA (GFS, NDVI) products are public domain.
-- ERA5 is under the Copernicus licence, and Open-Meteo and WorldPop data are under CC BY 4.0;
-  all three require attribution, given here.
-- SRTM v4 is from CGIAR-CSI under its terms of use. Natural Earth is public domain.
-
 ## Development
 
 ```bash

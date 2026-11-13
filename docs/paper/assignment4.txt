@@ -1,0 +1,47 @@
+--- page 1 ---
+Assignment 4 - Results, Discussion, and Conclusion 
+In this assignment, you will complete the next major sections of your research article: the Results and 
+Discussion (can be written separately or merged into one section) and the Conclusion. You will 
+continue working in your Overleaf project from Assignments 1–3, following the same formatting 
+template (IEEE or Springer) and the same group that you worked before. 
+ 
+Instructions 
+1. Use the same LaTeX document from previous assignments. 
+2. Add the following sections: 
+o Results (or Results and Discussion): 
+▪ Present the findings of your research. 
+▪ You may use imaginary (“dumb”) data, simulated results, or adapted data 
+from similar studies (with clear citation). 
+▪ Include tables, graphs, or figures to illustrate trends or comparisons where 
+possible. 
+▪ Briefly describe how results relate to your research questions or 
+hypotheses. 
+o Discussion: 
+▪ Interpret your results in light of previous research. 
+▪ Explain possible reasons for your findings - whether they confirm, contradict, 
+or extend existing knowledge. 
+▪ Mention limitations or unexpected outcomes. 
+▪ Cite relevant work used for comparison. 
+o Conclusion: 
+▪ Summarize your main findings and their implications. 
+▪ Highlight what your study contributes to the field. 
+▪ Suggest possible directions for future research. 
+ 
+Deliverables 
+• A well-structured document in LaTeX including: 
+o Results and Discussion (1200–1500 words) 
+o Conclusion (300–400 words) 
+• Properly formatted figures, tables, and citations using BibTeX. 
+• PDF output uploaded to the submission portal. 
+ 
+
+--- page 2 ---
+Notes 
+• You may fabricate or simulate results, but they should appear reasonable and align with 
+your research topic. 
+• If you borrow data or findings from another study, cite it properly (e.g., “Similar results 
+were reported by Li et al., 2023 [5]”). 
+• Avoid copying text directly from other sources. Paraphrase and cite appropriately. 
+• DON’T plagiarize and DON’T use AI. Each paper will be checked by relevant tools. 
+• Must be submitted by one of the team members 
+ 
