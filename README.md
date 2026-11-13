@@ -1,67 +1,146 @@
-# Wildfire KZ · Steppe Observatory
+<div align="center">
 
-**An Explainable Multisource ML Framework for Spatiotemporal Wildfire Risk Prediction and Mapping in Kazakhstan**
+# Steppe · Wildfire KZ
 
-## Status (1 November 2026)
+**Next-day wildfire forecasts for every 5 km of Kazakhstan, published every day.**
 
-The platform runs: every night it issues the next-day forecast for Kazakhstan with the frozen
-models v6 (default) and v7 (challenger), puts it on the map and writes an alert bulletin.
-Final report (Russian): [docs/final-report.md](docs/final-report.md). Running it:
-[docs/operations.md](docs/operations.md). The prospective test of v6 against v7 runs from
-1 March to 31 October 2027 and is scored after the season.
+[![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-3776AB?logo=python&logoColor=white)](pyproject.toml)
+[![XGBoost](https://img.shields.io/badge/model-XGBoost-EB6E1F)](docs/model-v7-progress.md)
+[![Cloudflare Workers](https://img.shields.io/badge/hosted%20on-Cloudflare%20Workers-F38020?logo=cloudflare&logoColor=white)](docs/cloud-setup.md)
+[![License: MIT](https://img.shields.io/badge/license-MIT-2EA44F)](LICENSE)
 
-A reproducible Python research pipeline for **next-day new vegetation-fire occurrence hazard** on a 5 km equal-area grid. The historical project title retains “risk”; the implemented outcome contains no damage, exposure or vulnerability component.
+[**Live map**](https://steppe-wildfire.wildf-kz.workers.dev) ·
+[Models and issue log](https://steppe-wildfire.wildf-kz.workers.dev/reports/models.html) ·
+[Operations](docs/operations.md) ·
+[Paper results](docs/paper/results/README.md)
 
-```math
-\hat p(i,t)=P(\text{first detection of a new connected event in cell }i\text{ on }t\mid x(i,<t)).
+</div>
+
+## What it is
+
+Steppe estimates, for each of **110,129 cells** (5 × 5 km) in Kazakhstan, the probability that a
+**new vegetation fire is first seen by satellite tomorrow** (one UTC day). It is two things in one
+repository:
+
+- **A research study.** A reproducible pipeline that builds the dataset from open sources, trains
+  four model families against two simple references, and tests them on future years and unseen
+  regions at the real fire rate (about 2 fires per 10,000 cell-days).
+- **A running service.** GitHub Actions issue a forecast every night. The forecast goes to a
+  hash-chained log, a public map in three languages (RU / EN / KK), and a Telegram bot with
+  daily alerts and an AI assistant that answers only from the service's own data.
+
+> [!IMPORTANT]
+> Steppe is a research forecast of where a fire is *more likely*, not an official warning.
+> In an emergency, call **112**.
+
+## Results
+
+**Research study** (frozen release, test years 2023–2024, 80 million cell-days, real fire rate):
+
+| Model | Average precision | × random | ROC-AUC | Fires in daily top 5% of area |
+|---|---:|---:|---:|---:|
+| **XGBoost** | **0.0204** | **104** | **0.924** | **55.6%** |
+| CatBoost | 0.0175 | 89 | 0.908 | 50.2% |
+| Random Forest | 0.0070 | 36 | 0.879 | 49.2% |
+| Logistic regression | 0.0010 | 5 | 0.793 | 25.6% |
+| Seasonal frequency (reference) | 0.0006 | 3 | 0.731 | 14.3% |
+| Weather-only logistic (reference) | 0.0004 | 2 | 0.662 | 8.4% |
+
+- **Combined data help.** Starting from weather only and adding vegetation, land cover, terrain,
+  human pressure and season raises AP from 0.0006 to 0.0234
+  ([`forward_additions.csv`](docs/paper/results/tables/forward_additions.csv)).
+- **Strong in time, weaker in space.** AP is 0.0192 in 2023 and 0.0277 in 2024, but 0.0039 in
+  unseen 100 km regions.
+- **Good ranking, high probabilities.** Warning levels order risk correctly. The top level covers
+  5% of the area and holds 65.8% of new fires, but probabilities run 1.3–1.8× too high because
+  fires became rarer after 2022.
+
+95% intervals come from 1,000 paired space-time block bootstraps (100 km × 30 days). Every table
+and figure is in [`docs/paper/results`](docs/paper/results/README.md).
+
+## Models in service
+
+| Model | Role | Issued (UTC) | Inputs | Fitted / calibrated |
+|---|---|---|---|---|
+| **v7** | default on map and bot | 23:05–05:35 on the target day | v6 inputs + fires to 21:00 the day before + GFS weather for the target day | 2015–2023 / isotonic on 2024–2025, alert threshold 4.5% |
+| v6 | cell-history model | same morning run | 26 predictors, ERA5 7 days old, fire history of each cell | 2015–2021 / sigmoid on 2022 |
+| v6da | tomorrow, issued in advance | from 12:05 the day before, on time before 19:00 | v6 recipe with ERA5 8 days old | 2015–2021 / sigmoid on 2022 |
+
+On 2020–2025 development data, v7 beats the v6 recipe: AP 0.0213 against 0.0195, and recall
+8.2% against 3.8% at equal precision ([details](docs/model-v7-progress.md)). Since November 2026,
+NOAA-20 VIIRS fills any S-NPP outage longer than 24 hours, and each such issue is flagged in the
+log (amendment 2026-11-05-01).
+
+## How it works
+
+```mermaid
+flowchart LR
+  subgraph Sources["Open data"]
+    A[NASA FIRMS / GIBS<br/>VIIRS fire detections]
+    B[ERA5 reanalysis<br/>NOAA GFS forecast]
+    C[NOAA NDVI · MODIS land cover<br/>SRTM · WorldPop]
+  end
+  subgraph Nightly["GitHub Actions (cron)"]
+    D[Features<br/>110,129 cells] --> E[Frozen models<br/>v7 · v6 · v6da]
+    E --> F[Health checks<br/>and warnings]
+  end
+  A & B & C --> D
+  F --> G[(forecast-log branch<br/>hash-chained entries)]
+  F --> H[Map and Models page<br/>Cloudflare Workers]
+  H --> I[Telegram bot<br/>Workers · KV · Workers AI]
 ```
 
-The local report combines an interactive daily cell atlas, measured model comparisons, reliability diagrams, TreeSHAP figures and an auditable experiment record. The public-data experiment has completed real final evaluation on 2023–2024. Synthetic output remains a separate software demonstration.
+- **No future leaks.** Every predictor is taken only from data that existed before the target day.
+  Satellite fires are linked into events (2 km, 48 h), and only the first day of each event is
+  counted as a new fire.
+- **Auditable releases.** Models, calibrators and the scoring code are pinned by SHA-256 in
+  `release.json` files, and each run refuses to start if anything differs. Log entries are
+  hash-chained, and the first entry for a day is final.
+- **Prospective test.** The frozen v6 and v7 are scored on 1 March – 31 October 2027 against fires
+  that had not happened when the forecasts were written.
 
-The trained-model revision adds a chronological logistic stack and six causal
-fire-history features. On the previously reported 2023–2024 benchmark, recall
-rises from 5.1643% to 7.3421% and AP from 0.02045 to 0.02392, while precision
-falls from 9.7609% to 7.3608%. All training/selection is pre-2023. See the exact
-process and limitations in [model-upgrade-v3.md](docs/model-upgrade-v3.md).
+## Repository layout
 
-## Start locally
+```text
+src/wildfire_kz/      research pipeline: grid, events, features, sampling, splits, models,
+                      calibration, evaluation, SHAP, maps, forecast log
+scripts/              model development (v5–v7), daily and day-ahead forecasts, asset builds,
+                      paper figures and tables
+platform/dist/        static website: map, Models page, archive reports (served as-is)
+bot/                  Telegram bot on Cloudflare Workers (Node, no build step)
+configs/              pipeline configurations (primary, synthetic)
+docs/                 methods, protocol, operations, model notes, paper and poster
+tests/                pytest suite      .github/workflows/  CI, nightly, day-ahead, bot
+runs/                 frozen releases and experiment outputs (large files stay local)
+```
 
-Python 3.11 or newer is required. These commands work in PowerShell, bash and CI after activating the virtual environment:
+## Quick start
 
-```sh
+Requires Python 3.11 or newer. The synthetic demo runs offline and exercises the whole pipeline.
+
+```bash
 python -m venv .venv
-# PowerShell: .venv\Scripts\Activate.ps1
-# bash: source .venv/bin/activate
+source .venv/bin/activate            # PowerShell: .venv\Scripts\Activate.ps1
 python -m pip install -e ".[dev]"
 python -m wildfire_kz synthetic
 python -m wildfire_kz run-all -c configs/synthetic.yaml
-python -m pytest -q
 ```
 
-If the virtual environment was created without pip, `uv pip install --python .venv/Scripts/python.exe -e ".[dev]"` is an alternative on Windows. An internet connection is needed to install dependencies, but neither the synthetic pipeline nor tests access the network.
+Open `runs/synthetic/report/index.html`. The demo uses reduced budgets; do not use its numbers
+for inference.
 
-Open `runs/synthetic/report/index.html` in a browser. It is self-contained and works offline. GeoTIFFs are in `runs/synthetic/map/`; CSVs and paired intervals are in `runs/synthetic/evaluate/`. Treat joblib files as executable local artifacts: load only artifacts you trust.
+Preview the website locally:
 
-The demonstration covers the same calendar years, model families, nested temporal validation and buffered spatial folds as the primary protocol. Its configuration explicitly reduces tuning trials, tree counts and bootstrap repetitions to exercise the full workflow quickly. `configs/primary.yaml` retains the requested research budgets. Do not use demonstration uncertainty estimates for scientific inference.
+```bash
+python -m http.server 8770 --bind 127.0.0.1 --directory platform/dist
+```
 
-The separate public-data hindcast trained six model families, selected XGBoost
-on rolling 2019–2021 validation, calibrated on 2022, and froze the release before
-opening 2023–2024 for final evaluation. See the
-[actual acquisition status](docs/real_data_status.md). The primary pipeline's original source contracts
-remain separate; its preflight still requires its own compatible input tables.
-The synthetic report above remains a demonstration.
+<details>
+<summary><b>Reproduce the public-data study</b></summary>
 
-## Public-data hindcast runner
+Install the extra readers with `python -m pip install -e ".[dev,public]"`, then run:
 
-The authorised [public alternative](docs/public-hindcast-method.md) uses actual
-ERA5, NOAA VIIRS NDVI, MCD12Q1, SRTM, WorldPop and dated settlement data. It has
-its own compact feature tables and output directory, `runs/public_hindcast`.
-The strict primary configuration above retains its original source contracts.
-Install the additional readers with `python -m pip install -e ".[dev,public]"`.
-
-After registering the boundary and development/calibration VIIRS partitions:
-
-```sh
+```bash
 python scripts/acquire_public_predictors.py weather --start-year 2014 --end-year 2022 --workers 1 --attempts 6
 python scripts/acquire_public_predictors.py vegetation --start-year 2014 --end-year 2022 --workers 2 --attempts 6
 python scripts/acquire_public_predictors.py landcover --start-year 2014 --end-year 2021 --workers 2 --attempts 6
@@ -70,135 +149,121 @@ python scripts/acquire_public_predictors.py human
 python scripts/run_public_hindcast.py prepare
 python scripts/audit_public_development.py
 python scripts/run_public_hindcast.py compare --trials 5
-python scripts/run_public_hindcast.py freeze
-python scripts/run_public_hindcast.py acquire-final
+python scripts/run_public_hindcast.py freeze        # seals models, calibration, thresholds
+python scripts/run_public_hindcast.py acquire-final # first step that touches 2023-2024
 python scripts/run_public_hindcast.py evaluate
 python scripts/run_public_hindcast.py explain
 python scripts/run_public_hindcast.py report
 python scripts/run_public_hindcast.py export
 ```
 
-`scripts/complete_public_hindcast.py` runs the prepared sequence and can wait for
-an existing comparison with `--wait-training-pid PID`. Use one coordinator per
-experiment. SQLite retains tuning attempts; a released experiment refuses new
-tuning. Calibration, thresholds, model artifacts and the evaluation implementation
-are sealed before final-year materialisation.
+Paper analyses: `scripts/paper_ablation.py` (remove one input group),
+`scripts/paper_forward_additions.py` (add groups in turn), `scripts/article_figures.py`.
+Method: [public-hindcast-method.md](docs/public-hindcast-method.md). Data status:
+[real_data_status.md](docs/real_data_status.md).
 
-On 22 October the user reduced the search budget to five attempts. The existing
-random-forest trial history is retained rather than discarded. The pre-test
-amendment checks unchanged scientific inputs and fitting code; it is recorded
-in `runs/public_hindcast/budget_amendment.json` with the original protocol archived
-alongside it. Different search effort is disclosed in the final report.
+</details>
 
-If the provider's autumn-2023 soil containers are absent, retain the frozen release
-and recover the same ERA5 observations through its official free API:
+<details>
+<summary><b>Run the strict research protocol stage by stage</b></summary>
 
-```sh
-python scripts/openmeteo_soil_api.py
+Prepare inputs per [data_contracts.md](docs/data_contracts.md), register them in
+`configs/primary.yaml`, then run the stages in order (or `make all`):
+
+```bash
+for stage in ingest grid events risk-set sampling features splits train calibrate ablate \
+             evaluate explain map report; do
+  python -m wildfire_kz "$stage" -c configs/primary.yaml
+done
 ```
 
-In another terminal, `python scripts/acquire_2023_weather_recovery.py` prefetches
-the other native fields and waits for verified soil observations. Use one API
-downloader; it persists the quota budget and resumes saved responses. After both
-commands succeed, resume `python scripts/complete_public_hindcast.py`. No
-retraining is involved. See the documented [source recovery](docs/source-quality-verification.md#final-year-supplier-gap-and-original-provider-recovery).
+`evaluate` is the first stage allowed to read test years. Stage caches key on configuration,
+source checksums, code and upstream outputs; `--force` rebuilds a stage.
 
-Final evaluation checks 2023–2024 after that release. It records design-weighted
-metrics, year/month/region/cover strata, 1,000 paired cluster resamples and
-calibration uncertainty. Explanations use the estimator's correct uncalibrated
-output unit: boosted-tree/linear log-odds, RF probability. RF/XGBoost use
-TreeSHAP; CatBoost uses explicitly approximate permutation SHAP with a
-training-only background because native Lossguide SHAP failed a pre-test
-[compatibility check](docs/explanation-compatibility.md). These are predictive
-associations. The map export verifies all 731 dates, exact browser/GeoTIFF
-probability agreement, frozen class bands and full-grid alert burden.
+</details>
 
-The final report is `runs/public_hindcast/report/index.html`; daily two-band
-GeoTIFFs are in `runs/public_hindcast/maps`. The website consumes verified
-float32 probability assets and the actual evaluation JSON. [Source-quality
-evidence](docs/source-quality-verification.md) documents native QA metadata,
-storage compaction and final-only year-boundary completion. This practical run
-does not claim the primary study's full nested spatial/sensitivity/ablation suite.
+<details>
+<summary><b>Run the daily forecast</b></summary>
 
-The real final sample contains 345,954 rows and 15,704 positive cell-days,
-representing 80,081,865 eligible cell-days through design weights. XGBoost's
-weighted AP is **0.0204455** (95% cluster interval 0.0166236–0.0311414),
-ROC-AUC **0.9236848**, and Brier **0.000196064**. At its unchanged 2022 threshold
-0.0472837, precision is 0.0976085 and recall 0.0516429. The positive prevalence
-is 0.000196099. These are retrospective results, not operational validation;
-the fixed threshold misses most events. XGBoost's paired AP difference from
-CatBoost has an interval spanning zero. Exact six-model metrics and intervals
-remain in `runs/public_hindcast/evaluate/` and the generated report.
+In production the forecast runs on GitHub Actions; setup takes about 15 minutes on free tiers
+([cloud-setup.md](docs/cloud-setup.md)).
 
-## Run the research protocol
+| Workflow | Trigger | Does |
+|---|---|---|
+| `forecast.yml` | cron 23:05–05:35 UTC | issues v7 and v6, updates log, site and bot bulletin |
+| `dayahead.yml` | cron 12:05–23:05 UTC | issues v6da for the next day |
+| `bot.yml` | push to `bot/**` | tests and deploys the Telegram bot |
+| `ci.yml` | push / pull request | lint, types, tests on Python 3.11 and 3.12, bot tests |
 
-Prepare observations using [the source contracts](docs/data_contracts.md), register source paths, versions, acquisition dates and optional expected checksums in `configs/primary.yaml`, then execute:
+To run locally instead: `python scripts/forecast_daily.py`. Never run both, or two issuers race
+for the same log. Full runbook: [operations.md](docs/operations.md).
 
-```sh
-python -m wildfire_kz ingest -c configs/primary.yaml
-python -m wildfire_kz grid -c configs/primary.yaml
-python -m wildfire_kz events -c configs/primary.yaml
-python -m wildfire_kz risk-set -c configs/primary.yaml
-python -m wildfire_kz sampling -c configs/primary.yaml
-python -m wildfire_kz features -c configs/primary.yaml
-python -m wildfire_kz splits -c configs/primary.yaml
-python -m wildfire_kz train -c configs/primary.yaml
-python -m wildfire_kz calibrate -c configs/primary.yaml
-python -m wildfire_kz ablate -c configs/primary.yaml
-# This is the first command allowed to materialize test observations:
-python -m wildfire_kz evaluate -c configs/primary.yaml
-python -m wildfire_kz explain -c configs/primary.yaml
-python -m wildfire_kz map -c configs/primary.yaml
-python -m wildfire_kz report -c configs/primary.yaml
+</details>
+
+## Data sources
+
+| Data | Source | Resolution |
+|---|---|---|
+| Fire detections (target) | NASA FIRMS, VIIRS S-NPP (NOAA-20 for outages) | 375 m, daily |
+| Weather | ERA5 reanalysis (via Open-Meteo), NOAA GFS forecast | 0.25°, daily |
+| Vegetation | NOAA CDR NDVI | 0.05°, weekly |
+| Land cover | MODIS MCD12Q1 | 500 m, yearly |
+| Terrain | SRTM (CGIAR-CSI v4) | 90 m |
+| People | WorldPop 2010, Natural Earth settlements | 1 km |
+
+Only public data are downloaded, and nothing is uploaded. The FIRMS key and Cloudflare tokens live
+in GitHub Actions secrets, never in the repository.
+
+## Development
+
+```bash
+make check                 # ruff check, ruff format --check, mypy, pytest
+cd bot && npm test         # bot unit tests (node --test)
 ```
 
-`run-all` is explicit authorization to execute the final holdout stage as part of a complete experiment. `--force` rebuilds a stage. Stage caches include configuration, source checksums, code content, upstream fingerprints and verified output hashes. Failed stages preserve the previous successful directory and leave diagnostics in the log. For an experiment with changed inputs or code, run `run-all` to rebuild the dependency chain.
+Files listed under `extend-exclude` in `pyproject.toml` are pinned by hash in frozen releases.
+Do not reformat or edit them; change behaviour through a new release instead.
 
-Downloads are separate and optional: `python -m wildfire_kz download --help`. No credentials are embedded and no unavailable source is replaced with artificial data. NASA/ECMWF authentication, source-specific retrieval, reprojection and normalized source preparation are explicit prerequisites; this project does not pretend to include a downloaded national archive.
+## Limitations
 
-## Research design
+- The target is the first satellite detection, not the true ignition time. Farm burning is
+  included with wildfires.
+- Week-old reanalysis weather misses short dry spells; v7 addresses this with GFS forecasts.
+- Transfer to regions not seen in training is weak, and forest fires are too rare at 5 km to
+  evaluate on their own.
+- Probabilities rank cells well but are not exact chances. Use the warning levels as an order of
+  risk.
 
-* Suomi-NPP VIIRS standard-processed labels, categorical nominal/high confidence, connected events with one earliest positive, and development-only industrial exclusions.
-* A past-only 48-hour risk-set exclusion. Later detections affect event grouping and eligibility history only.
-* As-of joins record an availability timestamp for every nonmissing feature. Full MODIS intervals plus publication lag, preceding-year land cover, and dated human factors are enforced.
-* Three rolling-origin development validations; separate five-fold spatial validation with full-block polygon buffers. Nested tuning occurs inside each outer training partition, with additional block-size sensitivity runs.
-* Logistic regression, Random Forest, XGBoost and CatBoost share feature/split definitions. Weather-only logistic and smoothed seasonal cover × month frequencies are baselines. Weighted AP selects hyperparameters; calibration and operating thresholds use only the reserved year.
-* Grouped ablations, paired space-time bootstrap intervals, prevalence, AP, ROC-AUC, threshold metrics, Brier/BSS, ECE, reliability counts/intervals, area-based alert burden and year/month/region/cover strata.
-* TreeSHAP explains raw boosted-tree margins; its additive reconstruction is tested at runtime. Associations are explicitly noncausal. Direct cell rasterization preserves probabilities, nodata and calibration-frozen classes.
+Read [methodology_mapping.md](docs/methodology_mapping.md), [deviations.md](docs/deviations.md)
+and [protocol.md](docs/protocol.md) before interpreting any output.
 
-The CRS is Lambert azimuthal equal-area, centered at 48°N, 67°E, WGS84, metres. Lattice origin is (0,0); IDs encode resolution, row and column. Boundary cells are clipped and carry their actual area. A regional 1 km run is configured with its own boundary and `grid.resolution_m: 1000`; run it in a distinct output directory and regenerate cell-level inputs for that grid.
+## Documentation
 
-## Engineering and validation
+| Topic | Document |
+|---|---|
+| Final report (RU) | [final-report.md](docs/final-report.md) |
+| Experiment protocol and checks | [protocol.md](docs/protocol.md) · [validation.md](docs/validation.md) |
+| Models | [model-v6.md](docs/model-v6.md) · [model-v6da.md](docs/model-v6da.md) · [model-v7-progress.md](docs/model-v7-progress.md) |
+| Data quality | [source-quality-verification.md](docs/source-quality-verification.md) |
+| Cloud setup and operations | [cloud-setup.md](docs/cloud-setup.md) · [operations.md](docs/operations.md) |
+| Website | [platform/README.md](platform/README.md) |
 
-```sh
-ruff check .
-ruff format --check .
-mypy src/wildfire_kz
-pytest -q
+## Citation
+
+```bibtex
+@unpublished{zharylkap2026steppe,
+  author = {Zharylkap, Samat and Bolarbek, Nurbek},
+  title  = {An Explainable Multisource Machine Learning Framework for Spatiotemporal
+            Wildfire Risk Prediction and Mapping in {Kazakhstan}},
+  note   = {Research manuscript, Astana IT University},
+  year   = {2026}
+}
 ```
 
-`Makefile` exposes the same commands. CI checks both supported minimum and development Python versions. Notebooks are for exploration only; the pipeline has no notebook dependency.
+## Authors and license
 
-Raster input uses lazy xarray/Dask or windowed rasterio reads. Feature extraction runs by month and small cell batches; tables use year/month-partitioned Parquet. Fold-local two-pass reservoirs retain all positives and bounded negative samples, with exact inclusion probabilities. Representative evaluation data remain unbalanced; if they exceed a configured budget, probability sampling records weights. Boosting uses development-only early stopping and fixed selected iteration counts for the final refit. Class weighting is an explicit sensitivity configuration and retains the full training partition, so national-size feasibility depends on its row count; use a regional sensitivity run where needed. Hardware feasibility of the entire national archive must be measured on that archive.
+Samat Zharylkap and Nurbek Bolarbek, School of Data Science and Artificial Intelligence,
+Astana IT University. Parts of the code, analysis and documentation were written with the help of
+an AI assistant (Claude, Anthropic); the authors reviewed them.
 
-Read [methodology mapping](docs/methodology_mapping.md), [assumptions and deviations](docs/deviations.md), and [the experiment protocol](docs/protocol.md) before interpreting any output. [Validation](docs/validation.md) records executed checks and their scope.
-
-## Interactive Kazakhstan map platform
-
-The [Steppe platform](platform/README.md) adds an interactive actual national
-map, daily demonstration scenarios, cell details, region search, CSV export,
-and genuine 2015–2022 VIIRS observation layers. Run:
-
-```powershell
-.venv\Scripts\python.exe -m http.server 8770 --bind 127.0.0.1 --directory platform\dist
-```
-
-Open http://127.0.0.1:8770/. The default layer now loads the frozen, evaluated
-XGBoost probabilities for 2024-07-15. All 731 dates in 2023–2024 passed the
-independent browser/GeoTIFF check; three dates correctly contain only nodata.
-The date control, cell cards, calibration threshold, CSV and results dialog use
-actual model outputs. The explicitly labelled demonstration remains an optional
-separate mode. The original strict-pipeline raster adapter remains available as
-`scripts/export_platform_forecast.py`.
-
-![Published real-model map](docs/steppe-real-platform.png)
+Released under the [MIT License](LICENSE).
