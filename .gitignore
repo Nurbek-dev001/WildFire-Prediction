@@ -16,3 +16,10 @@ __pycache__/
 .coverage
 htmlcov/
 docs/paper/*.zip
+
+# Course materials and work submitted for grading stay local (not published):
+# assignment texts, manuscript, presentation, poster. Only the results pack is public.
+docs/paper/*
+!docs/paper/results/
+docs/platform-publication.json
+.claude/
